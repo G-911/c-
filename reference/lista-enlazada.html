@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Lista enlazada</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+<marker id="fla" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--acento)"/></marker>
+<marker id="flx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--suave)"/></marker>
+</defs>
+</svg>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Lista enlazada</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones 3.2 y 5.</p>
+
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 558 106" width="558" height="106" role="img" aria-label="Lista: 3 → 7 → 9 → nullptr" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="263.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="263.0" y1="78.0" x2="352" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/></svg></div>
+
+<h2 id="leccion-4">Lección 3.2 · Lo básico</h2>
+
+<h3>El nodo y la clase</h3>
+<pre><code>struct Nodo {
+    int dato;
+    Nodo* siguiente;
+    Nodo(int d) : dato(d), siguiente(nullptr) {}
+};
+
+class ListaEnlazada {
+private:
+    Nodo* cabeza;                                <span class="c">// primer nodo; nullptr = vacía</span>
+public:
+    ListaEnlazada() : cabeza(nullptr) {}
+    bool vacia() { return cabeza == nullptr; }
+};</code></pre>
+
+<h3>Los patrones</h3>
+<table>
+<tr><th>Para</th><th>Código</th></tr>
+<tr><td>insertar al inicio</td><td><code>Nodo* nuevo = new Nodo(v);</code><br><code>nuevo-&gt;siguiente = cabeza;</code><br><code>cabeza = nuevo;</code></td></tr>
+<tr><td>recorrer (imprimir, contar)</td><td><code>Nodo* actual = cabeza;</code><br><code>while (actual != nullptr) {</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;/* usar actual-&gt;dato */</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;actual = actual-&gt;siguiente;</code><br><code>}</code></td></tr>
+<tr><td>destructor</td><td><code>Nodo* actual = cabeza;</code><br><code>while (actual != nullptr) {</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;Nodo* sig = actual-&gt;siguiente;</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;delete actual;</code><br><code>&nbsp;&nbsp;&nbsp;&nbsp;actual = sig;</code><br><code>}</code></td></tr>
+</table>
+
+<h3>Errores típicos</h3>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>cabeza = nuevo;</code> antes de <code>nuevo-&gt;siguiente = cabeza;</code></td><td>se pierde el resto de la lista (fuga) y el nodo se apunta a sí mismo</td><td>primero engancha lo nuevo, después mueve la cabeza</td></tr>
+<tr><td>recorrer con <code>cabeza = cabeza-&gt;siguiente</code></td><td>la lista queda «vacía» y los nodos perdidos</td><td>recorrer con una copia: <code>Nodo* actual = cabeza;</code></td></tr>
+<tr><td><code>delete actual;</code> y luego <code>actual = actual-&gt;siguiente;</code></td><td>lee un nodo liberado (apuntador colgante)</td><td>guardar <code>sig</code> antes del <code>delete</code></td></tr>
+<tr><td>olvidar el destructor</td><td>cada nodo queda sin liberar: fuga de memoria</td><td>un <code>delete</code> por cada <code>new</code></td></tr>
+<tr><td><code>while (actual-&gt;siguiente != nullptr)</code> para contar</td><td>no cuenta el último; con lista vacía se cae</td><td>para recorrer todo: <code>while (actual != nullptr)</code></td></tr>
+</table>
+
+<h2 id="leccion-5">Lección 3.3 · Insertar al final, buscar y eliminar</h2>
+
+<h3>insertarAlFinal</h3>
+<pre><code>void insertarAlFinal(int valor) {
+    Nodo* nuevo = new Nodo(valor);
+    if (cabeza == nullptr) { cabeza = nuevo; return; }   <span class="c">// vacía</span>
+    Nodo* actual = cabeza;
+    while (actual-&gt;siguiente != nullptr)                 <span class="c">// parar EN el último</span>
+        actual = actual-&gt;siguiente;
+    actual-&gt;siguiente = nuevo;
+}</code></pre>
+
+<h3>buscar</h3>
+<p>Es el mismo recorrido de siempre, escrito con <code>for</code> en vez de <code>while</code>.</p>
+<pre><code>bool buscar(int valor) {
+    for (Nodo* actual = cabeza; actual != nullptr; actual = actual-&gt;siguiente)
+        if (actual-&gt;dato == valor) return true;
+    return false;
+}</code></pre>
+
+<h3>eliminar: los cinco casos</h3>
+<pre><code>bool eliminar(int valor) {
+    if (cabeza == nullptr) return false;                 <span class="c">// 1. vacía</span>
+    if (cabeza-&gt;dato == valor) {                         <span class="c">// 2. la cabeza</span>
+        Nodo* aBorrar = cabeza;
+        cabeza = cabeza-&gt;siguiente;
+        delete aBorrar;
+        return true;
+    }
+    Nodo* anterior = cabeza;
+    Nodo* actual = cabeza-&gt;siguiente;
+    while (actual != nullptr) {
+        if (actual-&gt;dato == valor) {                     <span class="c">// 3. en medio  4. el último</span>
+            anterior-&gt;siguiente = actual-&gt;siguiente;     <span class="c">// primero reenganchar</span>
+            delete actual;                               <span class="c">// después borrar</span>
+            return true;
+        }
+        anterior = actual;
+        actual = actual-&gt;siguiente;
+    }
+    return false;                                        <span class="c">// 5. no estaba</span>
+}</code></pre>
+
+<p>Reenganchar en medio: la flecha del anterior se salta el nodo que se va.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="-37 0 595 178" width="595" height="178" role="img" aria-label="La flecha del 3 se salta el 7 y apunta al 9" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#flx)"/><text x="137.5" y="84.0" text-anchor="middle" font-size="18" font-weight="700" style="fill:var(--mal)">✗</text><circle cx="93.0" cy="78.0" r="3.5" style="fill:var(--acento)"/><path d="M93.0,78.0 C123.0,163.0 292,163.0 352,84.0" fill="none" style="stroke:var(--acento)" stroke-width="2.4" marker-end="url(#fla)"/><text x="222.5" y="162.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--acento)">anterior-&gt;siguiente = actual-&gt;siguiente</text><circle cx="263.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="263.0" y1="78.0" x2="352" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza, anterior</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="213.0" y="20" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">actual</text><line x1="213.0" y1="26" x2="213.0" y2="55" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+
+<table>
+<tr><th>Caso</th><th>Qué cambia</th></tr>
+<tr><td>lista vacía</td><td>nada; <code>false</code></td></tr>
+<tr><td>borrar la cabeza</td><td><code>cabeza</code> pasa al segundo nodo (o a <code>nullptr</code> si era el único)</td></tr>
+<tr><td>borrar en medio</td><td><code>anterior-&gt;siguiente</code> se salta el nodo</td></tr>
+<tr><td>borrar el último</td><td><code>anterior-&gt;siguiente</code> pasa a <code>nullptr</code> (mismo código que en medio)</td></tr>
+<tr><td>valor inexistente</td><td>nada; <code>false</code></td></tr>
+</table>
+
+<h3>Errores típicos</h3>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>delete actual;</code> antes de <code>anterior-&gt;siguiente = actual-&gt;siguiente;</code></td><td>lee memoria liberada y se pierde el resto de la lista</td><td>primero reenganchar, después borrar</td></tr>
+<tr><td>no separar el caso de la cabeza</td><td><code>anterior</code> vale <code>nullptr</code> y <code>anterior-&gt;siguiente</code> se cae</td><td>comprobar la cabeza antes del bucle</td></tr>
+<tr><td><code>delete cabeza;</code> y luego <code>cabeza = cabeza-&gt;siguiente;</code></td><td>lee un nodo liberado</td><td>guardar en <code>aBorrar</code>, mover la cabeza, borrar</td></tr>
+<tr><td>en <code>insertarAlFinal</code>, <code>while (actual != nullptr)</code></td><td>termina en <code>nullptr</code> y <code>actual-&gt;siguiente</code> se cae</td><td><code>while (actual-&gt;siguiente != nullptr)</code></td></tr>
+<tr><td>sacar el nodo de la cadena sin <code>delete</code></td><td>fuga de memoria</td><td>cada nodo eliminado lleva su <code>delete</code></td></tr>
+</table>
+
+<p class="cita">Fuentes: <a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/linked-lists1">Stanford CS106B — Linked Lists 1</a> · <a href="https://www.learncpp.com/cpp-tutorial/dynamic-memory-allocation-with-new-and-delete/">LearnCpp — new y delete</a> · <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-destructors/">LearnCpp — Destructors</a></p>
+<p class="cita">Lecciones: <a href="../nivel-3-estructuras-de-datos/02-lista-enlazada-1.html">4 · Lista enlazada I</a> · <a href="../nivel-3-estructuras-de-datos/03-lista-enlazada-2.html">5 · Lista enlazada II</a></p>
+
+</main>
+</body>
+</html>

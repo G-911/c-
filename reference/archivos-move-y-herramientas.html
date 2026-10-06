@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Archivos, movimiento y herramientas</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Archivos, movimiento y herramientas</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones 4.6, 4.7 y 4.8.</p>
+
+<h2>Archivos (<code>#include &lt;fstream&gt;</code>)</h2>
+<table>
+<tr><th>Quiero...</th><th>Escribo</th></tr>
+<tr><td>escribir (crea o vacía)</td><td><code>ofstream f(ruta);</code></td></tr>
+<tr><td>añadir al final</td><td><code>ofstream f(ruta, ios::app);</code></td></tr>
+<tr><td>leer</td><td><code>ifstream f(ruta);</code></td></tr>
+<tr><td>¿se abrió?</td><td><code>if (!f) { <span class="c">/* error */</span> }</code></td></tr>
+<tr><td>escribir datos</td><td><code>f &lt;&lt; x &lt;&lt; "\n";</code></td></tr>
+<tr><td>leer palabra a palabra / números</td><td><code>while (f &gt;&gt; n) { ... }</code></td></tr>
+<tr><td>leer línea a línea (con espacios)</td><td><code>while (getline(f, linea)) { ... }</code></td></tr>
+<tr><td>partir <code>"a;b"</code></td><td><code>pos = linea.find(';'); linea.substr(0, pos); linea.substr(pos + 1);</code></td></tr>
+<tr><td>cerrar</td><td>nada: el destructor lo cierra al salir del bloque (RAII)</td></tr>
+</table>
+
+<h2>Proyecto de varios archivos</h2>
+<pre><code><span class="c">// agenda.h — declaraciones</span>
+#ifndef AGENDA_H          <span class="c">// o, en su lugar: #pragma once</span>
+#define AGENDA_H
+#include &lt;string&gt;
+bool guardar(const std::string&amp; ruta);   <span class="c">// sin cuerpo, sin using namespace</span>
+#endif
+
+<span class="c">// agenda.cpp — definiciones</span>
+#include "agenda.h"
+bool guardar(const std::string&amp; ruta) { ... }</code></pre>
+
+<pre><code>g++ -std=c++17 -Wall main.cpp agenda.cpp -o prog     <span class="c"># todos los .cpp, ningún .h</span>
+g++ -std=c++17 -Wall -c agenda.cpp                    <span class="c"># solo compilar → agenda.o</span>
+g++ main.o agenda.o -o prog                           <span class="c"># solo enlazar</span></code></pre>
+
+<h3><code>Makefile</code> mínimo (las líneas de comando empiezan con TABULADOR)</h3>
+<pre><code>CXX = g++
+CXXFLAGS = -std=c++17 -Wall
+
+prog: main.o agenda.o
+	$(CXX) $(CXXFLAGS) main.o agenda.o -o prog
+
+main.o: main.cpp agenda.h
+	$(CXX) $(CXXFLAGS) -c main.cpp
+
+agenda.o: agenda.cpp agenda.h
+	$(CXX) $(CXXFLAGS) -c agenda.cpp
+
+clean:
+	rm -f *.o prog</code></pre>
+<p>Uso: <code>make</code>, <code>make clean</code>.</p>
+
+<h3><code>CMakeLists.txt</code> mínimo</h3>
+<pre><code>cmake_minimum_required(VERSION 3.16)
+project(Agenda CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_executable(prog main.cpp agenda.cpp)</code></pre>
+<p>Uso: <code>cmake -S . -B build &amp;&amp; cmake --build build &amp;&amp; ./build/prog</code></p>
+
+<h2>Semántica de movimiento (<code>#include &lt;utility&gt;</code>)</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>T&amp;&amp;</code></td><td>referencia a rvalue: solo se engancha a temporales</td></tr>
+<tr><td><code>std::move(x)</code></td><td>«ya no uso <code>x</code>»: lo convierte en rvalue. No mueve nada por sí solo</td></tr>
+<tr><td><code>v.push_back(std::move(p));</code></td><td>mete <code>p</code> sin copiarla; <code>p</code> queda vacía/no especificada</td></tr>
+<tr><td><code>return r;</code></td><td>barato: elisión o movimiento automático</td></tr>
+</table>
+
+<h3>Las cinco funciones especiales (para <code>Pila</code> con nodos)</h3>
+<pre><code>~Pila();                                   <span class="c">// 1 destructor</span>
+Pila(const Pila&amp; otra);                    <span class="c">// 2 constructor de copia   (copia profunda)</span>
+Pila&amp; operator=(const Pila&amp; otra);         <span class="c">// 3 asignación de copia</span>
+Pila(Pila&amp;&amp; otra) noexcept;                <span class="c">// 4 constructor de movimiento</span>
+Pila&amp; operator=(Pila&amp;&amp; otra) noexcept;     <span class="c">// 5 asignación por movimiento</span>
+
+<span class="c">// patrón del 4: robar y dejar al otro vacío</span>
+Pila(Pila&amp;&amp; otra) noexcept : tope(otra.tope), n(otra.n) {
+    otra.tope = nullptr;
+    otra.n = 0;
+}</code></pre>
+<p><strong>Regla de cinco:</strong> si escribes una, piensa en las cinco (escribir el destructor
+o la copia apaga el movimiento automático). <strong>Regla de cero:</strong> si tus datos van en
+<code>vector</code>/<code>string</code>/<code>unique_ptr</code>, no escribas ninguna.</p>
+
+<h2>Herramientas</h2>
+<table>
+<tr><th>Para</th><th>Comando</th></tr>
+<tr><td>depurar</td><td><code>g++ -g prog.cpp -o prog</code> y <code>gdb ./prog</code>: <code>break f</code>, <code>run</code>, <code>next</code>, <code>step</code>, <code>print x</code>, <code>bt</code>, <code>quit</code></td></tr>
+<tr><td>errores de memoria y UB</td><td><code>g++ -std=c++17 -g -fsanitize=address,undefined prog.cpp -o prog</code></td></tr>
+<tr><td>otro estándar</td><td><code>-std=c++20</code>, <code>-std=c++23</code></td></tr>
+<tr><td>bibliotecas externas</td><td>vcpkg o Conan</td></tr>
+<tr><td>probar en el navegador</td><td>Compiler Explorer (godbolt.org)</td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>no comprobar <code>if (!f)</code></td><td>la apertura falla en silencio y no se escribe/lee nada</td><td>comprobar siempre tras abrir</td></tr>
+<tr><td><code>while (!f.eof())</code></td><td>una vuelta de más con datos viejos</td><td><code>while (getline(f, linea))</code></td></tr>
+<tr><td><code>&gt;&gt;</code> con un texto con espacios</td><td>solo lee la primera palabra</td><td><code>getline</code></td></tr>
+<tr><td><em>undefined reference to ...</em></td><td>error del enlazador: falta un <code>.cpp</code> o la firma no coincide</td><td>pasar todos los <code>.cpp</code> a <code>g++</code></td></tr>
+<tr><td><em>redefinition of ...</em></td><td><code>.h</code> incluido dos veces sin guardia</td><td><code>#ifndef/#define/#endif</code> o <code>#pragma once</code></td></tr>
+<tr><td><em>multiple definition of ...</em></td><td>cuerpo de función normal en un <code>.h</code></td><td>el cuerpo va en el <code>.cpp</code></td></tr>
+<tr><td><em>missing separator</em> (make)</td><td>espacios en vez de tabulador</td><td>tabulador al inicio del comando</td></tr>
+<tr><td>mover sin <code>otra.tope = nullptr</code></td><td>doble <code>delete</code></td><td>dejar al otro vacío</td></tr>
+<tr><td>usar un objeto tras <code>std::move</code></td><td>valor no especificado</td><td>solo asignarle o dejar que muera</td></tr>
+<tr><td><code>return std::move(r);</code></td><td>impide la elisión (<code>-Wpessimizing-move</code>)</td><td><code>return r;</code></td></tr>
+<tr><td>movimiento sin <code>noexcept</code></td><td><code>vector</code> copia en vez de mover al crecer</td><td>marcarlo <code>noexcept</code></td></tr>
+<tr><td><code>thread</code> sin <code>join()</code></td><td><code>std::terminate()</code>: el programa se aborta</td><td><code>t.join()</code> antes de que muera</td></tr>
+</table>
+
+<p class="cita">Fuentes:
+<a href="https://www.learncpp.com/cpp-tutorial/basic-file-io/">LearnCpp — Basic file I/O</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/header-guards/">Header guards</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/move-constructors-and-move-assignment/">Move constructors and move assignment</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/stdmove_if_noexcept/">std::move_if_noexcept</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/rule_of_three">cppreference — Rule of three/five/zero</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/copy_elision">Copy elision</a> ·
+<a href="https://cmake.org/cmake/help/latest/guide/tutorial/index.html">CMake Tutorial</a> ·
+<a href="https://sourceware.org/gdb/">GDB</a> ·
+<a href="https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html">GCC — Instrumentation Options</a></p>
+
+</main>
+</body>
+</html>

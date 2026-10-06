@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Listas dobles, circulares y copia</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Listas dobles, circulares y copia</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones
+<a href="../nivel-3-estructuras-de-datos/04-lista-doble-y-circular.html">3.4</a> y
+<a href="../nivel-3-estructuras-de-datos/05-copiar-estructuras.html">3.5</a>.</p>
+
+<h2>Lista doble</h2>
+<pre><code>struct Nodo {
+    int dato;
+    Nodo* anterior;
+    Nodo* siguiente;
+    Nodo(int d) : dato(d), anterior(nullptr), siguiente(nullptr) {}
+};
+
+class ListaDoble {
+private:
+    Nodo* cabeza;   <span class="c">// primero</span>
+    Nodo* ultimo;   <span class="c">// último</span>
+public:
+    ListaDoble() : cabeza(nullptr), ultimo(nullptr) {}
+
+    void insertarAlFinal(int valor) {
+        Nodo* nuevo = new Nodo(valor);
+        if (ultimo == nullptr) { cabeza = nuevo; ultimo = nuevo; return; }
+        nuevo-&gt;anterior = ultimo;
+        ultimo-&gt;siguiente = nuevo;
+        ultimo = nuevo;
+    }
+
+    bool eliminar(int valor) {
+        Nodo* actual = cabeza;
+        while (actual != nullptr &amp;&amp; actual-&gt;dato != valor) actual = actual-&gt;siguiente;
+        if (actual == nullptr) return false;
+        if (actual-&gt;anterior) actual-&gt;anterior-&gt;siguiente = actual-&gt;siguiente;
+        else                  cabeza = actual-&gt;siguiente;
+        if (actual-&gt;siguiente) actual-&gt;siguiente-&gt;anterior = actual-&gt;anterior;
+        else                   ultimo = actual-&gt;anterior;
+        delete actual;
+        return true;
+    }
+    <span class="c">// al revés: for (Nodo* a = ultimo; a != nullptr; a = a-&gt;anterior)</span>
+};</code></pre>
+<p><strong>Regla de oro:</strong> si <code>A-&gt;siguiente == B</code>, entonces
+<code>B-&gt;anterior == A</code>. Cada flecha que cambias tiene una pareja.</p>
+
+<h2>Lista circular</h2>
+<table>
+<tr><th>Situación</th><th>Cómo es</th></tr>
+<tr><td>vacía</td><td><code>cabeza == nullptr</code></td></tr>
+<tr><td>un nodo</td><td><code>cabeza-&gt;siguiente == cabeza</code> (se apunta a sí mismo)</td></tr>
+<tr><td>el último</td><td>el nodo con <code>siguiente == cabeza</code></td></tr>
+<tr><td>recorrer</td><td><code>if (cabeza) { Nodo* a = cabeza; do { ...; a = a-&gt;siguiente; } while (a != cabeza); }</code></td></tr>
+<tr><td>destructor</td><td>romper el círculo (<code>ultimo-&gt;siguiente = nullptr</code>) y liberar como siempre</td></tr>
+</table>
+
+<h2>¿Cuál uso?</h2>
+<table>
+<tr><th>Lista</th><th>Úsala cuando</th></tr>
+<tr><td>simple</td><td>solo recorres hacia adelante (pila, cola)</td></tr>
+<tr><td>doble</td><td>necesitas ir hacia atrás o borrar un nodo que ya tienes localizado</td></tr>
+<tr><td>circular</td><td>tras el último viene el primero: turnos que rotan, reproducir en bucle</td></tr>
+</table>
+
+<h2>Regla de tres: plantilla para <code>ListaEnlazada</code></h2>
+<pre><code>void vaciar() {                                     <span class="c">// lo comparten destructor y operator=</span>
+    Nodo* actual = cabeza;
+    while (actual != nullptr) {
+        Nodo* sig = actual-&gt;siguiente;
+        delete actual;
+        actual = sig;
+    }
+    cabeza = nullptr;
+}
+
+~ListaEnlazada() { vaciar(); }                      <span class="c">// 1. destructor</span>
+
+ListaEnlazada(const ListaEnlazada&amp; otra) : cabeza(nullptr) {   <span class="c">// 2. constructor de copia</span>
+    for (Nodo* a = otra.cabeza; a != nullptr; a = a-&gt;siguiente)
+        insertarAlFinal(a-&gt;dato);
+}
+
+ListaEnlazada&amp; operator=(const ListaEnlazada&amp; otra) {          <span class="c">// 3. asignación</span>
+    if (this == &amp;otra) return *this;                <span class="c">// autoasignación</span>
+    vaciar();                                       <span class="c">// fuera lo viejo</span>
+    for (Nodo* a = otra.cabeza; a != nullptr; a = a-&gt;siguiente)
+        insertarAlFinal(a-&gt;dato);
+    return *this;
+}
+
+<span class="c">// Alternativa si no debe copiarse:</span>
+<span class="c">// ListaEnlazada(const ListaEnlazada&amp;) = delete;</span>
+<span class="c">// ListaEnlazada&amp; operator=(const ListaEnlazada&amp;) = delete;</span></code></pre>
+
+<table>
+<tr><th>Escribes</th><th>Se ejecuta</th></tr>
+<tr><td><code>ListaEnlazada b = a;</code> · <code>ListaEnlazada b(a);</code></td><td>constructor de copia</td></tr>
+<tr><td><code>void f(ListaEnlazada x)</code> al llamar <code>f(a)</code></td><td>constructor de copia (paso por valor)</td></tr>
+<tr><td><code>b = a;</code> con <code>b</code> ya existente</td><td><code>operator=</code></td></tr>
+<tr><td>fin del bloque / <code>delete</code></td><td>destructor</td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>en la doble, reenganchar solo <code>siguiente</code></td><td>recorrer al revés lee un nodo liberado</td><td>dos <code>if</code>: uno por cada vecino; mover <code>cabeza</code>/<code>ultimo</code> si no hay vecino</td></tr>
+<tr><td>circular con <code>while (a != nullptr)</code></td><td>bucle infinito</td><td><code>do-while</code> hasta <code>a == cabeza</code></td></tr>
+<tr><td>no escribir copia en una clase con <code>new</code></td><td>copia superficial → <em>double free</em> al destruir</td><td>regla de tres (o <code>= delete</code>)</td></tr>
+<tr><td><code>ListaEnlazada(ListaEnlazada otra)</code></td><td>no compila: «invalid constructor»</td><td>parámetro <code>const ListaEnlazada&amp;</code></td></tr>
+<tr><td><code>operator=</code> sin <code>this == &amp;otra</code></td><td><code>a = a</code> vacía la lista o lee nodos liberados</td><td>comprobar la autoasignación primero</td></tr>
+<tr><td><code>operator=</code> sin <code>vaciar()</code></td><td>fuga: los nodos viejos quedan perdidos</td><td>liberar antes de copiar</td></tr>
+</table>
+
+<h2>Diagnóstico</h2>
+<pre><code>g++ -std=c++17 -g -fsanitize=address prog.cpp -o prog &amp;&amp; ./prog</code></pre>
+<p><em>heap-use-after-free</em> = usaste un nodo ya liberado · <em>double-free</em> = lo
+liberaste dos veces · <em>detected memory leaks</em> = te faltó un <code>delete</code>.
+Cada informe trae la línea donde pasó, dónde se liberó y dónde se creó.</p>
+
+<p class="cita">Fuentes: <a href="https://www.learncpp.com/cpp-tutorial/shallow-vs-deep-copying/">LearnCpp — Shallow vs. deep copying</a> · <a href="https://www.learncpp.com/cpp-tutorial/overloading-the-assignment-operator/">Overloading the assignment operator</a> · <a href="https://en.cppreference.com/w/cpp/language/rule_of_three">cppreference — The rule of three/five/zero</a> · <a href="https://opendsa-server.cs.vt.edu/ODSA/Books/CS3/html/ListDouble.html">OpenDSA — Doubly Linked Lists</a></p>
+
+</main>
+</body>
+</html>

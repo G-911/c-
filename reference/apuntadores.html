@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Apuntadores</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Apuntadores</h1>
+<p class="subtitulo">Hoja de consulta rápida. Se amplía con cada lección.</p>
+
+<h2>Sintaxis</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>&amp;x</code></td><td>dirección de <code>x</code></td></tr>
+<tr><td><code>int* p;</code></td><td>declara <code>p</code>, apuntador a <code>int</code></td></tr>
+<tr><td><code>int* p = &amp;x;</code></td><td><code>p</code> apunta a <code>x</code></td></tr>
+<tr><td><code>*p</code></td><td>el valor donde apunta <code>p</code> (desreferenciar); se puede leer y escribir</td></tr>
+<tr><td><code>int* p = nullptr;</code></td><td><code>p</code> no apunta a nada</td></tr>
+<tr><td><code>if (p != nullptr)</code></td><td>comprobar antes de usar <code>*p</code></td></tr>
+</table>
+
+<h2>El patrón de la función que modifica</h2>
+<pre><code>void doblar(int* n) { *n = *n * 2; }   <span class="c">// recibe una dirección, escribe con *</span>
+
+int a = 4;
+doblar(&amp;a);                            <span class="c">// pasa la dirección con &amp;   → a vale 8</span></code></pre>
+<p>Sin <code>*</code> en el parámetro (<code>int n</code>) la función recibe una copia y tu variable no cambia.</p>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>*p</code> con <code>p == nullptr</code></td><td>comportamiento indefinido; normalmente se cae</td><td>preguntar <code>if (p != nullptr)</code></td></tr>
+<tr><td>apuntador sin inicializar: <code>int* p;</code></td><td>apunta a basura</td><td>siempre <code>= nullptr</code> o <code>= &amp;algo</code></td></tr>
+<tr><td>confundir <code>p = 9</code> con <code>*p = 9</code></td><td>el primero cambia la dirección (no compila con int); el segundo, el valor</td><td>leer <code>*p</code> como «lo apuntado por p»</td></tr>
+<tr><td>olvidar <code>&amp;</code> al llamar: <code>doblar(a)</code></td><td>no compila: se espera una dirección</td><td>si el parámetro es <code>int*</code>, pasa <code>&amp;a</code></td></tr>
+</table>
+
+<h2>Las dos caras de <code>*</code></h2>
+<p>En una <strong>declaración</strong> (<code>int* p</code>): «p es un apuntador».<br>
+En una <strong>expresión</strong> (<code>*p = 9</code>): «ve al valor apuntado».</p>
+
+<p class="cita">Fuente: <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-pointers/">LearnCpp — Introduction to pointers</a> · <a href="https://www.learncpp.com/cpp-tutorial/null-pointers/">Null pointers</a></p>
+
+</main>
+</body>
+</html>

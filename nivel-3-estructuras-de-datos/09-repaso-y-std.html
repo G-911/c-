@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 3.9 · Repaso y contenedores de C++</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 3 · Estructuras de datos › Lección 9 de 9</div>
+<h1>Repaso mezclado y las versiones de fábrica</h1>
+<p class="subtitulo"><code>std::stack</code>, <code>std::queue</code> y <code>std::list</code>: lo que ya hiciste a mano, listo para usar. ~35 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> traducir tu <code>Pila</code>, tu <code>Cola</code> y tu <code>ListaEnlazada</code> a las versiones de C++, elegir cuál usar en cada problema, y programar deshacer/rehacer con dos pilas.</p>
+</div>
+
+<p><strong>Por qué esta lección.</strong> En la universidad te piden escribir la
+lista, la pila y la cola <em>a mano</em>, con nodos y apuntadores. En la vida
+real casi nadie lo hace: C++ ya trae las tres hechas y probadas. Saber las dos
+cosas te sirve dos veces: aprobar el examen y entender qué hay dentro de lo que
+usarás después. Además, esta lección mezcla preguntas de todo el curso, que es
+justo como llega el examen.</p>
+
+<h2>1. Lo que hiciste a mano ya existe en C++</h2>
+
+<p>La <strong>biblioteca estándar</strong> de C++ (lo que viene con
+<code>#include</code>) trae contenedores ya hechos. Tres de ellos son tus
+viejos conocidos:</p>
+
+<pre><code>#include &lt;stack&gt;   <span class="c">// std::stack  → tu Pila</span>
+#include &lt;queue&gt;   <span class="c">// std::queue  → tu Cola</span>
+#include &lt;list&gt;    <span class="c">// std::list   → tu ListaEnlazada</span></code></pre>
+
+<p>Entre <code>&lt; &gt;</code> va el tipo de dato que guardan:
+<code>stack&lt;int&gt;</code> es una pila de enteros, <code>stack&lt;string&gt;</code>
+una pila de textos. No tienes que saber más de eso por ahora: es la forma de
+decirle «guarda esto».</p>
+
+<p>No hay <code>new</code>, ni <code>delete</code>, ni destructor que escribir.
+Cada contenedor libera su memoria solo cuando se destruye.</p>
+
+<h2>2. <code>std::stack</code>: tu Pila</h2>
+
+<p>Mismos nombres que usaste en la lección 3.6, salvo <code>vacia</code>, que en
+inglés es <code>empty</code>
+(<a href="https://en.cppreference.com/w/cpp/container/stack">cppreference, std::stack</a>).</p>
+
+<pre><code>stack&lt;int&gt; s;
+s.push(1);
+s.push(2);
+s.push(3);               <span class="c">// arriba está el 3</span>
+cout &lt;&lt; s.top();         <span class="c">// 3   — mira el de arriba sin quitarlo</span>
+s.pop();                 <span class="c">// quita el 3</span>
+cout &lt;&lt; s.top();         <span class="c">// 2</span>
+cout &lt;&lt; s.size();        <span class="c">// 2</span>
+cout &lt;&lt; s.empty();       <span class="c">// 0   (false: no está vacía)</span></code></pre>
+
+<div class="ojo">
+<p><strong>Dos trampas de <code>std::stack</code>.</strong></p>
+<p>1. <code>pop()</code> <em>no devuelve nada</em> (devuelve <code>void</code>).
+<code>int x = s.pop();</code> no compila. Primero lees con <code>top()</code>,
+luego quitas con <code>pop()</code>.</p>
+<p>2. Tu <code>Pila</code> hacía «nada» con <code>pop</code> en vacía. La de C++
+<strong>no te protege</strong>: <code>top()</code> o <code>pop()</code> con la pila
+vacía es comportamiento indefinido (el programa puede caerse o seguir con basura).
+Pregunta siempre <code>empty()</code> antes.</p>
+</div>
+
+<p>El patrón que vas a escribir mil veces:</p>
+<pre><code>if (!s.empty()) {
+    int x = s.top();   <span class="c">// 1) leer</span>
+    s.pop();           <span class="c">// 2) quitar</span>
+}</code></pre>
+
+<h2>3. <code>std::queue</code>: tu Cola</h2>
+
+<p>Aquí los nombres sí cambian. Encolar es <code>push</code> (entra por el final),
+desencolar es <code>pop</code> (sale por el frente) y <code>verFrente</code> es
+<code>front</code>. Además trae <code>back()</code>, que mira el último
+(<a href="https://en.cppreference.com/w/cpp/container/queue">cppreference, std::queue</a>).</p>
+
+<pre><code>queue&lt;string&gt; q;
+q.push("Ana");           <span class="c">// encolar</span>
+q.push("Beto");
+q.push("Caro");
+cout &lt;&lt; q.front();       <span class="c">// Ana   — el primero que llegó</span>
+cout &lt;&lt; q.back();        <span class="c">// Caro  — el último que llegó</span>
+q.pop();                 <span class="c">// desencolar: se va Ana (pop tampoco devuelve nada)</span>
+cout &lt;&lt; q.front();       <span class="c">// Beto</span></code></pre>
+
+<p>Lo delicado de tu <code>Cola</code> (que <code>final</code> vuelva a
+<code>nullptr</code> al sacar el último) ya lo resuelve <code>std::queue</code> por
+dentro. Pero la regla de la sección anterior sigue igual: <code>front()</code> o
+<code>pop()</code> con la cola vacía es un error tuyo, no de C++.</p>
+
+<h2>4. <code>std::list</code>: tu ListaEnlazada (con doble flecha)</h2>
+
+<p><code>std::list</code> es una lista enlazada <strong>doble</strong>: cada nodo
+apunta al siguiente <em>y</em> al anterior. Por eso puede meter y sacar por los dos
+extremos igual de rápido
+(<a href="https://en.cppreference.com/w/cpp/container/list">cppreference, std::list</a>).</p>
+
+<div class="memoria">
+  <div class="caja"><div class="nombre">nodo</div>dato: 5<div class="dir">← anterior · siguiente →</div></div>
+  <div class="caja"><div class="nombre">nodo</div>dato: 8<div class="dir">← anterior · siguiente →</div></div>
+  <div class="caja"><div class="nombre">nodo</div>dato: 2<div class="dir">← anterior · siguiente →</div></div>
+</div>
+
+<pre><code>list&lt;int&gt; l;
+l.push_back(5);          <span class="c">// insertarAlFinal</span>
+l.push_back(8);
+l.push_front(2);         <span class="c">// insertarAlInicio  → 2 5 8</span>
+l.remove(5);             <span class="c">// eliminar(5)       → 2 8</span>
+for (int x : l) {        <span class="c">// imprimir: recorre de la cabeza al final</span>
+    cout &lt;&lt; x &lt;&lt; " ";
+}
+cout &lt;&lt; l.size();        <span class="c">// 2</span></code></pre>
+
+<p>Tres diferencias con la tuya:</p>
+<ul>
+<li><code>remove(v)</code> borra <strong>todos</strong> los nodos que valen
+<code>v</code>, no solo el primero.</li>
+<li>No hay <code>buscar</code> como método. Se usa <code>find</code> de
+<code>&lt;algorithm&gt;</code>:
+<code>if (find(l.begin(), l.end(), 8) != l.end())</code> significa «el 8 está».</li>
+<li>No hay <code>l[2]</code>. Igual que en tu lista, para llegar al tercero hay
+que caminar nodo a nodo.</li>
+</ul>
+
+<h2>5. La tabla de equivalencias</h2>
+
+<table>
+<tr><th>Tu versión (a mano)</th><th>Versión de C++</th><th>Ojo</th></tr>
+<tr><td><code>Pila p;</code></td><td><code>stack&lt;int&gt; s;</code></td><td><code>#include &lt;stack&gt;</code></td></tr>
+<tr><td><code>p.push(x)</code></td><td><code>s.push(x)</code></td><td>igual</td></tr>
+<tr><td><code>p.pop()</code></td><td><code>s.pop()</code></td><td>devuelve <code>void</code>; en vacía, indefinido</td></tr>
+<tr><td><code>p.top()</code></td><td><code>s.top()</code></td><td>en vacía, indefinido</td></tr>
+<tr><td><code>p.vacia()</code> · <code>p.tamano()</code></td><td><code>s.empty()</code> · <code>s.size()</code></td><td></td></tr>
+<tr><td><code>Cola c;</code></td><td><code>queue&lt;int&gt; q;</code></td><td><code>#include &lt;queue&gt;</code></td></tr>
+<tr><td><code>c.encolar(x)</code></td><td><code>q.push(x)</code></td><td>entra por el final</td></tr>
+<tr><td><code>c.desencolar()</code></td><td><code>q.pop()</code></td><td>sale por el frente; devuelve <code>void</code></td></tr>
+<tr><td><code>c.verFrente()</code></td><td><code>q.front()</code></td><td>también existe <code>q.back()</code></td></tr>
+<tr><td><code>c.vacia()</code> · <code>c.tamano()</code></td><td><code>q.empty()</code> · <code>q.size()</code></td><td></td></tr>
+<tr><td><code>ListaEnlazada l;</code></td><td><code>list&lt;int&gt; l;</code></td><td><code>#include &lt;list&gt;</code>; enlace doble</td></tr>
+<tr><td><code>insertarAlInicio(x)</code></td><td><code>push_front(x)</code></td><td></td></tr>
+<tr><td><code>insertarAlFinal(x)</code></td><td><code>push_back(x)</code></td><td>sin recorrer: guarda el último</td></tr>
+<tr><td><code>eliminar(x)</code></td><td><code>remove(x)</code></td><td>borra <em>todos</em> los iguales</td></tr>
+<tr><td><code>buscar(x)</code></td><td><code>find(l.begin(), l.end(), x)</code></td><td><code>#include &lt;algorithm&gt;</code></td></tr>
+<tr><td><code>imprimir()</code></td><td><code>for (int x : l) cout &lt;&lt; x;</code></td><td></td></tr>
+<tr><td>el destructor que libera nodos</td><td>no lo escribes</td><td>se libera solo</td></tr>
+</table>
+
+<h2>6. ¿Cuándo usar cada una?</h2>
+
+<p>Elige por <strong>el orden en que salen las cosas</strong>:</p>
+<table>
+<tr><th>Si necesitas…</th><th>Usa</th><th>Ejemplos</th></tr>
+<tr><td>sacar primero lo último que entró (LIFO)</td><td>pila</td><td>deshacer, paréntesis balanceados, volver atrás en el navegador</td></tr>
+<tr><td>atender en orden de llegada (FIFO)</td><td>cola</td><td>turnos del banco, cola de impresión, mensajes</td></tr>
+<tr><td>meter y sacar en cualquier punto</td><td>lista</td><td>agenda, lista de tareas que se reordena</td></tr>
+</table>
+
+<p><strong>En la vida real:</strong> usa las de C++. Ya están probadas, no tienen
+fugas de memoria y cualquiera que lea tu código las reconoce.</p>
+
+<p><strong>En el examen:</strong> escribe la tuya, salvo que el enunciado diga lo
+contrario. Lo que evalúan no es la pila: es si sabes manejar <code>new</code>,
+<code>delete</code>, apuntadores y casos borde (vacía, un elemento, borrar la
+cabeza, el <code>final</code> de la cola). Con <code>std::stack</code> todo eso
+queda escondido, y es justo lo que quieren ver. Si dudas, pregúntale al profesor
+antes del examen si puedes usar la biblioteca estándar.</p>
+
+<h2>7. Dos pilas = deshacer y rehacer</h2>
+
+<p>Así funciona Ctrl+Z en un editor. Antes de cada cambio, se guarda el texto
+como estaba en la pila <strong>deshacer</strong>. Al deshacer, el texto actual
+pasa a la pila <strong>rehacer</strong> y se recupera el de arriba de deshacer.</p>
+
+<p>Escribes «hola», luego «mundo», y deshaces una vez:</p>
+
+<div class="memoria">
+  <div class="caja"><div class="nombre">texto</div>"hola"</div>
+  <div class="caja"><div class="nombre">pilaDeshacer</div>tope → ""<div class="dir">(lo que había antes de «hola»)</div></div>
+  <div class="caja"><div class="nombre">pilaRehacer</div>tope → "hola mundo"<div class="dir">(lo que acabas de deshacer)</div></div>
+</div>
+
+<p>Si ahora escribes algo nuevo, «hola mundo» ya no tiene sentido rehacerlo:
+<strong>escribir vacía la pila de rehacer</strong>. Es lo que pasa en cualquier
+editor real. Eso es el miniproyecto.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Con <code>std::stack</code>, <code>std::queue</code> y <code>std::list</code> no cambia
+<em>dónde</em> están los datos, sino <em>quién</em> los libera. Como tu <code>Pila</code>, un
+<code>stack&lt;int&gt; s;</code> declarado en una función vive en su marco, en la memoria automática
+(la <em>pila de llamadas</em> o <em>stack</em>; nada que ver con <code>std::stack</code>), con un tamaño
+fijo: <code>sizeof(s)</code> no cambia aunque metas un millón de datos. Los datos van al montón
+(<em>heap</em>). Al morir <code>s</code>, su destructor libera ese montón solo: es la idea
+<strong>RAII</strong>, el objeto es dueño de su memoria y la suelta al morir.</p>
+<p><code>std::list</code> es casi tu lista doble: un nodo por dato, con flecha atrás y adelante.
+<code>std::stack</code> y <code>std::queue</code> usan por dentro, por defecto, un
+<code>std::deque</code>, que guarda los datos en bloques de varios elementos, no un nodo por dato.
+Y los tres copian bien: <code>pilaRehacer = pilaDeshacer;</code> haría una copia profunda sin que
+escribas la regla de tres.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#raii">mapa de la memoria</a>.</p>
+</div>
+
+<h2>8. Antes del examen: lista de comprobación</h2>
+
+<p>Esto debes poder <strong>escribir de memoria, en papel, sin compilar</strong>.
+Marca mentalmente cada punto. El que no te salga, repite su lección.</p>
+
+<table>
+<tr><th>Debes escribir sin mirar</th><th>Repasa en</th></tr>
+<tr><td>Una función <code>void doblar(int* n)</code> y su llamada con <code>&amp;a</code></td><td><a href="../nivel-2-memoria-y-poo/02-apuntadores.html">Lección 2.2</a></td></tr>
+<tr><td><code>new</code>/<code>delete</code> y <code>new[]</code>/<code>delete[]</code>, y poner <code>nullptr</code> tras <code>delete</code></td><td><a href="../nivel-2-memoria-y-poo/03-memoria-dinamica.html">Lección 2.3</a></td></tr>
+<tr><td>Una clase con <code>private</code>, <code>public</code>, constructor con lista de inicialización y destructor; usar <code>-&gt;</code></td><td><a href="../nivel-2-memoria-y-poo/04-clases.html">Lección 2.4</a></td></tr>
+<tr><td><code>struct Nodo { int dato; Nodo* siguiente; };</code> y su constructor</td><td><a href="../nivel-3-estructuras-de-datos/02-lista-enlazada-1.html">Lección 3.2</a></td></tr>
+<tr><td><code>insertarAlInicio</code>, recorrer con <code>while (actual != nullptr)</code>, <code>tamano</code>, y el destructor que libera todos los nodos</td><td><a href="../nivel-3-estructuras-de-datos/02-lista-enlazada-1.html">Lección 3.2</a></td></tr>
+<tr><td><code>insertarAlFinal</code> y <code>eliminar(valor)</code> con sus cinco casos: vacía, cabeza, en medio, último, no existe</td><td><a href="../nivel-3-estructuras-de-datos/03-lista-enlazada-2.html">Lección 3.3</a></td></tr>
+<tr><td><code>Pila</code> completa: <code>push</code>, <code>pop</code>, <code>top</code>, <code>vacia</code>, <code>tamano</code>, destructor</td><td><a href="../nivel-3-estructuras-de-datos/06-pila.html">Lección 3.6</a></td></tr>
+<tr><td><code>Cola</code> completa con <code>frente</code> y <code>final</code>; al desencolar el último, <code>final = nullptr</code></td><td><a href="../nivel-3-estructuras-de-datos/07-cola.html">Lección 3.7</a></td></tr>
+<tr><td>Paréntesis balanceados con una pila</td><td><a href="../nivel-3-estructuras-de-datos/06-pila.html">Lección 3.6</a></td></tr>
+<tr><td>Traducir cualquiera de las tres a <code>std::stack</code>, <code>std::queue</code>, <code>std::list</code></td><td>esta lección</td></tr>
+</table>
+
+<div class="nota">
+<p><strong>El truco del papel.</strong> En el examen no hay compilador. Para cada
+método, dibuja las cajas y las flechas <em>antes</em> y <em>después</em>, y
+comprueba tres casos: estructura vacía, con un elemento y con varios. Casi todos
+los fallos están en el caso vacío o en el de un elemento.</p>
+</div>
+
+<p>Las tablas de esta lección están en la
+<a href="../reference/contenedores-std.html">hoja de referencia de contenedores de C++</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+
+<div class="nota">
+<p><strong>Calentamiento:</strong> antes de empezar, repite sin mirar el
+<a href="../nivel-3-estructuras-de-datos/07-cola.html">quiz de la lección 3.7</a>.</p>
+</div>
+
+<p>Estas 10 preguntas mezclan <em>todo</em> el curso, sin orden. Es a propósito:
+en el examen tampoco te avisan de qué tema viene. Responde sin mirar arriba.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="1" data-explica="<code>q</code> guarda la misma dirección que <code>p</code>: las dos apuntan a <code>x</code>. Escribir en <code>*q</code> es escribir en <code>x</code>.">
+<pre><code>int x = 3;
+int* p = &amp;x;
+int* q = p;
+*q = 7;
+cout &lt;&lt; x;</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 3</button><button>Muestra 7</button><button>Muestra 0</button><button>Muestra 10</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Si sacas el último nodo, <code>frente</code> queda en <code>nullptr</code>, pero <code>final</code> seguiría apuntando al nodo borrado: un apuntador colgante. Hay que ponerlo también en <code>nullptr</code>.">
+<p>En tu <code>Cola</code> hecha a mano, al desencolar el <em>último</em> nodo,
+¿qué hace falta además de <code>frente = nullptr</code>?</p>
+<div class="opciones"><button>Poner tope en nullptr</button><button>Crear un nodo nuevo</button><button>Nada más, ya está</button><button>Poner final en nullptr</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Después de <code>delete p</code> la memoria ya no es tuya, pero <code>p</code> sigue guardando su dirección: es un apuntador colgante. Leer <code>*p</code> es comportamiento indefinido. Por eso se escribe <code>p = nullptr;</code> tras el <code>delete</code>.">
+<pre><code>int* p = new int(5);
+delete p;
+cout &lt;&lt; *p;</code></pre>
+<p>¿Qué falla aquí?</p>
+<div class="opciones"><button>Usa memoria ya liberada</button><button>Falta poner un asterisco</button><button>Nada, imprime cinco siempre</button><button>Hay una fuga allí</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Pila: el último que entra es el primero que sale. Tras apilar 1, 2, 3 y desapilar (sale el 3), el tope es el 2.">
+<pre><code>Pila p;
+p.push(1);
+p.push(2);
+p.push(3);
+p.pop();
+cout &lt;&lt; p.top();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 1</button><button>Muestra 3</button><button>Muestra 2</button><button>Muestra 0</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="En una <code>class</code> todo es <code>private</code> salvo que digas <code>public:</code>. <code>saldo</code> quedó privado, así que desde fuera no se puede tocar: error de compilación.">
+<pre><code>class Cuenta {
+    int saldo;
+public:
+    Cuenta() : saldo(0) {}
+};
+Cuenta c;
+c.saldo = 50;</code></pre>
+<p>¿Qué pasa?</p>
+<div class="opciones"><button>Compila y vale 50</button><button>Compila y vale 0</button><button>No compila: saldo privado</button><button>Se cae al ejecutar</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Cada <code>insertarAlInicio</code> pone el nuevo nodo delante de la cabeza. El último insertado (3) queda primero.">
+<pre><code>ListaEnlazada l;
+l.insertarAlInicio(1);
+l.insertarAlInicio(2);
+l.insertarAlInicio(3);
+l.imprimir();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>1 2 3</button><button>1 3 2</button><button>2 1 3</button><button>3 2 1</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="<code>std::stack::pop()</code> devuelve <code>void</code>: quita el de arriba pero no lo entrega. Se lee antes con <code>top()</code>.">
+<pre><code>stack&lt;int&gt; s;
+s.push(5);
+int x = s.pop();</code></pre>
+<p>¿Qué pasa?</p>
+<div class="opciones"><button>Guarda cinco en x</button><button>Error: pop devuelve void</button><button>Guarda cero en x</button><button>Se cae al ejecutar</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="<code>n</code> es un apuntador a un objeto, así que se usa <code>-&gt;</code>. Equivale a <code>(*n).dato</code>. <code>*n.dato</code> no compila porque el punto se aplica antes que el asterisco.">
+<pre><code>Nodo* n = new Nodo(4);</code></pre>
+<p>¿Cómo lees el dato del nodo?</p>
+<div class="opciones"><button>n.dato</button><button>n-&gt;dato</button><button>*n.dato</button><button>&amp;n-&gt;dato</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Tras <code>delete cabeza</code>, la línea siguiente lee <code>cabeza-&gt;siguiente</code> de un nodo que ya no existe. Hay que guardar el nodo en un auxiliar, mover <code>cabeza</code> y después borrar el auxiliar.">
+<pre><code>void eliminarCabeza() {
+    if (cabeza == nullptr) return;
+    delete cabeza;
+    cabeza = cabeza-&gt;siguiente;
+}</code></pre>
+<p>¿Qué falla aquí?</p>
+<div class="opciones"><button>No revisa la lista vacía</button><button>No falla, está bien escrito</button><button>Lee un nodo ya borrado</button><button>Pierde el resto de nodos</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Cola: sale primero el que llegó primero. Tras el <code>pop</code> se va el 1; el frente es 2 y el último (<code>back</code>) es 3.">
+<pre><code>queue&lt;int&gt; q;
+q.push(1);
+q.push(2);
+q.push(3);
+q.pop();
+cout &lt;&lt; q.front() &lt;&lt; q.back();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 23</button><button>Muestra 12</button><button>Muestra 31</button><button>Muestra 21</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 3.9 · Deshacer y rehacer</h2>
+
+<p>Abre <a href="../nivel-3-estructuras-de-datos/ejercicios/09-deshacer-rehacer.cpp"><code>ejercicios/09-deshacer-rehacer.cpp</code></a>.
+Trae una clase <code>Editor</code> con un <code>string texto</code> y dos
+<code>stack&lt;string&gt;</code>: <code>pilaDeshacer</code> y <code>pilaRehacer</code>.
+Completa tres métodos:</p>
+
+<ol>
+<li><code>escribir(palabra)</code>: guarda el texto actual en <code>pilaDeshacer</code>, añade la palabra (con un espacio delante si el texto no estaba vacío) y vacía <code>pilaRehacer</code>.</li>
+<li><code>deshacer()</code>: si no hay historial, no hace nada. Si lo hay, guarda el texto actual en <code>pilaRehacer</code> y recupera el de arriba de <code>pilaDeshacer</code>.</li>
+<li><code>rehacer()</code>: lo mismo, con las pilas al revés.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 09-deshacer-rehacer.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás varias ✗. Terminaste cuando salgan todas en ✓.
+Unos 15 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> recuerda el orden de la sección 2: primero
+<code>top()</code> para leer, luego <code>pop()</code> para quitar. Y la primera
+línea de <code>deshacer</code> es <code>if (pilaDeshacer.empty()) return;</code>.
+La solución está en <a href="../nivel-3-estructuras-de-datos/soluciones/09-deshacer-rehacer.cpp"><code>soluciones/09-deshacer-rehacer.cpp</code></a>,
+pero ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong> cppreference, la referencia de C++ que usan los
+profesionales (en inglés):
+<a href="https://en.cppreference.com/w/cpp/container/stack">std::stack</a>,
+<a href="https://en.cppreference.com/w/cpp/container/queue">std::queue</a> y
+<a href="https://en.cppreference.com/w/cpp/container/list">std::list</a>.
+En cada una lee solo el párrafo de arriba y la tabla «Member functions»; al final
+de la página hay un ejemplo corto que puedes copiar y compilar. Unos 15 minutos
+las tres.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Si quieres, también puedo ponerte un examen de práctica con ejercicios
+para escribir en papel, como los de la universidad.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="../nivel-3-estructuras-de-datos/08-complejidad.html">← Lección anterior</a> ·
+<a href="../nivel-4-intermedio-avanzado/01-plantillas.html">Siguiente: Lección 4.1 · Plantillas →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Recursión y complejidad</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Recursión y complejidad</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones
+<a href="../nivel-3-estructuras-de-datos/01-recursion.html">3.1</a> y
+<a href="../nivel-3-estructuras-de-datos/08-complejidad.html">3.8</a>.</p>
+
+<h2>El molde de una función recursiva</h2>
+<pre><code>tipo f(problema) {
+    if (problema es mínimo) return respuesta directa;   <span class="c">// CASO BASE</span>
+    return combinar(un poco, f(problema más pequeño));    <span class="c">// CASO RECURSIVO</span>
+}</code></pre>
+<p>Dos preguntas para escribirla: 1) ¿cuál es el caso más pequeño y qué respondo?
+2) Si alguien ya resolvió el problema un poco más pequeño, ¿qué le añado yo?</p>
+
+<h2>Patrones</h2>
+<table>
+<tr><th>Problema</th><th>Caso base</th><th>Caso recursivo</th></tr>
+<tr><td>factorial</td><td><code>n &lt;= 1 → 1</code></td><td><code>n * factorial(n - 1)</code></td></tr>
+<tr><td>suma de arreglo</td><td><code>n == 0 → 0</code></td><td><code>arr[n-1] + sumar(arr, n - 1)</code></td></tr>
+<tr><td>potencia</td><td><code>exp == 0 → 1</code></td><td><code>base * potencia(base, exp - 1)</code></td></tr>
+<tr><td>cifras de un número</td><td><code>n &lt; 10 → 1</code></td><td><code>1 + cifras(n / 10)</code></td></tr>
+<tr><td>contar nodos de una lista</td><td><code>p == nullptr → 0</code></td><td><code>1 + contar(p-&gt;siguiente)</code></td></tr>
+</table>
+
+<h2>Errores típicos de la recursión</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>no hay caso base</td><td>llamadas sin fin → desbordamiento de pila (<em>stack overflow</em>), se cae</td><td>escribe el caso base PRIMERO</td></tr>
+<tr><td>el caso recursivo no se acerca al base (<code>n - 2</code> con <code>n == 0</code> de base)</td><td>se salta el base y no para</td><td>caso base que atrape todos los finales (<code>n &lt;= 0</code>)</td></tr>
+<tr><td>dos llamadas que repiten trabajo (<code>fib</code>)</td><td>O(2<sup>n</sup>): lentísimo con n ≈ 40</td><td>usa un bucle o guarda resultados</td></tr>
+<tr><td>recursión muy profunda (lista de un millón de nodos)</td><td>la pila de llamadas se llena</td><td>para «repetir n veces», un bucle</td></tr>
+</table>
+
+<h2>O grande en una tabla</h2>
+<table>
+<tr><th>Notación</th><th>Nombre</th><th>Forma del código</th><th>n = 1.000.000</th></tr>
+<tr><td>O(1)</td><td>constante</td><td>sin bucles que dependan de n</td><td>1 paso</td></tr>
+<tr><td>O(log n)</td><td>logarítmica</td><td>parte el problema a la mitad cada vuelta</td><td>~20</td></tr>
+<tr><td>O(n)</td><td>lineal</td><td>un bucle sobre los n</td><td>1.000.000</td></tr>
+<tr><td>O(n²)</td><td>cuadrática</td><td>bucle dentro de bucle, los dos hasta n</td><td>10<sup>12</sup></td></tr>
+<tr><td>O(2<sup>n</sup>)</td><td>exponencial</td><td>cada llamada hace dos (<code>fib</code> ingenuo)</td><td>imposible</td></tr>
+</table>
+<p>Simplificar: fuera constantes (3n → O(n)) y manda el término mayor (n² + n → O(n²)).</p>
+
+<h2>Costes de las estructuras del curso</h2>
+<table>
+<tr><th>Estructura</th><th>Operación</th><th>Coste</th></tr>
+<tr><td>arreglo / <code>vector</code></td><td><code>v[i]</code></td><td>O(1)</td></tr>
+<tr><td><code>vector</code></td><td><code>push_back</code></td><td>O(1) en promedio</td></tr>
+<tr><td>arreglo / <code>vector</code></td><td>insertar o borrar al principio o en medio</td><td>O(n)</td></tr>
+<tr><td>arreglo / <code>vector</code></td><td>buscar: desordenado / ordenado</td><td>O(n) / O(log n)</td></tr>
+<tr><td><code>ListaEnlazada</code></td><td><code>insertarAlInicio</code></td><td>O(1)</td></tr>
+<tr><td><code>ListaEnlazada</code></td><td><code>insertarAlFinal</code> (solo con <code>cabeza</code>)</td><td>O(n)</td></tr>
+<tr><td><code>ListaEnlazada</code></td><td><code>buscar</code>, <code>eliminar</code>, ir al i-ésimo</td><td>O(n)</td></tr>
+<tr><td><code>Pila</code></td><td><code>push</code>, <code>pop</code>, <code>top</code>, <code>vacia</code></td><td>O(1)</td></tr>
+<tr><td><code>Cola</code></td><td><code>encolar</code>, <code>desencolar</code>, <code>verFrente</code>, <code>vacia</code></td><td>O(1)</td></tr>
+<tr><td><code>Pila</code> / <code>Cola</code></td><td><code>tamano</code> recorriendo / con contador</td><td>O(n) / O(1)</td></tr>
+</table>
+
+<h2>Búsqueda binaria (vector ORDENADO)</h2>
+<pre><code>int busquedaBinaria(const vector&lt;int&gt;&amp; v, int x) {
+    int izq = 0, der = (int)v.size() - 1;
+    while (izq &lt;= der) {
+        int medio = izq + (der - izq) / 2;   <span class="c">// como (izq+der)/2, sin desbordar</span>
+        if (v[medio] == x) return medio;
+        if (v[medio] &lt; x) izq = medio + 1;   <span class="c">// tiro la mitad izquierda</span>
+        else              der = medio - 1;   <span class="c">// tiro la mitad derecha</span>
+    }
+    return -1;                               <span class="c">// no está</span>
+}</code></pre>
+<p>Solo vale con datos ordenados y acceso por índice. Sobre datos desordenados da
+<code>-1</code> de cosas que sí están, sin avisar. En la biblioteca:
+<code>std::binary_search</code> (en <code>&lt;algorithm&gt;</code>).</p>
+
+<h2>Medir con <code>&lt;chrono&gt;</code></h2>
+<pre><code>#include &lt;chrono&gt;
+auto inicio = chrono::steady_clock::now();
+<span class="c">// ... código a medir ...</span>
+auto fin = chrono::steady_clock::now();
+cout &lt;&lt; chrono::duration&lt;double, milli&gt;(fin - inicio).count() &lt;&lt; " ms\n";</code></pre>
+<p>Compila con <code>-O2</code>, repite varias veces y compara proporciones: n × 2 →
+tiempo × 2 es O(n); tiempo × 4 es O(n²).</p>
+
+<p class="cita">Fuentes: <a href="https://www.learncpp.com/cpp-tutorial/recursion/">LearnCpp — 20.3 Recursion</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/the-stack-and-the-heap/">20.2 The stack and the heap</a> ·
+<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/big-o/">Stanford CS106B — Big O</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/timing-your-code/">LearnCpp — 18.4 Timing your code</a> ·
+<a href="https://en.cppreference.com/w/cpp/algorithm/binary_search">cppreference — std::binary_search</a></p>
+
+</main>
+</body>
+</html>

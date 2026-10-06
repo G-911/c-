@@ -1,0 +1,142 @@
+/* Estilo compartido de todas las lecciones y referencias.
+   Tipografía tranquila, mucho aire, se imprime bien. */
+
+:root {
+  --fondo: #fffff8;
+  --texto: #1f1f1c;
+  --suave: #6b6a63;
+  --linea: #e4e2d6;
+  --acento: #a0442c;
+  --codigo-fondo: #f3f1e6;
+  --bien: #2f7d4a;
+  --mal: #b3362c;
+  --nota-fondo: #f6efdc;
+  --ancho: 46rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fondo: #191917;
+    --texto: #e9e7dd;
+    --suave: #a19f95;
+    --linea: #34332e;
+    --acento: #e2805f;
+    --codigo-fondo: #24231f;
+    --bien: #6cc58b;
+    --mal: #ef7a6f;
+    --nota-fondo: #2a261c;
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--fondo);
+  color: var(--texto);
+  font: 1.125rem/1.65 Georgia, "Iowan Old Style", "Palatino Linotype", serif;
+}
+
+main {
+  max-width: var(--ancho);
+  margin: 0 auto;
+  padding: 2.5rem 1rem 5rem;
+}
+
+h1, h2, h3 { font-weight: 400; line-height: 1.25; }
+h1 { font-size: 2.1rem; margin: 0 0 .3rem; }
+h2 { font-size: 1.45rem; margin: 2.6rem 0 .6rem; border-top: 1px solid var(--linea); padding-top: 1.4rem; }
+h3 { font-size: 1.15rem; margin: 1.8rem 0 .4rem; font-style: italic; }
+
+.subtitulo { color: var(--suave); font-style: italic; margin: 0 0 1.5rem; }
+.migas { font-size: .9rem; color: var(--suave); margin-bottom: 1.5rem; }
+
+a { color: var(--acento); text-underline-offset: 2px; }
+
+code, pre {
+  font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+  font-size: .92em;
+}
+code { background: var(--codigo-fondo); padding: .1em .3em; border-radius: 3px; }
+pre {
+  background: var(--codigo-fondo);
+  padding: 1rem 1.1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  line-height: 1.5;
+  font-size: .88rem;
+}
+pre code { background: none; padding: 0; }
+
+/* Comentarios dentro del código: más suaves */
+pre .c { color: var(--suave); font-style: italic; }
+
+.nota, .ojo, .logro {
+  border-left: 3px solid var(--acento);
+  background: var(--nota-fondo);
+  padding: .8rem 1rem;
+  margin: 1.4rem 0;
+  border-radius: 0 6px 6px 0;
+}
+.ojo { border-color: var(--mal); }
+.logro { border-color: var(--bien); }
+.nota > :first-child, .ojo > :first-child, .logro > :first-child { margin-top: 0; }
+.nota > :last-child, .ojo > :last-child, .logro > :last-child { margin-bottom: 0; }
+
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: .95rem; }
+th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--linea); vertical-align: top; }
+th { font-weight: 600; font-size: .85rem; text-transform: uppercase; letter-spacing: .04em; color: var(--suave); }
+
+.cita { font-size: .85rem; color: var(--suave); }
+
+/* Diagrama de cajas de memoria */
+.memoria { display: flex; flex-wrap: wrap; gap: 1.2rem; margin: 1.2rem 0; font-family: monospace; font-size: .9rem; }
+.caja { border: 1.5px solid var(--texto); border-radius: 4px; padding: .5rem .8rem; min-width: 8rem; }
+.caja .nombre { font-weight: 700; }
+.caja .dir { color: var(--suave); font-size: .8rem; }
+
+/* Lista de pasos / temario */
+ol.temario { padding-left: 1.3rem; }
+ol.temario li { margin: .7rem 0; }
+.estado { font-size: .8rem; color: var(--suave); }
+
+footer { margin-top: 4rem; padding-top: 1rem; border-top: 1px solid var(--linea); font-size: .9rem; color: var(--suave); }
+
+/* ---- Quiz (lo usa assets/quiz.js) ---- */
+.quiz { margin: 1.5rem 0; }
+.pregunta { border: 1px solid var(--linea); border-radius: 8px; padding: 1rem 1.1rem; margin: 1rem 0; }
+.pregunta p:first-child { margin-top: 0; }
+.opciones { display: grid; gap: .5rem; margin-top: .6rem; }
+.opciones button {
+  font: inherit; font-size: 1rem; text-align: left;
+  background: transparent; color: var(--texto);
+  border: 1px solid var(--linea); border-radius: 6px;
+  padding: .55rem .8rem; cursor: pointer;
+}
+.opciones button:hover:not(:disabled) { border-color: var(--acento); }
+.opciones button.correcta { border-color: var(--bien); color: var(--bien); font-weight: 600; }
+.opciones button.incorrecta { border-color: var(--mal); color: var(--mal); text-decoration: line-through; }
+.respuesta { margin-top: .7rem; font-size: .98rem; display: none; }
+.respuesta.visible { display: block; }
+.marcador { font-size: .95rem; color: var(--suave); }
+
+@media print {
+  body { background: #fff; color: #000; font-size: 11pt; }
+  .opciones button { border-color: #999; }
+  .respuesta { display: block; }
+  a { color: #000; }
+}
+
+/* ---- «¿Qué pasa en la memoria?»: una por lección ---- */
+.enmemoria {
+  border: 1.5px dashed var(--acento);
+  border-radius: 8px;
+  padding: .9rem 1.1rem;
+  margin: 1.6rem 0;
+}
+.enmemoria > h3:first-child { margin-top: 0; font-style: normal; }
+.enmemoria > :last-child { margin-bottom: 0; }
+.enmemoria .ver-mas { font-size: .9rem; color: var(--suave); }
+
+/* Contenedor de diagramas SVG anchos */
+.diagrama { margin: 1.2rem 0; overflow-x: auto; }

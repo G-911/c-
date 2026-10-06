@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Memoria dinámica</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Memoria dinámica</h1>
+<p class="subtitulo">Hoja de consulta rápida de la lección 2.</p>
+
+<h2>Sintaxis</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>int* p = new int;</code></td><td>pide una caja para un <code>int</code> en el montón; <code>p</code> guarda su dirección</td></tr>
+<tr><td><code>int* p = new int(5);</code></td><td>lo mismo, ya con un 5 dentro</td></tr>
+<tr><td><code>delete p;</code></td><td>devuelve la caja pedida con <code>new</code></td></tr>
+<tr><td><code>int* a = new int[n];</code></td><td>pide un arreglo de <code>n</code> enteros (<code>n</code> puede ser una variable)</td></tr>
+<tr><td><code>delete[] a;</code></td><td>devuelve el arreglo pedido con <code>new[]</code></td></tr>
+<tr><td><code>p = nullptr;</code></td><td>justo después del <code>delete</code>: ya no apunta a nada</td></tr>
+<tr><td><code>delete p;</code> con <code>p == nullptr</code></td><td>no hace nada; es seguro</td></tr>
+</table>
+
+<h2>Las tres reglas</h2>
+<ol>
+<li>Cada <code>new</code> tiene exactamente un <code>delete</code>; cada <code>new[]</code>, un <code>delete[]</code>.</li>
+<li>No pierdas la dirección antes de liberar (si no, fuga de memoria).</li>
+<li>Después de <code>delete</code>, pon el apuntador a <code>nullptr</code> (si no, apuntador colgante).</li>
+</ol>
+
+<h2>El patrón de crecer un arreglo</h2>
+<pre><code>int* crecer(int* datos, int tam, int nuevaCapacidad) {
+    int* nuevo = new int[nuevaCapacidad];              <span class="c">// 1. pedir</span>
+    for (int i = 0; i &lt; tam; i++) nuevo[i] = datos[i]; <span class="c">// 2. copiar</span>
+    delete[] datos;                                    <span class="c">// 3. liberar el viejo</span>
+    return nuevo;                                      <span class="c">// quien llama: datos = crecer(...)</span>
+}</code></pre>
+<p>Cuando se llena, se duplica la capacidad (1, 2, 4, 8...). Así trabaja por dentro <code>std::vector</code>.</p>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>olvidar el <code>delete</code></td><td>fuga de memoria: el programa engorda en silencio</td><td>escribe el <code>delete</code> en cuanto escribes el <code>new</code></td></tr>
+<tr><td><code>p = new int(2);</code> sin liberar lo anterior</td><td>la caja vieja queda perdida (fuga)</td><td><code>delete p;</code> antes de reasignar</td></tr>
+<tr><td>usar <code>*p</code> tras <code>delete p</code></td><td>apuntador colgante: comportamiento indefinido; a veces «funciona»</td><td><code>p = nullptr;</code> tras el <code>delete</code></td></tr>
+<tr><td><code>delete p;</code> dos veces</td><td>comportamiento indefinido; suele caerse</td><td>con <code>p = nullptr</code> el segundo no hace nada</td></tr>
+<tr><td><code>delete a;</code> para algo pedido con <code>new[]</code></td><td>comportamiento indefinido</td><td>corchetes con corchetes: <code>delete[] a;</code></td></tr>
+<tr><td>liberar el viejo antes de copiar</td><td>copias desde memoria que ya no es tuya</td><td>orden: pedir, copiar, liberar</td></tr>
+<tr><td><code>*tam++</code> en vez de <code>(*tam)++</code></td><td>suma 1 a la dirección, no al número</td><td>paréntesis siempre</td></tr>
+</table>
+
+<h2>Automática vs dinámica</h2>
+<table>
+<tr><th></th><th>Automática (<code>int x;</code>)</th><th>Dinámica (<code>new</code>)</th></tr>
+<tr><td>Nace</td><td>al declararla</td><td>con <code>new</code></td></tr>
+<tr><td>Muere</td><td>sola, al cerrar <code>}</code></td><td>solo con <code>delete</code></td></tr>
+<tr><td>Tamaño del arreglo</td><td>fijo al escribir el programa</td><td>se decide al ejecutar</td></tr>
+<tr><td>Tiene nombre</td><td>sí</td><td>no: solo su dirección</td></tr>
+</table>
+
+<p class="cita">Fuente: <a href="https://www.learncpp.com/cpp-tutorial/dynamic-memory-allocation-with-new-and-delete/">LearnCpp — Dynamic memory allocation with new and delete</a> · <a href="https://www.learncpp.com/cpp-tutorial/dynamically-allocating-arrays/">Dynamically allocating arrays</a> · <a href="https://en.cppreference.com/w/cpp/language/delete">cppreference — delete expression</a></p>
+
+</main>
+</body>
+</html>

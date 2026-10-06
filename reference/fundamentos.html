@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Fundamentos</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Fundamentos</h1>
+<p class="subtitulo">Hoja de consulta rápida del Nivel 1: programa, tipos, operadores y condicionales
+(lecciones <a href="../nivel-1-fundamentos/01-primer-programa.html">1.1</a> a
+<a href="../nivel-1-fundamentos/04-condicionales.html">1.4</a>).</p>
+
+<h2>Esqueleto de un programa</h2>
+<pre><code>#include &lt;iostream&gt;
+#include &lt;string&gt;
+using namespace std;        <span class="c">// cómodo en ejercicios; en proyectos grandes se escribe std::</span>
+
+int main() {
+    string nombre;
+    cin &gt;&gt; nombre;                           <span class="c">// lee hasta el primer espacio</span>
+    cout &lt;&lt; "Hola, " &lt;&lt; nombre &lt;&lt; "\n";
+    return 0;
+}</code></pre>
+
+<pre><code>g++ -std=c++17 -Wall archivo.cpp -o prog &amp;&amp; ./prog   <span class="c"># compilar y, si sale bien, ejecutar</span>
+g++ --version                                        <span class="c"># ¿está instalado?</span></code></pre>
+
+<table>
+<tr><th>Mensaje</th><th>Cómo leerlo</th></tr>
+<tr><td><code>hola.cpp:5:35: error: ...</code></td><td>archivo : línea : columna. Arregla el <strong>primer</strong> error y recompila</td></tr>
+<tr><td><code>expected ';' before ...</code></td><td>falta un <code>;</code>, casi siempre en la línea <em>de arriba</em></td></tr>
+<tr><td><code>warning: ...</code></td><td>compila, pero suele ser un fallo real. No lo ignores</td></tr>
+</table>
+
+<h2>Tipos</h2>
+<table>
+<tr><th>Tipo</th><th>Guarda</th><th>Ejemplo</th></tr>
+<tr><td><code>int</code></td><td>entero, de −2 147 483 648 a 2 147 483 647</td><td><code>int n{35};</code></td></tr>
+<tr><td><code>long long</code></td><td>entero grande (±9·10<sup>18</sup>)</td><td><code>long long s{3153600000};</code></td></tr>
+<tr><td><code>double</code></td><td>decimales (aproximados)</td><td><code>double nota{15.5};</code></td></tr>
+<tr><td><code>char</code></td><td>un carácter, comillas simples</td><td><code>char c{'B'};</code></td></tr>
+<tr><td><code>bool</code></td><td><code>true</code> / <code>false</code> (se muestran 1 / 0)</td><td><code>bool ok{true};</code></td></tr>
+<tr><td><code>string</code></td><td>texto, comillas dobles; <code>+</code> concatena</td><td><code>string s{"Hola"};</code></td></tr>
+</table>
+
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>int a{5};</code></td><td>inicializar con llaves (recomendado): no deja perder datos</td></tr>
+<tr><td><code>int b = 5;</code></td><td>inicializar con <code>=</code>: también válido</td></tr>
+<tr><td><code>int c;</code></td><td>sin inicializar: basura. Evítalo</td></tr>
+<tr><td><code>const double PI{3.14159};</code></td><td>constante: no se puede cambiar</td></tr>
+<tr><td><code>auto x{2.5};</code></td><td>el compilador deduce el tipo (<code>double</code>)</td></tr>
+</table>
+
+<h2>Operadores</h2>
+<table>
+<tr><th>Operador</th><th>Ejemplo</th><th>Resultado</th></tr>
+<tr><td><code>+ - * /</code></td><td><code>7 / 2</code> · <code>7.0 / 2</code></td><td><code>3</code> (int/int corta) · <code>3.5</code></td></tr>
+<tr><td><code>%</code> (solo enteros)</td><td><code>17 % 5</code> · <code>-7 % 2</code></td><td><code>2</code> · <code>-1</code></td></tr>
+<tr><td><code>static_cast&lt;T&gt;(v)</code></td><td><code>static_cast&lt;double&gt;(7) / 2</code></td><td><code>3.5</code></td></tr>
+<tr><td><code>== != &lt; &gt; &lt;= &gt;=</code></td><td><code>nota &gt;= 10</code></td><td><code>bool</code></td></tr>
+<tr><td><code>&amp;&amp; || !</code></td><td><code>edad &gt;= 18 &amp;&amp; entrada</code></td><td>Y · O · NO</td></tr>
+<tr><td><code>++ --</code></td><td><code>x++;</code></td><td><code>x = x + 1</code></td></tr>
+<tr><td><code>+= -= *= /= %=</code></td><td><code>x += 3;</code></td><td><code>x = x + 3</code></td></tr>
+<tr><td><code>? :</code></td><td><code>a &gt; b ? a : b</code></td><td>el mayor</td></tr>
+</table>
+
+<p><strong>Precedencia</strong> (de más fuerte a más débil, lo justo para el día a día):
+<code>!</code> → <code>* / %</code> → <code>+ -</code> → <code>&lt; &lt;= &gt; &gt;=</code> → <code>== !=</code> →
+<code>&amp;&amp;</code> → <code>||</code> → <code>? :</code> → <code>= += -=</code>. Si dudas, paréntesis.</p>
+
+<h2>Condicionales</h2>
+<pre><code>if (nota &lt; 0 || nota &gt; 20) {        <span class="c">// primero los inválidos</span>
+    cout &lt;&lt; "invalida";
+} else if (nota &gt;= 10) {            <span class="c">// gana el PRIMERO que sea true</span>
+    cout &lt;&lt; "aprobado";
+} else {
+    cout &lt;&lt; "reprobado";
+}
+
+switch (opcion) {                   <span class="c">// solo int o char</span>
+    case 1:  cout &lt;&lt; "Agregar";  break;
+    case 2:  cout &lt;&lt; "Eliminar"; break;
+    default: cout &lt;&lt; "Inválida"; break;
+}
+
+int mayor = (a &gt; b) ? a : b;       <span class="c">// ternario: elegir un valor</span></code></pre>
+
+<h2>Recetas</h2>
+<table>
+<tr><th>Para</th><th>Escribe</th></tr>
+<tr><td>¿es par?</td><td><code>n % 2 == 0</code></td></tr>
+<tr><td>¿es impar? (también negativos)</td><td><code>n % 2 != 0</code></td></tr>
+<tr><td>última cifra</td><td><code>n % 10</code></td></tr>
+<tr><td>horas y minutos</td><td><code>m / 60</code> y <code>m % 60</code></td></tr>
+<tr><td>promedio con decimales</td><td><code>static_cast&lt;double&gt;(a + b) / 2</code></td></tr>
+<tr><td>¿está en el rango [0, 20]?</td><td><code>0 &lt;= x &amp;&amp; x &lt;= 20</code></td></tr>
+<tr><td>¿bisiesto?</td><td><code>(a % 4 == 0 &amp;&amp; a % 100 != 0) || a % 400 == 0</code></td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>falta <code>;</code></td><td>el error señala la línea de abajo</td><td>mira la línea anterior a la marcada</td></tr>
+<tr><td>variable sin inicializar</td><td>valor basura, distinto en cada máquina</td><td>siempre <code>int x{0};</code></td></tr>
+<tr><td><code>'A'</code> vs <code>"A"</code></td><td><code>char c{"A"};</code> no compila</td><td>simples = <code>char</code>, dobles = texto</td></tr>
+<tr><td>desbordamiento de <code>int</code></td><td>número absurdo, sin aviso</td><td><code>long long</code> desde el <em>principio</em> de la cuenta</td></tr>
+<tr><td><code>double p = suma / 2;</code></td><td>división entera: se pierden decimales</td><td><code>static_cast&lt;double&gt;(suma) / 2</code></td></tr>
+<tr><td><code>0 &lt;= x &lt;= 20</code></td><td>compila, pero siempre da true</td><td><code>0 &lt;= x &amp;&amp; x &lt;= 20</code></td></tr>
+<tr><td><code>a == b</code> con <code>double</code></td><td><code>0.1 + 0.2 == 0.3</code> es false</td><td>comparar con un margen pequeño</td></tr>
+<tr><td><code>if (x = 7)</code></td><td>asigna; siempre true (aviso <code>-Wparentheses</code>)</td><td><code>==</code> para comparar; compilar con <code>-Wall</code></td></tr>
+<tr><td><code>if</code> sin llaves</td><td>solo la 1.ª línea está dentro</td><td>llaves siempre</td></tr>
+<tr><td><code>if (x &gt; 5);</code></td><td>el <code>;</code> termina el <code>if</code></td><td>nada de <code>;</code> tras el paréntesis</td></tr>
+<tr><td>olvidar <code>break</code></td><td>sigue con los <code>case</code> de abajo</td><td><code>break</code> al final de cada <code>case</code></td></tr>
+<tr><td><code>switch</code> con <code>string</code></td><td>no compila</td><td>usar <code>if</code> / <code>else if</code></td></tr>
+</table>
+
+<p class="cita">Fuentes: <a href="https://www.learncpp.com/cpp-tutorial/compiling-your-first-program/">LearnCpp — Compiling your first program</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/variable-assignment-and-initialization/">Variable assignment and initialization</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/signed-integers/">Signed integers</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/arithmetic-operators/">Arithmetic operators</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/logical-operators/">Logical operators</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/introduction-to-if-statements/">Introduction to if statements</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/switch-statement-basics/">Switch statement basics</a></p>
+
+</main>
+</body>
+</html>

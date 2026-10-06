@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 1.2 · Variables y tipos</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 1 · Fundamentos › Lección 2 de 8</div>
+<h1>Variables y tipos</h1>
+<p class="subtitulo">Cajas con nombre, y por qué importa qué cabe en cada una. ~30 minutos.</p>
+
+<div class="nota">
+<p><strong>Calentamiento (3 minutos).</strong> Antes de empezar, repite sin mirar el
+<a href="01-primer-programa.html">quiz de la lección 1.1</a>. Recordar lo de ayer
+es lo que lo fija. Si fallas alguna, relee solo esa parte.</p>
+</div>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> elegir el tipo correcto para cada dato
+(<code>int</code>, <code>double</code>, <code>char</code>, <code>bool</code>, <code>string</code>),
+inicializarlo con <code>{}</code>, protegerlo con <code>const</code> y reconocer un desbordamiento.</p>
+</div>
+
+<p><strong>Por qué importa.</strong> Una lista enlazada es una cadena de nodos, y cada nodo
+guarda un <em>dato</em> de algún tipo. Más adelante un apuntador será también una variable,
+solo que de un tipo especial. Si tienes claro qué es una variable y qué cabe en ella,
+esas lecciones se entienden mucho mejor.</p>
+
+<h2>1. Una variable es una caja con nombre y tipo</h2>
+
+<p>Una <strong>variable</strong> es un trozo de memoria con un nombre. El <strong>tipo</strong>
+dice qué cabe dentro y cuánto espacio ocupa.</p>
+
+<pre><code>int edad{20};          <span class="c">// caja "edad", tipo int, guarda 20</span>
+double precio{9.99};   <span class="c">// caja "precio", tipo double, guarda 9.99</span></code></pre>
+
+<div class="memoria">
+  <div class="caja"><div class="nombre">edad</div>int · 20<div class="dir">normalmente 4 bytes</div></div>
+  <div class="caja"><div class="nombre">precio</div>double · 9.99<div class="dir">normalmente 8 bytes</div></div>
+</div>
+
+<p>El tipo no se cambia nunca: <code>edad</code> será <code>int</code> toda su vida.
+El <em>valor</em> sí se puede cambiar con <code>=</code>:</p>
+
+<pre><code>edad = 21;             <span class="c">// ahora la caja guarda 21; el 20 se perdió</span></code></pre>
+
+<h2>2. Los cinco tipos que más usarás</h2>
+
+<table>
+<tr><th>Tipo</th><th>Guarda</th><th>Ejemplo</th></tr>
+<tr><td><code>int</code></td><td>enteros, más o menos ±2 100 millones</td><td><code>int alumnos{35};</code></td></tr>
+<tr><td><code>double</code></td><td>números con decimales</td><td><code>double nota{15.5};</code></td></tr>
+<tr><td><code>char</code></td><td>UN solo carácter, entre comillas <strong>simples</strong></td><td><code>char seccion{'B'};</code></td></tr>
+<tr><td><code>bool</code></td><td><code>true</code> o <code>false</code></td><td><code>bool aprobado{true};</code></td></tr>
+<tr><td><code>string</code></td><td>texto, entre comillas <strong>dobles</strong></td><td><code>string carrera{"Sistemas"};</code></td></tr>
+</table>
+
+<p>Para enteros muy grandes existe <code>long long</code> (hasta unos 9 trillones).
+El decimal se escribe con <strong>punto</strong>, no con coma: <code>15.5</code>.
+Para <code>string</code> hace falta <code>#include &lt;string&gt;</code>.</p>
+
+<p>Con <code>cout</code> un <code>bool</code> se muestra como <code>1</code> (true) o <code>0</code> (false).</p>
+
+<h2>3. Inicializar: siempre, y mejor con <code>{}</code></h2>
+
+<p><strong>Inicializar</strong> es darle valor a la caja en el momento de crearla. Hay varias formas:</p>
+
+<pre><code>int a{5};      <span class="c">// con llaves: la forma recomendada</span>
+int b = 5;     <span class="c">// con = : también vale, la verás mucho</span>
+int c;         <span class="c">// SIN valor: contiene basura (lo que hubiera en esa memoria)</span></code></pre>
+
+<p>Las llaves tienen una ventaja: <strong>no te dejan perder datos sin avisar</strong>.
+Meter un decimal en un <code>int</code> cortaría la parte decimal; con llaves, el compilador lo impide:</p>
+
+<pre><code>int n = 3.7;   <span class="c">// compila y guarda 3 (el .7 se pierde en silencio)</span>
+int m{3.7};    <span class="c">// error: narrowing conversion ... from 'double' to 'int'</span></code></pre>
+
+<p><em>Narrowing</em> significa «estrechamiento»: meter algo en una caja donde no cabe entero.</p>
+
+<div class="ojo">
+<p><strong>Error típico 1: usar una variable sin inicializar.</strong></p>
+<pre><code>int total;
+total = total + 10;   <span class="c">// ¿basura + 10? El resultado es impredecible</span></code></pre>
+<p>Puede dar 10 en tu computadora y 32777 en la del profesor. Inicializa siempre: <code>int total{0};</code></p>
+</div>
+
+<h2>4. <code>const</code>: valores que no deben cambiar</h2>
+
+<pre><code>const double PI{3.14159};
+const int NOTA_MINIMA{10};
+PI = 3;        <span class="c">// error: assignment of read-only variable 'PI'</span></code></pre>
+
+<p>Una <strong>constante</strong> se fija al crearla y ya no cambia. Si por despiste intentas
+cambiarla, el compilador te para. Por costumbre se escriben en MAYÚSCULAS.
+Úsalas para cualquier número «mágico» que tenga significado: es más legible
+<code>NOTA_MINIMA</code> que un <code>10</code> suelto.</p>
+
+<h2>5. <code>auto</code>: que el compilador deduzca el tipo</h2>
+
+<pre><code>auto x{5};       <span class="c">// int, porque 5 es entero</span>
+auto y{2.5};     <span class="c">// double, porque 2.5 tiene decimales</span>
+auto z{'k'};     <span class="c">// char</span></code></pre>
+
+<p><code>auto</code> no es un tipo nuevo: el compilador mira el valor inicial y pone el tipo por ti.
+Por eso <code>auto</code> <strong>necesita</strong> valor inicial. Será muy útil con tipos de nombre
+larguísimo (lo verás en el nivel 4). Al principio, mejor escribe el tipo: así lo practicas.</p>
+
+<h2>6. <code>string</code> básico</h2>
+
+<pre><code>string nombre{"Ana"};
+string saludo{"Hola, " + nombre + "!"};   <span class="c">// + pega textos: "Hola, Ana!"</span>
+cout &lt;&lt; saludo &lt;&lt; "\n";</code></pre>
+
+<p>Con <code>string</code>, el <code>+</code> <em>concatena</em> (pega uno detrás de otro).
+Hay muchas más cosas que hacer con textos; las verás en la lección 1.7.</p>
+
+<div class="ojo">
+<p><strong>Error típico 2: confundir comillas.</strong> <code>'A'</code> (simples) es un <code>char</code>,
+un solo carácter. <code>"A"</code> (dobles) es un texto. <code>char letra{"A"};</code> no compila.</p>
+</div>
+
+<h2>7. Desbordamiento: cuando el número no cabe</h2>
+
+<p>Un <code>int</code> tiene un máximo: <code>2147483647</code>. Si te pasas, el valor no «crece»:
+se <strong>desborda</strong>. En un <code>int</code> eso es comportamiento indefinido, y en la práctica
+suele dar la vuelta al extremo negativo:</p>
+
+<pre><code>int x{2147483647};
+x = x + 1;
+cout &lt;&lt; x;      <span class="c">// -2147483648  ← no es un error de imprenta</span></code></pre>
+
+<p>El compilador <strong>no</strong> te avisa: el número se calcula al ejecutar. La solución es
+elegir un tipo con más espacio:</p>
+
+<pre><code>long long segundos{100};
+segundos = segundos * 365 * 24 * 60 * 60;   <span class="c">// 3153600000: en int no cabría</span></code></pre>
+
+<p>Fíjate en que la cuenta empieza con <code>segundos</code>, que ya es <code>long long</code>.
+Si la escribes con <code>int</code> y solo al final la guardas en un <code>long long</code>,
+ya es tarde: el desbordamiento ocurrió a mitad de cuenta. Lo practicarás en el miniproyecto.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Cada variable que declaras dentro de <code>main</code> es una caja en el <strong>marco</strong> de <code>main</code>,
+dentro de la <strong>memoria automática</strong> (la <em>pila de llamadas</em> o <em>stack</em>).
+La caja mide <code>sizeof(tipo)</code> bytes, y ese tamaño no cambia nunca, igual que el tipo.
+Las cifras dependen de la computadora; puedes preguntarlas tú mismo:</p>
+<pre><code>cout &lt;&lt; sizeof(int) &lt;&lt; " " &lt;&lt; sizeof(double);   <span class="c">// normalmente: 4 8</span></code></pre>
+<div class="memoria">
+  <div class="caja"><div class="nombre">marco de main</div>
+    <div class="caja"><div class="nombre">edad</div>int · 20<div class="dir">sizeof(int) bytes</div></div>
+    <div class="caja"><div class="nombre">precio</div>double · 9.99<div class="dir">sizeof(double) bytes</div></div>
+    <div class="caja"><div class="nombre">PI</div>const double · 3.14159<div class="dir">misma zona; solo no se deja cambiar</div></div>
+  </div>
+</div>
+<p><code>const</code> no cambia <em>dónde</em> vive la caja: solo prohíbe escribir en ella.
+La «basura» de <code>int c;</code> es lo que quedó en esos bytes de un uso anterior.
+Y el desbordamiento es esto: con un <code>int</code> de 4 bytes (lo normal) no cabe nada mayor que
+<code>2147483647</code>. La caja no crece para hacerle sitio al +1.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#automatica">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>int n{5};</code></td><td>crea <code>n</code> (entero) con valor 5</td></tr>
+<tr><td><code>n = 7;</code></td><td>cambia el valor; el tipo sigue igual</td></tr>
+<tr><td><code>double</code> · <code>char</code> · <code>bool</code> · <code>string</code></td><td>decimales · un carácter <code>'x'</code> · <code>true/false</code> · texto <code>"..."</code></td></tr>
+<tr><td><code>long long</code></td><td>entero con mucho más rango que <code>int</code></td></tr>
+<tr><td><code>const int MAX{10};</code></td><td>constante: no se puede cambiar</td></tr>
+<tr><td><code>auto x{2.5};</code></td><td>el compilador deduce el tipo (aquí <code>double</code>)</td></tr>
+<tr><td><code>int m{3.7};</code></td><td>no compila: las llaves impiden perder datos</td></tr>
+</table>
+
+<p>Todo junto, en la <a href="../reference/fundamentos.html">hoja de referencia de fundamentos</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>. Esforzarte en recordar es lo que
+hace que se te quede.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="1" data-explica="El <code>=</code> reemplaza el valor: el 7 se pierde y queda el 3. No se suman ni se acumulan.">
+<pre><code>int x{7};
+x = 3;
+cout &lt;&lt; x;</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 7</button><button>Muestra 3</button><button>Muestra 10</button><button>Muestra 73</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Con llaves, meter un <code>double</code> en un <code>int</code> es un <em>estrechamiento</em> y el compilador lo rechaza. Con <code>int n = 3.7;</code> sí compilaría y guardaría 3.">
+<pre><code>int n{3.7};</code></pre>
+<p>¿Qué pasa?</p>
+<div class="opciones"><button>Guarda 3 sin avisar</button><button>Guarda 4, redondeando arriba</button><button>Error: no se compila</button><button>Guarda 3.7 sin cambios</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="<code>MAX</code> es <code>const</code>: su valor quedó fijo al crearla. Intentar cambiarla es un error de compilación (<em>read-only variable</em>).">
+<pre><code>const int MAX{10};
+MAX = 20;</code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>MAX ahora vale 20</button><button>Compila pero vale 10</button><button>Se cae al ejecutarse</button><button>No compila: es constante</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="<code>&quot;A&quot;</code> con comillas dobles es un texto, no un carácter. Un <code>char</code> se escribe con comillas simples: <code>'A'</code>.">
+<pre><code>char letra{"A"};</code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>Comillas dobles en char</button><button>Falta incluir la biblioteca</button><button>char no admite letras</button><button>Las llaves sobran aquí</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="2147483647 es el máximo de un <code>int</code>. Al sumar 1 se desborda; en la práctica suele salir -2147483648. El compilador no avisa porque la cuenta se hace al ejecutar.">
+<pre><code>int x{2147483647};
+x = x + 1;
+cout &lt;&lt; x;</code></pre>
+<p>¿Qué pasa?</p>
+<div class="opciones"><button>Muestra 2147483648 sin problema</button><button>El programa no compila</button><button>Se desborda: valor absurdo</button><button>Se convierte en double</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="<code>auto</code> copia el tipo del valor inicial: 5 es entero (<code>int</code>) y 2.5 tiene decimales (<code>double</code>).">
+<pre><code>auto a{5};
+auto b{2.5};</code></pre>
+<p>¿De qué tipo son <code>a</code> y <code>b</code>?</p>
+<div class="opciones"><button>double y double</button><button>int e int</button><button>auto y auto</button><button>int y double</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 1.2 · Elegir el tipo correcto</h2>
+
+<p>Abre <a href="ejercicios/02-variables-y-tipos.cpp"><code>ejercicios/02-variables-y-tipos.cpp</code></a>.
+Tiene cuatro funciones con una línea de <em>relleno</em> (está ahí solo para que compile).
+Escribe solo dentro de las llaves; qué es una función lo verás en la lección 1.6.
+Lo único que necesitas: lo que va entre paréntesis ya trae un valor, y <code>return</code> entrega el resultado.</p>
+
+<ol>
+<li><code>precioConIva(precio)</code>: el precio con el 16 % de IVA sumado.</li>
+<li><code>saludo(nombre)</code>: <code>"Ana"</code> → <code>"Hola, Ana!"</code>.</li>
+<li><code>segundosEnAnios(anios)</code>: cuántos segundos hay en esos años. Cuidado con el desbordamiento.</li>
+<li><code>areaCirculo(radio)</code>: con una constante <code>PI</code>.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 02-variables-y-tipos.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás casi todo en ✗. Terminaste cuando salgan todas en ✓. Unos 15 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> en <code>segundosEnAnios</code>, si la prueba de 1 año sale ✓ y la de
+100 años sale ✗, es justo el desbordamiento de la sección 7: la cuenta se está haciendo en <code>int</code>.
+Crea primero un <code>long long</code> con el valor de <code>anios</code> y multiplica ese.
+La solución está en <a href="soluciones/02-variables-y-tipos.cpp"><code>soluciones/02-variables-y-tipos.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://www.learncpp.com/cpp-tutorial/variable-assignment-and-initialization/">LearnCpp — Variable assignment and initialization</a>
+(en inglés): lee «List-initialization», «List-initialization disallows narrowing conversions» e «Initialize your variables». Unos 10 minutos.
+Para el desbordamiento, <a href="https://www.learncpp.com/cpp-tutorial/signed-integers/">Signed integers</a>,
+sección «Overflow». Y para constantes,
+<a href="https://www.learncpp.com/cpp-tutorial/constant-variables-named-constants/">Constant variables (named constants)</a>.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="01-primer-programa.html">← Lección anterior</a> ·
+<a href="03-operadores.html">Siguiente: Lección 1.3 · Operadores →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

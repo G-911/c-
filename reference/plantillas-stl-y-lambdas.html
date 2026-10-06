@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Plantillas, STL y lambdas</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Plantillas, STL y lambdas</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones 4.1, 4.2 y 4.3.</p>
+
+<h2>Plantillas (4.1)</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>template &lt;typename T&gt;</code></td><td>lo que sigue es un molde; <code>T</code> es un tipo por decidir</td></tr>
+<tr><td><code>T maximo(T a, T b)</code></td><td>función plantilla; el compilador deduce <code>T</code> de los argumentos</td></tr>
+<tr><td><code>maximo&lt;double&gt;(3, 2.5)</code></td><td>dices el tipo a mano; los argumentos se convierten</td></tr>
+<tr><td><code>Pila&lt;int&gt;</code> · <code>Pila&lt;string&gt;</code></td><td>dos tipos distintos fabricados con el mismo molde</td></tr>
+<tr><td><code>Pila</code> (sin <code>&lt;&gt;</code>)</td><td>no es un tipo: <code>Pila p;</code> no compila</td></tr>
+<tr><td><code>template &lt;typename T&gt; void Pila&lt;T&gt;::push(...)</code></td><td>método escrito fuera de la clase</td></tr>
+</table>
+
+<h3>De Pila de enteros a Pila&lt;T&gt;</h3>
+<pre><code>template &lt;typename T&gt;
+struct Nodo {
+    T dato;
+    Nodo* siguiente;
+    Nodo(const T&amp; d) : dato(d), siguiente(nullptr) {}
+};
+
+template &lt;typename T&gt;
+class Pila {
+    Nodo&lt;T&gt;* tope;
+public:
+    Pila() : tope(nullptr) {}
+    ~Pila();                       <span class="c">// recorre y borra, igual que la 3.6</span>
+    void push(const T&amp; valor);    <span class="c">// int → const T&amp;</span>
+    void pop();
+    T top() const;                 <span class="c">// int → T</span>
+    bool vacia() const;
+    int tamano() const;
+};</code></pre>
+<p><strong>Todo el código de una plantilla va en el <code>.h</code>.</strong> Si lo separas en
+<code>.cpp</code>, el enlazador da <code>undefined reference</code> («referencia … sin definir»).</p>
+
+<h2>Contenedores (4.2)</h2>
+<table>
+<tr><th>Contenedor</th><th>Cabecera</th><th>Qué guarda</th><th>Buscar</th></tr>
+<tr><td><code>pair&lt;A, B&gt;</code></td><td><code>&lt;utility&gt;</code></td><td>dos valores: <code>.first</code>, <code>.second</code></td><td>—</td></tr>
+<tr><td><code>map&lt;K, V&gt;</code></td><td><code>&lt;map&gt;</code></td><td>clave → valor, claves únicas y ordenadas</td><td>O(log n)</td></tr>
+<tr><td><code>unordered_map&lt;K, V&gt;</code></td><td><code>&lt;unordered_map&gt;</code></td><td>clave → valor, sin orden</td><td>O(1) promedio</td></tr>
+<tr><td><code>set&lt;T&gt;</code></td><td><code>&lt;set&gt;</code></td><td>valores únicos y ordenados</td><td>O(log n)</td></tr>
+</table>
+
+<h3>Operaciones de map (y unordered_map)</h3>
+<table>
+<tr><th>Escribes</th><th>Hace</th></tr>
+<tr><td><code>m[k] = v;</code></td><td>crea o cambia. <strong>Si <code>k</code> no estaba, la crea</strong>. No existe para un map <code>const</code></td></tr>
+<tr><td><code>m.count(k)</code></td><td>1 si está, 0 si no; no crea nada</td></tr>
+<tr><td><code>auto it = m.find(k);</code></td><td>iterador al elemento, o <code>m.end()</code> si no está</td></tr>
+<tr><td><code>it-&gt;first</code> · <code>it-&gt;second</code></td><td>clave · valor (solo si <code>it != m.end()</code>)</td></tr>
+<tr><td><code>m.at(k)</code></td><td>el valor; si no está, lanza <code>out_of_range</code> (4.4)</td></tr>
+<tr><td><code>m.erase(k)</code></td><td>borra esa clave</td></tr>
+<tr><td><code>for (const auto&amp; [k, v] : m)</code></td><td>recorrer (C++17); en <code>map</code>, en orden de clave</td></tr>
+</table>
+
+<h3>Operaciones de set</h3>
+<table>
+<tr><th>Escribes</th><th>Hace</th></tr>
+<tr><td><code>s.insert(x)</code></td><td>añade si no estaba; <code>.second</code> del resultado es <code>false</code> si ya estaba</td></tr>
+<tr><td><code>s.count(x)</code></td><td>1 si está, 0 si no</td></tr>
+<tr><td><code>set&lt;int&gt; s(v.begin(), v.end());</code></td><td>conjunto con los valores de un vector, sin repetir</td></tr>
+</table>
+
+<h3>Iteradores</h3>
+<pre><code>for (auto it = m.begin(); it != m.end(); ++it) {   <span class="c">// begin: el primero</span>
+    cout &lt;&lt; it-&gt;first &lt;&lt; " " &lt;&lt; it-&gt;second;          <span class="c">// end: UNO DESPUÉS del último</span>
+}                                                   <span class="c">// *it, it-&gt;, ++it: como un apuntador</span></code></pre>
+
+<h3>Cuál elegir</h3>
+<table>
+<tr><th>Necesitas</th><th>Usa</th></tr>
+<tr><td>posición <code>[i]</code>, lo más común</td><td><code>vector</code></td></tr>
+<tr><td>insertar y borrar en medio</td><td><code>list</code></td></tr>
+<tr><td>LIFO · FIFO</td><td><code>stack</code> · <code>queue</code></td></tr>
+<tr><td>clave → valor, en orden</td><td><code>map</code></td></tr>
+<tr><td>clave → valor, lo más rápido</td><td><code>unordered_map</code></td></tr>
+<tr><td>sin repetidos</td><td><code>set</code></td></tr>
+</table>
+
+<h2>Algoritmos (4.3)</h2>
+<p>Reciben un rango <code>[b, e)</code>, normalmente <code>v.begin(), v.end()</code>.</p>
+<table>
+<tr><th>Llamada</th><th>Cabecera</th><th>Devuelve / hace</th></tr>
+<tr><td><code>sort(b, e)</code> · <code>sort(b, e, comp)</code></td><td><code>&lt;algorithm&gt;</code></td><td>ordena; <code>comp(a, b)</code> responde «¿a va antes que b?». No sirve para <code>list</code>: usa <code>l.sort()</code></td></tr>
+<tr><td><code>find(b, e, valor)</code></td><td><code>&lt;algorithm&gt;</code></td><td>iterador al primero igual, o <code>e</code></td></tr>
+<tr><td><code>find_if(b, e, pred)</code></td><td><code>&lt;algorithm&gt;</code></td><td>iterador al primero que cumple, o <code>e</code></td></tr>
+<tr><td><code>count(b, e, valor)</code> · <code>count_if(b, e, pred)</code></td><td><code>&lt;algorithm&gt;</code></td><td>cuántos coinciden</td></tr>
+<tr><td><code>for_each(b, e, f)</code></td><td><code>&lt;algorithm&gt;</code></td><td>llama a <code>f</code> con cada uno; con parámetro <code>&amp;</code>, los cambia</td></tr>
+<tr><td><code>transform(b, e, destino, f)</code></td><td><code>&lt;algorithm&gt;</code></td><td>escribe <code>f(x)</code> en el destino; <strong>no reserva espacio</strong>: usa <code>back_inserter(v)</code> (de <code>&lt;iterator&gt;</code>)</td></tr>
+<tr><td><code>accumulate(b, e, inicio)</code> · <code>accumulate(b, e, inicio, op)</code></td><td><code>&lt;numeric&gt;</code></td><td>suma (u <code>op</code>) desde <code>inicio</code>; el resultado es del tipo de <code>inicio</code></td></tr>
+</table>
+
+<h2>Lambdas (4.3)</h2>
+<pre><code>[captura](parámetros) { cuerpo }
+
+auto esPar = [](int x) { return x % 2 == 0; };
+sort(v.begin(), v.end(), [](int a, int b) { return a &gt; b; });   <span class="c">// de mayor a menor</span></code></pre>
+<table>
+<tr><th>Captura</th><th>Significa</th></tr>
+<tr><td><code>[]</code></td><td>no usa nada de fuera</td></tr>
+<tr><td><code>[x]</code></td><td>copia de <code>x</code>, de solo lectura</td></tr>
+<tr><td><code>[&amp;x]</code></td><td><code>x</code> por referencia: la puede cambiar</td></tr>
+<tr><td><code>[=]</code> · <code>[&amp;]</code></td><td>todo lo que use, por copia · por referencia</td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>maximo(3, 2.5)</code></td><td>no compila: <code>deduced conflicting types</code></td><td>mismos tipos, o <code>maximo&lt;double&gt;(...)</code></td></tr>
+<tr><td>plantilla en <code>.h</code> + <code>.cpp</code></td><td><code>undefined reference</code> al enlazar</td><td>todo en el <code>.h</code></td></tr>
+<tr><td><code>if (m["Pedro"] == 0)</code></td><td>mete a Pedro en el map</td><td><code>count</code> o <code>find</code></td></tr>
+<tr><td><code>*m.find(k)</code> sin comparar</td><td>si no está, desreferencias <code>end()</code>: indefinido</td><td><code>if (it != m.end())</code></td></tr>
+<tr><td>lambda con <code>[]</code> que usa una variable de fuera</td><td><code>'x' is not captured</code></td><td><code>[x]</code> o <code>[&amp;x]</code></td></tr>
+<tr><td><code>[=]</code> y modificar lo capturado</td><td>no compila: la copia es de solo lectura</td><td><code>[&amp;]</code></td></tr>
+<tr><td><code>transform</code> hacia un vector vacío</td><td>escribe fuera: indefinido</td><td><code>back_inserter(destino)</code></td></tr>
+<tr><td><code>accumulate(..., 0)</code> con <code>double</code></td><td>pierde los decimales</td><td>empezar en <code>0.0</code></td></tr>
+<tr><td><code>sort</code> sobre una <code>list</code></td><td>no compila</td><td><code>l.sort()</code></td></tr>
+</table>
+
+<p class="cita">Fuentes:
+<a href="https://www.learncpp.com/cpp-tutorial/function-templates/">LearnCpp 11.6 — Function templates</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/template-classes/">LearnCpp 26.1 — Template classes</a> ·
+<a href="https://en.cppreference.com/w/cpp/container/map">cppreference std::map</a> ·
+<a href="https://en.cppreference.com/w/cpp/container/unordered_map">std::unordered_map</a> ·
+<a href="https://en.cppreference.com/w/cpp/container/set/insert">set::insert</a> ·
+<a href="https://en.cppreference.com/w/cpp/algorithm">Algorithms library</a> ·
+<a href="https://en.cppreference.com/w/cpp/algorithm/accumulate">std::accumulate</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/lambda">Lambda expressions</a></p>
+
+</main>
+</body>
+</html>

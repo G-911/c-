@@ -1,0 +1,6 @@
+# Programas compilados de los miniproyectos
+prog
+*.out
+*.o
+a.out
+build/

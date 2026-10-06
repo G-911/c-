@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 3.7 · Cola</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 3 · Estructuras de datos › Lección 7 de 9</div>
+<h1>Cola</h1>
+<p class="subtitulo">Una lista enlazada con un apuntador extra al final. ~35 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> escribir una clase <code>Cola</code> con dos
+apuntadores (<code>frente</code> y <code>final</code>) y usarla para simular los
+turnos de un banco.</p>
+</div>
+
+<p><strong>Por qué.</strong> Pila y cola van juntas en todos los temarios, y
+casi siempre cae la pregunta «¿qué diferencia hay?». La cola es la otra mitad:
+sirve cuando hay que atender las cosas <em>en el orden en que llegaron</em>.
+Y tiene un caso delicado que es justo lo que los profesores corrigen: qué pasa
+cuando sale el último.</p>
+
+<h2>1. La idea: la fila del banco</h2>
+
+<p>En la fila del banco, el que llega se pone <strong>al final</strong>. Y la
+cajera atiende al que está <strong>al frente</strong>. Nadie se cuela.</p>
+
+<p>Eso es una cola: <strong>el primero que entra es el primero que sale</strong>.
+En inglés, <em>FIFO</em>, «first in, first out»
+(<a href="https://en.cppreference.com/w/cpp/container/queue">cppreference, std::queue</a>).
+Es lo contrario de la pila, donde sale el último.</p>
+
+<p>Otro ejemplo: la impresora de la biblioteca. Si mandan a imprimir Ana, luego
+Beto, luego Carla, salen en ese orden. Los documentos esperan en una cola.</p>
+
+<table>
+<tr><th>Operación</th><th>Qué hace</th><th>En la fila del banco</th></tr>
+<tr><td><code>encolar(x)</code></td><td>añade <code>x</code> por el final</td><td>llega un cliente y se pone detrás</td></tr>
+<tr><td><code>desencolar()</code></td><td>quita el del frente</td><td>la cajera llama al siguiente</td></tr>
+<tr><td><code>verFrente()</code></td><td>dice quién está al frente, sin quitarlo</td><td>«¿a quién le toca?»</td></tr>
+</table>
+
+<h2>2. Una cola es una lista con un apuntador extra</h2>
+
+<p>Con tu <code>ListaEnlazada</code> ya podrías hacer una cola: sacar por la
+<code>cabeza</code> y meter con <code>insertarAlFinal</code>. Pero
+<code>insertarAlFinal</code> (lección 3.3) <em>recorre toda la lista</em> para
+encontrar el último nodo. Con 10 000 clientes en la fila, cada llegada
+recorrería 10 000 nodos.</p>
+
+<p>La solución: guardar <strong>otro apuntador</strong> que siempre señala al
+último. Así se llega al final de un salto, sin recorrer nada.</p>
+
+<svg width="398" viewBox="0 0 398 178" role="img" aria-label="Cola antes de encolar: frente en 4, final en 7" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl6m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-width="1.5"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none">4</text><circle cx="120" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="120" y1="72.0" x2="184" y2="72.0" stroke-width="1.5" marker-end="url(#fl6)"/><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="324" y2="72.0" stroke-width="1.5" marker-end="url(#fl6)"/><text x="328" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">frente</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" marker-end="url(#fl6)"/><line x1="234.0" y1="144" x2="234.0" y2="97" stroke-width="1.5" marker-end="url(#fl6)"/><text x="234.0" y="162" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">final</text></svg>
+
+<table>
+<tr><th>En tu lista</th><th>En la cola</th></tr>
+<tr><td><code>cabeza</code></td><td><code>frente</code> (por aquí se sale)</td></tr>
+<tr><td><em>no había</em></td><td><code>final</code> (por aquí se entra)</td></tr>
+<tr><td><code>insertarAlFinal(x)</code>, pero sin recorrer</td><td><code>encolar(x)</code></td></tr>
+<tr><td>eliminar la cabeza</td><td><code>desencolar()</code></td></tr>
+<tr><td><code>cabeza-&gt;dato</code></td><td><code>verFrente()</code></td></tr>
+</table>
+
+<p>El <code>Nodo</code> es el mismo de siempre. La clase:</p>
+
+<pre><code>class Cola {
+private:
+    Nodo* frente;   <span class="c">// el primero de la fila (el que sale)</span>
+    Nodo* final;    <span class="c">// el último de la fila (detrás entra el nuevo)</span>
+public:
+    Cola() : frente(nullptr), final(nullptr) {}   <span class="c">// vacía: los dos a nullptr</span>
+    ~Cola();
+    void encolar(int valor);
+    void desencolar();
+    int  verFrente() const;
+    bool vacia() const { return frente == nullptr; }
+    int  tamano() const;
+};</code></pre>
+
+<p>Fíjate en la regla que la clase debe cumplir <em>siempre</em>:
+<strong><code>frente</code> y <code>final</code> son <code>nullptr</code> a la vez,
+o ninguno lo es</strong>. Si uno vale <code>nullptr</code> y el otro no, la cola
+está rota. Esta regla es la clave de toda la lección.</p>
+
+<h2>3. <code>encolar</code>: entrar por el final</h2>
+
+<p>Hay dos casos:</p>
+
+<pre><code>void Cola::encolar(int valor) {
+    Nodo* nuevo = new Nodo(valor);
+    if (vacia()) {
+        frente = nuevo;              <span class="c">// es el único: es el primero...</span>
+        final = nuevo;               <span class="c">// ...y también el último</span>
+    } else {
+        final-&gt;siguiente = nuevo;    <span class="c">// 1. el último de antes lo señala</span>
+        final = nuevo;               <span class="c">// 2. el nuevo pasa a ser el último</span>
+    }
+}</code></pre>
+
+<p><strong>Antes</strong> de <code>encolar(9)</code>:</p>
+<svg width="398" viewBox="0 0 398 178" role="img" aria-label="Cola antes de encolar: frente en 4, final en 7" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl7" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl7m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-width="1.5"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none">4</text><circle cx="120" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="120" y1="72.0" x2="184" y2="72.0" stroke-width="1.5" marker-end="url(#fl7)"/><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="324" y2="72.0" stroke-width="1.5" marker-end="url(#fl7)"/><text x="328" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">frente</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" marker-end="url(#fl7)"/><line x1="234.0" y1="144" x2="234.0" y2="97" stroke-width="1.5" marker-end="url(#fl7)"/><text x="234.0" y="162" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">final</text></svg>
+<p><strong>Después</strong>: el 9 entra detrás del 7, y <code>final</code> se
+mueve a él. <code>frente</code> ni se entera.</p>
+<svg width="540" viewBox="0 0 540 178" role="img" aria-label="Después de encolar(9): el 9 entra detrás del 7 y final apunta al 9" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl8m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-width="1.5"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none">4</text><circle cx="120" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="120" y1="72.0" x2="184" y2="72.0" stroke-width="1.5" marker-end="url(#fl8)"/><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="326" y2="72.0" stroke-width="1.5" marker-end="url(#fl8)"/><g style="stroke:var(--acento)" stroke-width="2.5"><rect x="328" y="50" width="96" height="44" rx="4"/><line x1="384" y1="50" x2="384" y2="94"/></g><text x="356" y="77" text-anchor="middle" fill="currentColor" stroke="none">9</text><circle cx="404" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="404" y1="72.0" x2="466" y2="72.0" stroke-width="1.5" marker-end="url(#fl8)"/><text x="470" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">frente</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" marker-end="url(#fl8)"/><line x1="376.0" y1="144" x2="376.0" y2="97" stroke-width="1.5" marker-end="url(#fl8)"/><text x="376.0" y="162" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">final</text></svg>
+
+<p>El orden de los dos pasos importa. Si primero haces <code>final = nuevo</code>,
+ya no sabes cuál era el último de antes, y el 7 nunca queda enlazado con el 9.</p>
+
+<h2>4. <code>desencolar</code>: salir por el frente</h2>
+
+<p>Es el <code>pop</code> de la pila con otro nombre: guardar, mover, borrar.
+Con un paso más que veremos en la sección 5.</p>
+
+<p><strong>Antes</strong> de <code>desencolar()</code>:</p>
+<svg width="540" viewBox="0 0 540 178" role="img" aria-label="Cola antes de desencolar: frente en 4" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl9" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl9m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-width="1.5"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none">4</text><circle cx="120" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="120" y1="72.0" x2="184" y2="72.0" stroke-width="1.5" marker-end="url(#fl9)"/><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="326" y2="72.0" stroke-width="1.5" marker-end="url(#fl9)"/><g stroke-width="1.5"><rect x="328" y="50" width="96" height="44" rx="4"/><line x1="384" y1="50" x2="384" y2="94"/></g><text x="356" y="77" text-anchor="middle" fill="currentColor" stroke="none">9</text><circle cx="404" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="404" y1="72.0" x2="466" y2="72.0" stroke-width="1.5" marker-end="url(#fl9)"/><text x="470" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">frente</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" marker-end="url(#fl9)"/><line x1="376.0" y1="144" x2="376.0" y2="97" stroke-width="1.5" marker-end="url(#fl9)"/><text x="376.0" y="162" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">final</text></svg>
+<p><strong>Después</strong>: el 4 ya no existe, <code>frente</code> apunta al 7
+y <code>final</code> sigue en el 9.</p>
+<svg width="540" viewBox="0 0 540 178" role="img" aria-label="Después de desencolar: el 4 se borró y frente apunta a 7" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl10" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl10m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-dasharray="5 4" opacity=".55"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none" opacity=".55">4</text><g style="stroke:var(--mal)" stroke-width="2"><line x1="50" y1="56" x2="134" y2="88"/><line x1="134" y1="56" x2="50" y2="88"/></g><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="326" y2="72.0" stroke-width="1.5" marker-end="url(#fl10)"/><g stroke-width="1.5"><rect x="328" y="50" width="96" height="44" rx="4"/><line x1="384" y1="50" x2="384" y2="94"/></g><text x="356" y="77" text-anchor="middle" fill="currentColor" stroke="none">9</text><circle cx="404" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="404" y1="72.0" x2="466" y2="72.0" stroke-width="1.5" marker-end="url(#fl10)"/><text x="470" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" style="fill:var(--mal)" stroke="none" font-weight="700">viejo (borrado)</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" style="stroke:var(--mal)" marker-end="url(#fl10m)"/><text x="234.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">frente</text><line x1="234.0" y1="22" x2="234.0" y2="47" stroke-width="1.5" marker-end="url(#fl10)"/><line x1="376.0" y1="144" x2="376.0" y2="97" stroke-width="1.5" marker-end="url(#fl10)"/><text x="376.0" y="162" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">final</text></svg>
+
+<h2>5. El caso delicado: sale el último</h2>
+
+<p>¿Qué pasa si en la cola queda <strong>un solo</strong> cliente? Entonces
+<code>frente</code> y <code>final</code> apuntan al mismo nodo:</p>
+
+<svg width="256" viewBox="0 0 256 178" role="img" aria-label="Cola con un solo nodo: frente y final apuntan al 5" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl11" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl11m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-width="1.5"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none">5</text><circle cx="120" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="120" y1="72.0" x2="182" y2="72.0" stroke-width="1.5" marker-end="url(#fl11)"/><text x="186" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">frente</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" marker-end="url(#fl11)"/><line x1="92.0" y1="144" x2="92.0" y2="97" stroke-width="1.5" marker-end="url(#fl11)"/><text x="92.0" y="162" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">final</text></svg>
+
+<p>Al desencolarlo, <code>frente</code> pasa a <code>frente-&gt;siguiente</code>,
+que es <code>nullptr</code>. Bien. Pero <code>final</code> nadie lo toca: sigue
+apuntando al nodo que acabas de borrar.</p>
+
+<div class="ojo">
+<p><strong>Error típico: olvidar poner <code>final = nullptr</code> al desencolar
+el último.</strong></p>
+<p><strong>Así queda (mal):</strong></p>
+<svg width="361" viewBox="0 0 361 178" role="img" aria-label="Mal: el 5 se borró, frente es nullptr pero final sigue apuntando al nodo borrado" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl12" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl12m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-dasharray="5 4" opacity=".55"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none" opacity=".55">5</text><g style="stroke:var(--mal)" stroke-width="2"><line x1="50" y1="56" x2="134" y2="88"/><line x1="134" y1="56" x2="50" y2="88"/></g><line x1="92.0" y1="144" x2="92.0" y2="97" stroke-width="1.5" style="stroke:var(--mal)" marker-end="url(#fl12m)"/><text x="92.0" y="162" text-anchor="middle" style="fill:var(--mal)" stroke="none" font-weight="700">final (colgante)</text><text x="190" y="16" fill="currentColor" stroke="none" font-weight="700">frente = nullptr</text></svg>
+<p><code>final</code> queda como <em>apuntador colgante</em> (lección 2.3): señala
+memoria liberada. La cola parece vacía porque <code>frente</code> es
+<code>nullptr</code>, pero rompe la regla de la sección 2. Cualquier código que
+use <code>final</code> —por ejemplo, un <code>encolar</code> que preguntara
+<code>if (final == nullptr)</code>— escribiría en un nodo borrado. Es el fallo
+más corregido en los exámenes de colas porque no se ve al probar: casi siempre
+«funciona» hasta que no.</p>
+<p>El arreglo es una línea:</p>
+<pre><code>void Cola::desencolar() {
+    if (vacia()) return;            <span class="c">// cola vacía: no hace nada</span>
+    Nodo* viejo = frente;
+    frente = frente-&gt;siguiente;
+    if (frente == nullptr) {        <span class="c">// ¡acabo de sacar al último!</span>
+        final = nullptr;            <span class="c">// ← la línea que se olvida</span>
+    }
+    delete viejo;
+}</code></pre>
+<p><strong>Así queda (bien):</strong> los dos a <code>nullptr</code>, como una cola recién creada.</p>
+<svg width="361" viewBox="0 0 361 178" role="img" aria-label="Bien: el 5 se borró y frente y final valen nullptr" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl13" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl13m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-dasharray="5 4" opacity=".55"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none" opacity=".55">5</text><g style="stroke:var(--mal)" stroke-width="2"><line x1="50" y1="56" x2="134" y2="88"/><line x1="134" y1="56" x2="50" y2="88"/></g><text x="190" y="16" fill="currentColor" stroke="none" font-weight="700">frente = nullptr</text><text x="190" y="162" fill="currentColor" stroke="none" font-weight="700">final  = nullptr</text></svg>
+</div>
+
+<h2>6. Lo demás ya lo sabes</h2>
+
+<ul>
+<li><strong><code>verFrente()</code></strong> devuelve <code>frente-&gt;dato</code>.
+Igual que <code>top()</code> de la pila: quien la usa comprueba
+<code>vacia()</code> antes.</li>
+<li><strong><code>vacia()</code></strong> pregunta <code>frente == nullptr</code>.</li>
+<li><strong><code>tamano()</code></strong> recorre desde <code>frente</code> contando.</li>
+<li><strong>El destructor</strong> recorre desde <code>frente</code> borrando,
+igual que el de la pila y el de la lista.</li>
+</ul>
+
+<p>El miniproyecto vuelve a traer el contador <code>nodosVivos</code> de la
+lección anterior: si al final no vale 0, se te escapó un <code>delete</code>.</p>
+
+<h2>7. Para qué sirve: los turnos del banco</h2>
+
+<p>En el miniproyecto simulas una caja de banco. Recibes una lista de
+<em>eventos</em>, uno detrás de otro:</p>
+
+<ul>
+<li>un número mayor que 0 es un cliente que llega con ese número de turno → <code>encolar</code>;</li>
+<li>un <code>0</code> es la cajera que llama al siguiente → si hay alguien,
+se apunta su turno y se <code>desencola</code>; si la fila está vacía, no pasa nada.</li>
+</ul>
+
+<p>Con los eventos <code>{5, 8, 0, 3, 0, 0, 0}</code>:</p>
+<table>
+<tr><th>Evento</th><th>Qué pasa</th><th>Fila (frente a la izquierda)</th></tr>
+<tr><td><code>5</code></td><td>llega el 5</td><td>5</td></tr>
+<tr><td><code>8</code></td><td>llega el 8</td><td>5 8</td></tr>
+<tr><td><code>0</code></td><td>atiende al 5</td><td>8</td></tr>
+<tr><td><code>3</code></td><td>llega el 3</td><td>8 3</td></tr>
+<tr><td><code>0</code></td><td>atiende al 8</td><td>3</td></tr>
+<tr><td><code>0</code></td><td>atiende al 3 (¡el último! <code>final</code> a <code>nullptr</code>)</td><td><em>vacía</em></td></tr>
+<tr><td><code>0</code></td><td>fila vacía: no hace nada</td><td><em>vacía</em></td></tr>
+</table>
+
+<p>Se atienden 5, 8, 3: en el orden en que llegaron. Con una pila se habrían
+atendido en otro orden, y el primero en llegar habría esperado más que nadie.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>El objeto <code>Cola fila;</code> vive en la memoria automática (la <em>pila de llamadas</em> o
+<em>stack</em>, que no es tu clase <code>Pila</code>) y guarda solo dos apuntadores. Los dos señalan
+cajas del montón (<em>heap</em>), donde están los nodos (direcciones inventadas):</p>
+<div class="diagrama"><svg viewBox="0 0 540 256" width="100%" style="max-width:540px;height:auto;color:var(--texto);font-family:Consolas,monospace" role="img" aria-label="En la memoria automática, el objeto fila guarda frente = 0x100 y final = 0x300. En el montón, los nodos 4 (0x100), 7 (0x200) y 9 (0x300); frente apunta al 4 y final al 9">
+<defs><marker id="mm37" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+<g fill="currentColor">
+<rect x="4" y="4" width="236" height="118" rx="6" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".55"/>
+<text x="14" y="24" font-size="13" font-weight="700">memoria automática</text>
+<text x="14" y="40" font-size="12" opacity=".7">marco de la función</text>
+<rect x="24" y="50" width="196" height="66" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<text x="34" y="68" font-size="13" font-weight="700">fila  (Cola)</text>
+<text x="34" y="86" font-size="13">frente: 0x100</text>
+<text x="34" y="104" font-size="13">final:  0x300</text>
+<rect x="4" y="138" width="532" height="114" rx="6" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".55"/>
+<text x="526" y="158" text-anchor="end" font-size="13" font-weight="700">montón (heap)</text>
+<rect x="24" y="178" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<line x1="86" y1="178" x2="86" y2="218" stroke="currentColor" stroke-width="1.6"/>
+<text x="55" y="203" text-anchor="middle" font-size="16">4</text>
+<text x="74" y="238" text-anchor="middle" font-size="12" opacity=".7">0x100</text>
+<rect x="184" y="178" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<line x1="246" y1="178" x2="246" y2="218" stroke="currentColor" stroke-width="1.6"/>
+<text x="215" y="203" text-anchor="middle" font-size="16">7</text>
+<text x="234" y="238" text-anchor="middle" font-size="12" opacity=".7">0x200</text>
+<rect x="344" y="178" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<line x1="406" y1="178" x2="406" y2="218" stroke="currentColor" stroke-width="1.6"/>
+<text x="375" y="203" text-anchor="middle" font-size="16">9</text>
+<text x="394" y="238" text-anchor="middle" font-size="12" opacity=".7">0x300</text>
+<circle cx="105" cy="198" r="3.5"/>
+<line x1="105" y1="198" x2="184" y2="198" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm37)"/>
+<circle cx="265" cy="198" r="3.5"/>
+<line x1="265" y1="198" x2="344" y2="198" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm37)"/>
+<circle cx="425" cy="198" r="3.5"/>
+<line x1="425" y1="198" x2="473" y2="198" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm37)"/>
+<text x="477" y="202" font-size="13">nullptr</text>
+<text x="66" y="166" font-size="12" opacity=".8">frente</text>
+<circle cx="60" cy="116" r="3.5"/>
+<line x1="60" y1="116" x2="55" y2="175" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm37)"/>
+<text x="342" y="160" font-size="12" opacity=".8">final</text>
+<circle cx="200" cy="116" r="3.5"/>
+<line x1="200" y1="116" x2="375" y2="175" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm37)"/>
+</g></svg></div>
+<p>Un apuntador es solo una variable con una dirección dentro: nadie le avisa cuando esa caja se
+libera. Con un solo nodo, <code>frente</code> y <code>final</code> guardan la misma dirección.
+<code>delete viejo</code> libera la caja; <code>frente</code> ya copió el <code>siguiente</code>
+(<code>nullptr</code>), pero <code>final</code> conserva la dirección vieja: apuntador colgante.
+<code>final = nullptr</code> no libera nada; solo borra esa dirección para que nadie la use.
+Regla: al hacer <code>delete</code>, busca <strong>todos</strong> los apuntadores que guardaban esa
+dirección.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#apuntadores">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+
+<table>
+<tr><th>Método</th><th>Qué hace</th><th>Cuidado con</th></tr>
+<tr><td><code>encolar(x)</code></td><td>añade por <code>final</code></td><td>cola vacía: <code>frente</code> y <code>final</code> al nuevo</td></tr>
+<tr><td><code>desencolar()</code></td><td>quita y libera el de <code>frente</code>; vacía → nada</td><td>si sale el último: <code>final = nullptr</code></td></tr>
+<tr><td><code>verFrente()</code></td><td>devuelve el del frente</td><td>comprobar <code>vacia()</code> antes</td></tr>
+<tr><td><code>vacia()</code></td><td><code>frente == nullptr</code></td><td>—</td></tr>
+<tr><td><code>tamano()</code></td><td>recorre contando</td><td>—</td></tr>
+<tr><td><code>~Cola()</code></td><td>libera todos los nodos</td><td>guardar el siguiente antes de borrar</td></tr>
+</table>
+
+<p>Pila y cola lado a lado, con la lista, en la
+<a href="../reference/pila-y-cola.html">hoja de referencia de pila y cola</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+
+<div class="nota">
+<p><strong>Calentamiento:</strong> antes de empezar, repite sin mirar el quiz de la
+<a href="../nivel-3-estructuras-de-datos/06-pila.html">lección 3.6</a>. Recordar lo de hace unos días es lo que lo fija.</p>
+</div>
+
+<p>Responde <em>sin volver a mirar arriba</em>. Esforzarte en recordar es lo que
+hace que se te quede.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="2" data-explica="Entran 1, 2 y 3 en ese orden; el 1 está al frente. <code>desencolar()</code> saca al 1, así que al frente queda el 2.">
+<pre><code>Cola c;
+c.encolar(1);
+c.encolar(2);
+c.encolar(3);
+c.desencolar();
+cout &lt;&lt; c.verFrente();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 1</button><button>Muestra 3</button><button>Muestra 2</button><button>Muestra 0</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="En la pila manda el último que entró (el 3, LIFO). En la cola manda el primero que entró (el 1, FIFO).">
+<pre><code>Pila p;  p.push(1);    p.push(2);    p.push(3);
+Cola c;  c.encolar(1); c.encolar(2); c.encolar(3);
+cout &lt;&lt; p.top() &lt;&lt; " " &lt;&lt; c.verFrente();</code></pre>
+<p>¿Qué valores salen?</p>
+<div class="opciones"><button>Pila 3, cola 1</button><button>Pila 1, cola 3</button><button>Pila 3, cola 3</button><button>Pila 1, cola 1</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Nadie toca <code>final</code>: sigue apuntando al nodo que se acaba de borrar. Es un apuntador colgante. Falta <code>if (frente == nullptr) final = nullptr;</code>.">
+<pre><code>void Cola::desencolar() {
+    if (vacia()) return;
+    Nodo* viejo = frente;
+    frente = frente-&gt;siguiente;
+    delete viejo;
+}</code></pre>
+<p>La cola tenía un solo nodo. Después, ¿a dónde apunta <code>final</code>?</p>
+<div class="opciones"><button>Vale nullptr como frente</button><button>A un nodo borrado</button><button>Al nuevo frente válido</button><button>A sí mismo siempre</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Sin <code>final</code>, para meter por detrás habría que recorrer toda la lista hasta el último nodo. Con <code>final</code> se llega de un salto.">
+<p>¿Para qué tiene la cola el apuntador <code>final</code>?</p>
+<div class="opciones"><button>Para borrar más rápido</button><button>Para ordenar los datos</button><button>Para contar los nodos</button><button>Para encolar sin recorrer</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Con la cola vacía, el nuevo nodo es a la vez el primero y el último: <code>frente</code> y <code>final</code> apuntan al 8.">
+<p>Una cola vacía hace <code>encolar(8)</code>. ¿Cómo quedan <code>frente</code> y <code>final</code>?</p>
+<div class="opciones"><button>Frente al 8, final nulo</button><button>Los dos al nodo 8</button><button>Frente nulo, final al 8</button><button>Los dos siguen en nullptr</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Llegan 6 y 2. El primer 0 atiende al 6 (el que llegó antes). Llega el 9. El segundo 0 atiende al 2. El 9 se queda esperando.">
+<p>Con el simulador del banco y los eventos <code>{6, 2, 0, 9, 0}</code>, ¿a quiénes se atiende, en orden?</p>
+<div class="opciones"><button>Atiende 6 y 2</button><button>Atiende 2 y 9</button><button>Atiende 9 y 2</button><button>Atiende 6 y 9</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 3.7 · Turnos de banco</h2>
+
+<p>Abre <a href="../nivel-3-estructuras-de-datos/ejercicios/07-cola.cpp"><code>ejercicios/07-cola.cpp</code></a>.
+La clase <code>Cola</code> viene casi hecha (constructor, destructor,
+<code>vacia</code>, <code>tamano</code>, <code>verFrente</code>). Tú completas:</p>
+
+<ol>
+<li><code>encolar(int valor)</code>: los dos casos de la sección 3.</li>
+<li><code>desencolar()</code>: sin olvidar el caso del último.</li>
+<li><code>procesarEventos(Cola* fila, int eventos[], int n, int atendidos[])</code>:
+el simulador de la sección 7. Recibe la cola por apuntador, así que se usa
+<code>fila-&gt;encolar(...)</code>. Deja en <code>atendidos</code> los turnos en
+el orden en que pasan a caja y devuelve cuántos fueron.</li>
+</ol>
+
+<p>Trae además un método <code>bienFormada()</code>, solo para las pruebas:
+comprueba la regla de que <code>frente</code> y <code>final</code> son
+<code>nullptr</code> a la vez. Si te olvidas del <code>final = nullptr</code>,
+una prueba te lo dirá.</p>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 07-cola.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás varias ✗. Terminaste cuando salgan todas en ✓.
+Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> dibuja en un papel la cola con un solo nodo
+y sigue tu <code>desencolar</code> línea a línea, moviendo las flechas de
+<code>frente</code> y <code>final</code>. Si al final una flecha apunta a una
+caja tachada, ahí está el fallo. La solución está en
+<a href="../nivel-3-estructuras-de-datos/soluciones/07-cola.cpp"><code>../nivel-3-estructuras-de-datos/soluciones/07-cola.cpp</code></a>,
+pero ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/linked-lists1">Stanford CS106B — Linked Lists 1</a>
+(en inglés). Lee la parte donde hacen la cola con nodos enlazados
+(<em>queue</em>), con su apuntador al frente y otro al final. Fíjate en cómo
+tratan la cola vacía al encolar y al desencolar. Unos 15 minutos.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy. Cuando termines el miniproyecto, dímelo y pasamos a la
+lección 3.9, el repaso.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="../nivel-3-estructuras-de-datos/06-pila.html">← Lección anterior</a> ·
+<a href="../nivel-3-estructuras-de-datos/08-complejidad.html">Siguiente: Lección 3.8 · Complejidad →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

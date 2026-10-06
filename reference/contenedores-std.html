@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Contenedores de C++</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Contenedores de C++</h1>
+<p class="subtitulo"><code>std::stack</code>, <code>std::queue</code> y <code>std::list</code> frente a tu versión hecha a mano.</p>
+
+<h2>std::stack — tu Pila</h2>
+<pre><code>#include &lt;stack&gt;
+stack&lt;int&gt; s;</code></pre>
+<table>
+<tr><th>Tu Pila</th><th>std::stack</th><th>Nota</th></tr>
+<tr><td><code>push(x)</code></td><td><code>push(x)</code></td><td>apila arriba</td></tr>
+<tr><td><code>pop()</code></td><td><code>pop()</code></td><td>devuelve <code>void</code>; con la pila vacía es indefinido</td></tr>
+<tr><td><code>top()</code></td><td><code>top()</code></td><td>con la pila vacía es indefinido</td></tr>
+<tr><td><code>vacia()</code></td><td><code>empty()</code></td><td></td></tr>
+<tr><td><code>tamano()</code></td><td><code>size()</code></td><td></td></tr>
+</table>
+
+<h2>std::queue — tu Cola</h2>
+<pre><code>#include &lt;queue&gt;
+queue&lt;int&gt; q;</code></pre>
+<table>
+<tr><th>Tu Cola</th><th>std::queue</th><th>Nota</th></tr>
+<tr><td><code>encolar(x)</code></td><td><code>push(x)</code></td><td>entra por el final</td></tr>
+<tr><td><code>desencolar()</code></td><td><code>pop()</code></td><td>sale por el frente; devuelve <code>void</code>; con la cola vacía es indefinido</td></tr>
+<tr><td><code>verFrente()</code></td><td><code>front()</code></td><td>con la cola vacía es indefinido</td></tr>
+<tr><td>—</td><td><code>back()</code></td><td>mira el último en llegar</td></tr>
+<tr><td><code>vacia()</code> · <code>tamano()</code></td><td><code>empty()</code> · <code>size()</code></td><td></td></tr>
+</table>
+
+<h2>std::list — tu ListaEnlazada</h2>
+<pre><code>#include &lt;list&gt;
+#include &lt;algorithm&gt;   <span class="c">// solo para find</span>
+list&lt;int&gt; l;</code></pre>
+<table>
+<tr><th>Tu ListaEnlazada</th><th>std::list</th><th>Nota</th></tr>
+<tr><td><code>insertarAlInicio(x)</code></td><td><code>push_front(x)</code></td><td></td></tr>
+<tr><td><code>insertarAlFinal(x)</code></td><td><code>push_back(x)</code></td><td></td></tr>
+<tr><td>—</td><td><code>pop_front()</code> · <code>pop_back()</code></td><td>quitan el primero / el último</td></tr>
+<tr><td>—</td><td><code>front()</code> · <code>back()</code></td><td>miran el primero / el último</td></tr>
+<tr><td><code>eliminar(x)</code></td><td><code>remove(x)</code></td><td>borra <strong>todos</strong> los que valen <code>x</code></td></tr>
+<tr><td><code>buscar(x)</code></td><td><code>find(l.begin(), l.end(), x) != l.end()</code></td><td>función de <code>&lt;algorithm&gt;</code>, no método</td></tr>
+<tr><td><code>imprimir()</code></td><td><code>for (int x : l) cout &lt;&lt; x &lt;&lt; " ";</code></td><td></td></tr>
+<tr><td><code>vacia()</code> · <code>tamano()</code></td><td><code>empty()</code> · <code>size()</code></td><td></td></tr>
+<tr><td>—</td><td>no hay <code>l[i]</code></td><td>se recorre nodo a nodo</td></tr>
+</table>
+<p><code>std::list</code> es de enlace <strong>doble</strong>: cada nodo apunta al siguiente y al anterior.</p>
+
+<h2>El patrón de leer y quitar</h2>
+<pre><code>if (!s.empty()) {       <span class="c">// SIEMPRE comprobar antes</span>
+    int x = s.top();    <span class="c">// 1) leer   (en una cola: q.front())</span>
+    s.pop();            <span class="c">// 2) quitar (pop no devuelve nada)</span>
+}</code></pre>
+
+<h2>Deshacer y rehacer con dos pilas</h2>
+<pre><code>void escribir(const string&amp; palabra) {
+    pilaDeshacer.push(texto);                        <span class="c">// guarda cómo estaba</span>
+    texto = texto.empty() ? palabra : texto + " " + palabra;
+    while (!pilaRehacer.empty()) pilaRehacer.pop();  <span class="c">// lo deshecho ya no vale</span>
+}
+void deshacer() {
+    if (pilaDeshacer.empty()) return;
+    pilaRehacer.push(texto);
+    texto = pilaDeshacer.top();
+    pilaDeshacer.pop();
+}
+<span class="c">// rehacer(): igual que deshacer() con las dos pilas intercambiadas</span></code></pre>
+
+<h2>Cuál usar</h2>
+<table>
+<tr><th>Necesitas</th><th>Estructura</th></tr>
+<tr><td>el último que entra sale primero (LIFO)</td><td>pila</td></tr>
+<tr><td>atender en orden de llegada (FIFO)</td><td>cola</td></tr>
+<tr><td>insertar y borrar en cualquier punto</td><td>lista</td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>int x = s.pop();</code></td><td>no compila: <code>pop</code> devuelve <code>void</code></td><td>leer con <code>top()</code>/<code>front()</code>, luego <code>pop()</code></td></tr>
+<tr><td><code>top()</code>, <code>front()</code> o <code>pop()</code> con el contenedor vacío</td><td>comportamiento indefinido; puede caerse</td><td>preguntar <code>empty()</code> antes</td></tr>
+<tr><td>creer que <code>remove(x)</code> borra solo uno</td><td>borra todos los iguales</td><td>si quieres uno solo, usa <code>find</code> y <code>erase</code></td></tr>
+<tr><td>olvidar el <code>#include</code></td><td>error: <code>stack</code> no está declarado</td><td><code>&lt;stack&gt;</code>, <code>&lt;queue&gt;</code>, <code>&lt;list&gt;</code></td></tr>
+<tr><td>usarlas en el examen sin permiso</td><td>evalúan nodos y apuntadores, no la biblioteca</td><td>escribe la tuya salvo que digan otra cosa</td></tr>
+</table>
+
+<p class="cita">Fuente: <a href="https://en.cppreference.com/w/cpp/container/stack">cppreference — std::stack</a> · <a href="https://en.cppreference.com/w/cpp/container/queue">std::queue</a> · <a href="https://en.cppreference.com/w/cpp/container/list">std::list</a></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 3.3 · Lista enlazada II</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+<marker id="fla" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--acento)"/></marker>
+<marker id="flx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--suave)"/></marker>
+</defs>
+</svg>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 3 · Estructuras de datos › Lección 3 de 9</div>
+<h1>Lista enlazada II</h1>
+<p class="subtitulo">Añadir al final, buscar y eliminar sin perder el resto. ~40 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> añadir nodos al final, buscar un valor y
+eliminar un nodo en cualquier posición —primero, en medio o último— sin perder
+el resto de la lista ni dejar fugas de memoria.</p>
+</div>
+
+<p><strong>Por qué.</strong> Eliminar un nodo es <em>la</em> pregunta de examen
+de listas enlazadas: obliga a pensar en flechas, en el orden de las
+operaciones y en los casos especiales. Y las dos operaciones de hoy son las
+que usarás en la cola de la lección 3.7: entrar por el final y salir por el
+principio.</p>
+
+<p>Partimos de la <code>ListaEnlazada</code> de la
+<a href="../nivel-3-estructuras-de-datos/02-lista-enlazada-1.html">lección 3.2</a>: un <code>Nodo</code> con
+<code>dato</code> y <code>siguiente</code>, y la clase con <code>cabeza</code>,
+<code>insertarAlInicio</code>, <code>imprimir</code>, <code>tamano</code>,
+<code>vacia</code> y el destructor. Hoy le añadimos tres métodos.</p>
+
+<h2>1. <code>insertarAlFinal</code>: llegar al último y engancharse</h2>
+
+<p>La clase no sabe dónde está el último nodo: solo tiene <code>cabeza</code>.
+Así que hay que recorrer hasta encontrarlo. El último es el único cuyo
+<code>siguiente</code> vale <code>nullptr</code>.</p>
+
+<pre><code>void insertarAlFinal(int valor) {
+    Nodo* nuevo = new Nodo(valor);         <span class="c">// nace con siguiente = nullptr</span>
+    if (cabeza == nullptr) {               <span class="c">// caso especial: lista vacía</span>
+        cabeza = nuevo;
+        return;
+    }
+    Nodo* actual = cabeza;
+    while (actual-&gt;siguiente != nullptr) { <span class="c">// parar EN el último</span>
+        actual = actual-&gt;siguiente;
+    }
+    actual-&gt;siguiente = nuevo;             <span class="c">// engancharse detrás</span>
+}</code></pre>
+
+<p><strong>Antes</strong> de enganchar: <code>actual</code> se detuvo en el 7,
+porque su <code>siguiente</code> es <code>nullptr</code>. El 9 está creado aparte.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 558 278" width="558" height="278" role="img" aria-label="actual se detuvo en el 7, el último; el nodo 9 está creado aparte" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="178" width="100" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="414" y1="178" x2="414" y2="218" style="stroke:var(--acento)" stroke-width="2.2"/><text x="383.0" y="204" text-anchor="middle" font-size="16" style="fill:var(--acento)">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="263.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="263.0" y1="78.0" x2="316" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="320" y="82.0" font-size="13" fill="currentColor">nullptr</text><circle cx="433.0" cy="198.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="198.0" x2="486" y2="198.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="202.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="213.0" y="20" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">actual</text><line x1="213.0" y1="26" x2="213.0" y2="55" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/><line x1="383.0" y1="248" x2="383.0" y2="221" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/><text x="383.0" y="264" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">nuevo</text></svg></div>
+
+<p><strong>Después</strong> de <code>actual-&gt;siguiente = nuevo;</code></p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 558 106" width="558" height="106" role="img" aria-label="Después: 3 → 7 → 9 → nullptr" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="414" y1="58" x2="414" y2="98" style="stroke:var(--acento)" stroke-width="2.2"/><text x="383.0" y="84" text-anchor="middle" font-size="16" style="fill:var(--acento)">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="263.0" cy="78.0" r="3.5" style="fill:var(--acento)"/><line x1="263.0" y1="78.0" x2="352" y2="78.0" style="stroke:var(--acento)" stroke-width="2.4" marker-end="url(#fla)"/><text x="307.5" y="50.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--acento)">actual-&gt;siguiente = nuevo</text><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/></svg></div>
+
+<p>Si la lista está vacía no hay «último» al que engancharse: el nodo nuevo
+pasa directamente a ser la cabeza.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="-23 0 241 106" width="241" height="106" role="img" aria-label="Lista vacía: el nodo nuevo pasa a ser la cabeza" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="74" y1="58" x2="74" y2="98" style="stroke:var(--acento)" stroke-width="2.2"/><text x="43.0" y="84" text-anchor="middle" font-size="16" style="fill:var(--acento)">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="146" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="150" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">cabeza, nuevo</text><line x1="43.0" y1="26" x2="43.0" y2="55" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+
+<div class="ojo">
+<p><strong>Ojo con la condición del <code>while</code>.</strong> En la lección 3.2
+el recorrido era <code>while (actual != nullptr)</code>, y termina con
+<code>actual</code> <em>fuera</em> de la lista (en <code>nullptr</code>). Aquí
+necesitas quedarte <em>sobre</em> el último nodo para tocar su flecha, así que
+la condición es <code>while (actual-&gt;siguiente != nullptr)</code>. Con la
+primera, la línea <code>actual-&gt;siguiente = nuevo</code> desreferencia
+<code>nullptr</code> y el programa se cae.</p>
+</div>
+
+<p>Fíjate en que <code>insertarAlFinal</code> recorre la lista entera cada vez:
+con mil nodos, mil saltos. En la cola (lección 3.7) lo arreglaremos guardando un
+segundo apuntador, <code>final</code>, que siempre apunta al último.</p>
+
+<h2>2. <code>buscar</code>: el recorrido con salida temprana</h2>
+
+<p>Es el recorrido de siempre, pero en cuanto encuentra el valor sale con
+<code>return true</code>. Si el bucle termina, es que no estaba.</p>
+
+<pre><code>bool buscar(int valor) {
+    Nodo* actual = cabeza;
+    while (actual != nullptr) {
+        if (actual-&gt;dato == valor) return true;   <span class="c">// encontrado: salir ya</span>
+        actual = actual-&gt;siguiente;
+    }
+    return false;                                 <span class="c">// recorrí todo y no estaba</span>
+}</code></pre>
+
+<p>Con la lista vacía, <code>actual</code> empieza en <code>nullptr</code>, el
+bucle no se ejecuta y devuelve <code>false</code>. No hace falta caso especial.</p>
+
+<h2>3. <code>eliminar</code>: la idea</h2>
+
+<p>Para sacar un nodo de la cadena hay que cambiar <strong>la flecha que
+llega a él</strong>, para que se lo salte. Esa flecha está en el nodo
+<em>anterior</em>. Por eso, al recorrer, se llevan <strong>dos
+apuntadores</strong>: <code>actual</code> (el que miras) y
+<code>anterior</code> (el de justo antes).</p>
+
+<p>Hay cinco situaciones. Conviene tenerlas en la cabeza antes de escribir código:</p>
+
+<table>
+<tr><th>Caso</th><th>Qué hay que hacer</th></tr>
+<tr><td>1. Lista vacía</td><td>nada; devolver <code>false</code></td></tr>
+<tr><td>2. El valor está en la cabeza</td><td>mover <code>cabeza</code> al segundo y liberar el primero</td></tr>
+<tr><td>3. Está en medio</td><td><code>anterior</code> se salta a <code>actual</code>; liberar <code>actual</code></td></tr>
+<tr><td>4. Es el último</td><td>igual que el 3: <code>anterior</code> pasa a apuntar a <code>nullptr</code></td></tr>
+<tr><td>5. No está</td><td>el recorrido llega a <code>nullptr</code>; devolver <code>false</code></td></tr>
+</table>
+
+<h2>4. Caso: borrar la cabeza</h2>
+
+<p>El primer nodo <strong>no tiene anterior</strong>: la flecha que llega a él
+no está en ningún nodo, está en <code>cabeza</code>. Así que es la cabeza la que
+hay que mover.</p>
+
+<pre><code>if (cabeza-&gt;dato == valor) {
+    Nodo* aBorrar = cabeza;          <span class="c">// 0. recordar cuál borrar</span>
+    cabeza = cabeza-&gt;siguiente;      <span class="c">// 1. la cabeza pasa al segundo</span>
+    delete aBorrar;                  <span class="c">// 2. liberar el antiguo primero</span>
+    return true;
+}</code></pre>
+
+<p><strong>Antes:</strong> queremos borrar el 3.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="-32 0 590 106" width="590" height="106" role="img" aria-label="Antes: cabeza y aBorrar apuntan al 3" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="263.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="263.0" y1="78.0" x2="352" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza, aBorrar</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/></svg></div>
+<p><strong>Paso 1:</strong> <code>cabeza = cabeza-&gt;siguiente;</code> — la lista
+ya empieza en el 7. Solo <code>aBorrar</code> recuerda dónde estaba el 3.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 558 106" width="558" height="106" role="img" aria-label="Paso 1: cabeza pasa al 7; aBorrar sigue en el 3" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="263.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="263.0" y1="78.0" x2="352" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">aBorrar</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="213.0" y="20" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">cabeza</text><line x1="213.0" y1="26" x2="213.0" y2="55" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+<p><strong>Paso 2:</strong> <code>delete aBorrar;</code></p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 558 128" width="558" height="128" role="img" aria-label="Paso 2: el 3 está liberado; la lista es 7 → 9" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor" opacity=".45">3</text><text x="62.0" y="116" text-anchor="middle" font-size="12" style="fill:var(--mal)">liberado</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">9</text><circle cx="263.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="263.0" y1="78.0" x2="352" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="213.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="213.0" y1="26" x2="213.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/></svg></div>
+
+<div class="ojo">
+<p><strong>La cabeza es un caso especial: trátala aparte, y primero.</strong>
+El código de «borrar en medio» usa <code>anterior-&gt;siguiente</code>, pero
+para el primer nodo no hay <code>anterior</code>: si empiezas con
+<code>Nodo* anterior = nullptr;</code> y no separas el caso, escribirás
+<code>nullptr-&gt;siguiente</code> y el programa se cae. Y si separas el caso
+pero haces <code>delete cabeza;</code> antes de moverla, la línea
+<code>cabeza = cabeza-&gt;siguiente</code> lee un nodo ya liberado.
+<strong>Comprueba siempre la cabeza antes del bucle.</strong></p>
+</div>
+
+<h2>5. Caso: borrar en medio</h2>
+
+<p>Si la cabeza no era, se recorre con <code>anterior</code> un paso por
+detrás de <code>actual</code>:</p>
+
+<pre><code>Nodo* anterior = cabeza;
+Nodo* actual = cabeza-&gt;siguiente;
+while (actual != nullptr) {
+    if (actual-&gt;dato == valor) {
+        anterior-&gt;siguiente = actual-&gt;siguiente;   <span class="c">// 1. reenganchar</span>
+        delete actual;                             <span class="c">// 2. ahora sí, liberarlo</span>
+        return true;
+    }
+    anterior = actual;                             <span class="c">// avanzar los dos juntos</span>
+    actual = actual-&gt;siguiente;
+}</code></pre>
+
+<p><strong>Antes:</strong> queremos borrar el 7. <code>anterior</code> está en el 3.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="-37 0 595 106" width="595" height="106" role="img" aria-label="Antes: anterior en el 3 y actual en el 7, el que hay que borrar" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="263.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="263.0" y1="78.0" x2="352" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza, anterior</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="213.0" y="20" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">actual</text><line x1="213.0" y1="26" x2="213.0" y2="55" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+<p><strong>Paso 1:</strong> <code>anterior-&gt;siguiente = actual-&gt;siguiente;</code>
+— la flecha del 3 deja de ir al 7 y va directa al 9. El 7 sigue en memoria y
+<code>actual</code> todavía lo apunta, pero ya no forma parte de la cadena.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="-37 0 595 178" width="595" height="178" role="img" aria-label="Paso 1: la flecha del 3 se salta el 7 y apunta al 9" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#flx)"/><text x="137.5" y="84.0" text-anchor="middle" font-size="18" font-weight="700" style="fill:var(--mal)">✗</text><circle cx="93.0" cy="78.0" r="3.5" style="fill:var(--acento)"/><path d="M93.0,78.0 C123.0,163.0 292,163.0 352,84.0" fill="none" style="stroke:var(--acento)" stroke-width="2.4" marker-end="url(#fla)"/><text x="222.5" y="162.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--acento)">anterior-&gt;siguiente = actual-&gt;siguiente</text><circle cx="263.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="263.0" y1="78.0" x2="352" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza, anterior</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="213.0" y="20" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">actual</text><line x1="213.0" y1="26" x2="213.0" y2="55" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+<p><strong>Paso 2:</strong> <code>delete actual;</code> — ya nadie lo necesita.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 558 178" width="558" height="178" role="img" aria-label="Paso 2: el 7 está liberado; la lista es 3 → 9" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor" opacity=".45">7</text><text x="232.0" y="116" text-anchor="middle" font-size="12" style="fill:var(--mal)">liberado</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><path d="M93.0,78.0 C123.0,163.0 292,163.0 352,84.0" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/></svg></div>
+
+<div class="ojo">
+<p><strong>El error clásico: borrar antes de reenganchar.</strong> Parece lo
+mismo cambiar el orden de las dos líneas:</p>
+<pre><code>delete actual;                             <span class="c">// ✗ primero borra el 7...</span>
+anterior-&gt;siguiente = actual-&gt;siguiente;   <span class="c">// ✗ ...y luego lee su flecha</span></code></pre>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="-37 0 595 128" width="595" height="128" role="img" aria-label="Error: el 7 se liberó primero; el 3 apunta a memoria liberada y el 9 quedó perdido" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor" opacity=".45">7</text><text x="232.0" y="116" text-anchor="middle" font-size="12" style="fill:var(--mal)">liberado</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor" opacity=".45">9</text><text x="402.0" y="116" text-anchor="middle" font-size="12" style="fill:var(--mal)">perdido</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="137.5" y="50.0" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(--acento)">¿y ahora?</text><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" opacity=".45" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza, anterior</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="213.0" y="20" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">actual</text><line x1="213.0" y1="26" x2="213.0" y2="55" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+<p>Pero la flecha que lleva al 9 <strong>estaba dentro del 7</strong>. Al
+liberar el 7 primero, la segunda línea lee memoria liberada (apuntador
+colgante). Con suerte el programa se cae en el acto; sin suerte sigue
+funcionando con basura y falla mucho más tarde. Y si la dirección del 9 se
+pierde, <strong>se pierde todo el resto de la lista</strong>: fuga de memoria.</p>
+<p><strong>Regla: primero reenganchar, después borrar.</strong> Antes de cada
+<code>delete</code>, pregúntate: «¿hay algo dentro de este nodo que todavía
+necesito?».</p>
+</div>
+
+<h2>6. Caso: borrar el último</h2>
+
+<p>No hace falta código nuevo. Si <code>actual</code> es el último, su
+<code>siguiente</code> es <code>nullptr</code>, y
+<code>anterior-&gt;siguiente = actual-&gt;siguiente</code> copia ese
+<code>nullptr</code>: el penúltimo se convierte en el último.</p>
+
+<p><strong>Antes:</strong> queremos borrar el 9.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 558 106" width="558" height="106" role="img" aria-label="Antes: anterior en el 7 y actual en el 9, el último" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="414" y1="58" x2="414" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="383.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">9</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="263.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="263.0" y1="78.0" x2="352" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="433.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="433.0" y1="78.0" x2="486" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="490" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="213.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">anterior</text><line x1="213.0" y1="26" x2="213.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="383.0" y="20" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">actual</text><line x1="383.0" y1="26" x2="383.0" y2="55" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+<p><strong>Después</strong> de reenganchar y hacer <code>delete actual</code>:</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 464 202" width="464" height="202" role="img" aria-label="Después: el 7 apunta a nullptr y el 9 está liberado" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="74" y1="58" x2="74" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="182" y="58" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="244" y1="58" x2="244" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="213.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">7</text><rect x="352" y="132.4" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><line x1="414" y1="132.4" x2="414" y2="172.4" stroke="currentColor" stroke-dasharray="5 4" opacity=".45"/><text x="383.0" y="158.4" text-anchor="middle" font-size="16" fill="currentColor" opacity=".45">9</text><text x="402.0" y="190.4" text-anchor="middle" font-size="12" style="fill:var(--mal)">liberado</text><circle cx="93.0" cy="78.0" r="3.5" fill="currentColor"/><line x1="93.0" y1="78.0" x2="182" y2="78.0" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="263.0" cy="78.0" r="3.5" style="fill:var(--acento)"/><line x1="263.0" y1="78.0" x2="316" y2="78.0" style="stroke:var(--acento)" stroke-width="2.4" marker-end="url(#fla)"/><text x="320" y="82.0" font-size="13" fill="currentColor">nullptr</text><text x="43.0" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="43.0" y1="26" x2="43.0" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/></svg></div>
+
+<h2>7. Todo junto: los cinco casos</h2>
+
+<pre><code>bool eliminar(int valor) {
+    if (cabeza == nullptr) return false;           <span class="c">// caso 1: vacía</span>
+
+    if (cabeza-&gt;dato == valor) {                   <span class="c">// caso 2: la cabeza</span>
+        Nodo* aBorrar = cabeza;
+        cabeza = cabeza-&gt;siguiente;
+        delete aBorrar;
+        return true;
+    }
+
+    Nodo* anterior = cabeza;                       <span class="c">// casos 3 y 4</span>
+    Nodo* actual = cabeza-&gt;siguiente;
+    while (actual != nullptr) {
+        if (actual-&gt;dato == valor) {
+            anterior-&gt;siguiente = actual-&gt;siguiente;
+            delete actual;
+            return true;
+        }
+        anterior = actual;
+        actual = actual-&gt;siguiente;
+    }
+    return false;                                  <span class="c">// caso 5: no estaba</span>
+}</code></pre>
+
+<p>Borra solo la <em>primera</em> aparición del valor y devuelve
+<code>true</code> o <code>false</code> para que quien llama sepa si encontró
+algo. Para comprobarlo a mano, prueba los cinco casos en un papel con la
+lista <code>3 → 7 → 9</code>: vacía, borrar 3, borrar 7, borrar 9 y borrar 5.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>En <code>eliminar</code>, <code>anterior</code>, <code>actual</code> y <code>aBorrar</code> son
+variables locales: viven en el marco de <code>eliminar</code>, en la memoria automática (la
+<em>pila de llamadas</em> o <em>stack</em>), y desaparecen solas con el <code>return</code>. Los
+nodos viven en el montón (<em>heap</em>) y solo se van con <code>delete</code>. Justo después de
+<code>delete actual;</code> al borrar el 7, queda así (direcciones inventadas):</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">marco de eliminar</div>anterior: 0x100<br>actual: 0x200 (colgante)<div class="dir">memoria automática</div></div>
+  <div class="caja"><div class="nombre">nodo 3</div>siguiente: 0x300<div class="dir">montón · 0x100</div></div>
+  <div class="caja"><div class="nombre">(liberado)</div>aquí estaba el 7<div class="dir">montón · 0x200</div></div>
+  <div class="caja"><div class="nombre">nodo 9</div>siguiente: nullptr<div class="dir">montón · 0x300</div></div>
+</div>
+<p><code>delete</code> devuelve la caja al montón pero <strong>no cambia</strong> la variable
+<code>actual</code>: sigue guardando 0x200. No pasa nada porque lo siguiente es
+<code>return true</code> y el marco desaparece. El peligro es leer a través de ella antes: eso es
+«borrar antes de reenganchar». <code>insertarAlFinal</code> hace lo contrario: la caja de
+<code>new</code> sobrevive al marco, y su dirección pasa del local <code>nuevo</code> a un nodo de
+la lista antes de que <code>nuevo</code> muera.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#monton">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+
+<table>
+<tr><th>Operación</th><th>Idea</th><th>Caso especial</th></tr>
+<tr><td><code>insertarAlFinal</code></td><td>recorrer con <code>actual-&gt;siguiente != nullptr</code> y enganchar detrás</td><td>lista vacía: <code>cabeza = nuevo</code></td></tr>
+<tr><td><code>buscar</code></td><td>recorrer; <code>return true</code> al encontrarlo</td><td>ninguno</td></tr>
+<tr><td><code>eliminar</code> (cabeza)</td><td>guardar, mover <code>cabeza</code>, <code>delete</code></td><td>es el caso especial</td></tr>
+<tr><td><code>eliminar</code> (resto)</td><td><code>anterior-&gt;siguiente = actual-&gt;siguiente;</code> y después <code>delete actual</code></td><td>el último no necesita nada aparte</td></tr>
+</table>
+
+<p>El código completo y los errores típicos están en la
+<a href="../reference/lista-enlazada.html#leccion-5">hoja de referencia de listas enlazadas</a>
+(sección de la lección 3.3).</p>
+
+<h2>Comprueba lo que sabes</h2>
+
+<div class="nota">
+<p><strong>Calentamiento:</strong> antes de empezar, repite sin mirar el
+<a href="../nivel-3-estructuras-de-datos/02-lista-enlazada-1.html">quiz de la lección 3.2</a>.</p>
+</div>
+
+<p>Ahora este. Responde <em>sin volver a mirar arriba</em>; dibuja las flechas
+si dudas.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="3" data-explica="Con <code>while (actual != nullptr)</code> el bucle termina con <code>actual</code> valiendo <code>nullptr</code>, y <code>actual-&gt;siguiente = nuevo</code> lo desreferencia: se cae. Hay que parar EN el último: <code>while (actual-&gt;siguiente != nullptr)</code>.">
+<pre><code>void insertarAlFinal(int valor) {
+    Nodo* nuevo = new Nodo(valor);
+    Nodo* actual = cabeza;
+    while (actual != nullptr) {
+        actual = actual-&gt;siguiente;
+    }
+    actual-&gt;siguiente = nuevo;
+}</code></pre>
+<p>Con la lista <code>3 → 7</code>, ¿qué falla?</p>
+<div class="opciones"><button>Inserta el valor al principio siempre</button><button>Funciona bien con cualquier lista dada</button><button>Salta el último nodo sin enlazarlo</button><button>Avanza hasta nullptr y luego falla</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Primero 1 (único). Luego el 2 entra delante: 2 → 1. Luego el 3 entra detrás: 2 → 1 → 3.">
+<pre><code>ListaEnlazada l;
+l.insertarAlFinal(1);
+l.insertarAlInicio(2);
+l.insertarAlFinal(3);
+l.imprimir();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>2 -&gt; 1 -&gt; 3 -&gt; nullptr</button><button>1 -&gt; 2 -&gt; 3 -&gt; nullptr</button><button>3 -&gt; 1 -&gt; 2 -&gt; nullptr</button><button>1 -&gt; 3 -&gt; 2 -&gt; nullptr</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Después de <code>delete actual</code>, leer <code>actual-&gt;siguiente</code> es leer memoria liberada (apuntador colgante). La dirección del 9 estaba dentro del 7: hay que reenganchar ANTES de borrar.">
+<pre><code><span class="c">// lista 3 → 7 → 9; anterior está en el 3, actual en el 7</span>
+delete actual;
+anterior-&gt;siguiente = actual-&gt;siguiente;</code></pre>
+<p>¿Qué falla aquí?</p>
+<div class="opciones"><button>Borra el 9, no el 7</button><button>Nada, el orden no importa aquí</button><button>Lee el 7 después de liberarlo</button><button>Saca el 3 de la lista</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="El 3 es la cabeza: el bucle no avanza y <code>anterior</code> sigue valiendo <code>nullptr</code>. Entonces <code>anterior-&gt;siguiente</code> desreferencia <code>nullptr</code> y el programa se cae. La cabeza necesita su caso aparte.">
+<pre><code>bool eliminar(int valor) {
+    Nodo* anterior = nullptr;
+    Nodo* actual = cabeza;
+    while (actual != nullptr &amp;&amp; actual-&gt;dato != valor) {
+        anterior = actual;
+        actual = actual-&gt;siguiente;
+    }
+    if (actual == nullptr) return false;
+    anterior-&gt;siguiente = actual-&gt;siguiente;
+    delete actual;
+    return true;
+}</code></pre>
+<p>Con la lista <code>3 → 7 → 9</code>, ¿qué pasa con <code>eliminar(3)</code>?</p>
+<div class="opciones"><button>Borra el 3 sin problema</button><button>Se cae: anterior vale nullptr</button><button>Devuelve false y no borra</button><button>Borra el 7 por error</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="El 9 era el último, así que <code>actual-&gt;siguiente</code> vale <code>nullptr</code>. La línea <code>anterior-&gt;siguiente = actual-&gt;siguiente</code> copia ese <code>nullptr</code> en el 7, que pasa a ser el último.">
+<p>En la lista <code>3 → 7 → 9</code> se ejecuta el <code>eliminar(9)</code> correcto de la sección 7.
+Después, ¿qué guarda el <code>siguiente</code> del 7?</p>
+<div class="opciones"><button>Apunta al 9</button><button>Apunta al 3</button><button>Pasa a nullptr</button><button>Queda con basura</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Solo cuando se borra el primer nodo cambia <code>cabeza</code>: no tiene anterior, así que la flecha que hay que mover es la propia <code>cabeza</code>. En los demás casos se cambia <code>anterior-&gt;siguiente</code> o no se cambia nada.">
+<p>En <code>eliminar</code>, ¿en qué caso cambia el valor de <code>cabeza</code>?</p>
+<div class="opciones"><button>Borrar el primer nodo</button><button>Borrar el último nodo</button><button>Borrar un nodo intermedio</button><button>Buscar un valor inexistente</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 3.3 · Agenda de contactos</h2>
+
+<p>Abre <a href="../nivel-3-estructuras-de-datos/ejercicios/03-lista-enlazada-2.cpp"><code>ejercicios/03-lista-enlazada-2.cpp</code></a>.
+Es la lista de siempre, pero cada nodo guarda un <code>Contacto</code> con
+nombre y teléfono. Se llega a ellos con <code>actual-&gt;dato.nombre</code> y
+<code>actual-&gt;dato.telefono</code>. Lo de la lección 3.2 ya viene hecho.
+Completa tres métodos:</p>
+
+<ol>
+<li><code>insertarAlFinal(string nombre, string telefono)</code> — la sección 1, con su caso de lista vacía.</li>
+<li><code>buscar(string nombre)</code> — devuelve el <strong>teléfono</strong> (no un <code>bool</code>), o <code>""</code> si no está.</li>
+<li><code>eliminar(string nombre)</code> — los cinco casos de la sección 7. Devuelve <code>true</code> si borró.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 03-lista-enlazada-2.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Las pruebas cubren los cinco casos de <code>eliminar</code> y comprueban con
+el contador <code>nodosVivos</code> que cada nodo borrado se liberó con
+<code>delete</code>. Terminaste cuando salgan todas en ✓. Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> escribe primero solo el caso de la cabeza y
+compila: deberían pasar la prueba de «borrar la cabeza» y la de la agenda
+vacía. Después añade el bucle con <code>anterior</code> y <code>actual</code>.
+Si «tras borrar el último, insertarAlFinal sigue funcionando» falla, revisa
+que reenganchas también cuando <code>actual</code> es el último.</p>
+<p>La solución está en <a href="../nivel-3-estructuras-de-datos/soluciones/03-lista-enlazada-2.cpp"><code>../nivel-3-estructuras-de-datos/soluciones/03-lista-enlazada-2.cpp</code></a>,
+pero ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/linked-lists1">Stanford CS106B — Linked Lists 1</a>
+(en inglés). Repasa la parte de recorrer la lista y fíjate en cómo dibujan las
+flechas al modificarla: es el mismo método de esta lección. Unos 20 minutos.</p>
+<p>Para el porqué del error de «borrar antes de reenganchar»:
+<a href="https://www.learncpp.com/cpp-tutorial/dynamic-memory-allocation-with-new-and-delete/">LearnCpp — new y delete</a>,
+el apartado sobre apuntadores colgantes («Dangling pointers»).</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+un caso de <code>eliminar</code> que no te cuadra, un error de compilación o
+«explícamelo de otra forma». Para eso estoy. Cuando termines el miniproyecto,
+pasa a la lección 6.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="../nivel-3-estructuras-de-datos/02-lista-enlazada-1.html">← Lección anterior</a> ·
+<a href="../nivel-3-estructuras-de-datos/04-lista-doble-y-circular.html">Siguiente: Lección 3.4 · Lista doble y circular →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

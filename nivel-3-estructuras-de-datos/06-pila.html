@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 3.6 · Pila</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 3 · Estructuras de datos › Lección 6 de 9</div>
+<h1>Pila</h1>
+<p class="subtitulo">Una lista enlazada donde solo se toca la cabeza. ~30 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> escribir una clase <code>Pila</code> con nodos
+(<code>push</code>, <code>pop</code>, <code>top</code>) y usarla para saber si los
+paréntesis de un texto están bien cerrados.</p>
+</div>
+
+<p><strong>Por qué.</strong> La pila es la estructura que más aparece en los
+exámenes después de la lista, y ya tienes casi todo hecho: es tu
+<code>ListaEnlazada</code> con <em>menos</em> métodos, no con más. Además está
+por todas partes: el botón «deshacer», el botón «atrás» del navegador y la
+forma en que un programa recuerda a qué función volver.</p>
+
+<h2>1. La idea: una pila de platos</h2>
+
+<p>Piensa en una pila de platos para fregar. El plato nuevo se pone
+<strong>encima</strong>. Y cuando coges uno, coges el de <strong>encima</strong>.
+Nunca sacas el de abajo del todo.</p>
+
+<p>Eso es una pila: <strong>el último que entra es el primero que sale</strong>.
+En inglés se dice <em>LIFO</em>, «last in, first out»
+(<a href="https://en.cppreference.com/w/cpp/container/stack">cppreference, std::stack</a>).</p>
+
+<p>Otro ejemplo: «deshacer» en un editor. Escribes «Hola», luego «, ¿qué»,
+luego « tal?». Al pulsar Ctrl+Z se deshace primero lo <em>último</em> que
+hiciste (« tal?»). Cada acción se apila; deshacer saca la de arriba.</p>
+
+<p>Solo hay tres operaciones importantes, con nombres en inglés que verás en
+todos los libros:</p>
+
+<table>
+<tr><th>Operación</th><th>En español</th><th>Qué hace</th></tr>
+<tr><td><code>push(x)</code></td><td>apilar</td><td>pone <code>x</code> arriba</td></tr>
+<tr><td><code>pop()</code></td><td>desapilar</td><td>quita el de arriba</td></tr>
+<tr><td><code>top()</code></td><td>ver el tope</td><td>dice cuál está arriba, sin quitarlo</td></tr>
+</table>
+
+<h2>2. Una pila es una lista que solo usa la cabeza</h2>
+
+<p>En la lección 3.2 hiciste una <code>ListaEnlazada</code> con un apuntador
+<code>cabeza</code> al primer nodo. Insertar al inicio era rápido: no hacía
+falta recorrer nada. Borrar la cabeza (lección 3.3) también.</p>
+
+<p>Una pila es exactamente eso, y nada más. Solo cambian los nombres:</p>
+
+<table>
+<tr><th>En tu lista</th><th>En la pila</th></tr>
+<tr><td><code>cabeza</code></td><td><code>tope</code></td></tr>
+<tr><td><code>insertarAlInicio(x)</code></td><td><code>push(x)</code></td></tr>
+<tr><td>eliminar la cabeza</td><td><code>pop()</code></td></tr>
+<tr><td><code>cabeza-&gt;dato</code></td><td><code>top()</code></td></tr>
+<tr><td><code>insertarAlFinal</code>, <code>buscar</code>, borrar en medio</td><td><em>no existen</em>: en una pila solo se toca arriba</td></tr>
+</table>
+
+<p>Así que la clase usa el mismo <code>Nodo</code> de siempre:</p>
+
+<pre><code>struct Nodo {
+    int dato;
+    Nodo* siguiente;
+    Nodo(int d) : dato(d), siguiente(nullptr) {}
+};
+
+class Pila {
+private:
+    Nodo* tope;                  <span class="c">// el de arriba; nullptr si está vacía</span>
+public:
+    Pila() : tope(nullptr) {}    <span class="c">// empieza vacía</span>
+    ~Pila();                     <span class="c">// libera todos los nodos</span>
+    void push(int valor);
+    void pop();
+    int  top() const;
+    bool vacia() const { return tope == nullptr; }
+    int  tamano() const;
+};</code></pre>
+
+<p>Dibujada, el <code>tope</code> es la cabeza de la lista. El que está más a
+la izquierda es el de arriba de la pila de platos:</p>
+
+<svg width="398" viewBox="0 0 398 108" role="img" aria-label="Pila antes de push: tope apunta a 7, luego 4" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl1m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-width="1.5"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="120" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="120" y1="72.0" x2="184" y2="72.0" stroke-width="1.5" marker-end="url(#fl1)"/><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">4</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="324" y2="72.0" stroke-width="1.5" marker-end="url(#fl1)"/><text x="328" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">tope</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" marker-end="url(#fl1)"/></svg>
+
+<h2>3. <code>push</code>: apilar</h2>
+
+<p>Los métodos los escribo fuera de la clase con <code>Pila::</code> delante,
+para verlos de uno en uno. Dentro de la clase serían iguales, sin el
+<code>Pila::</code>.</p>
+
+<p>Son los mismos tres pasos que <code>insertarAlInicio</code>:</p>
+
+<pre><code>void Pila::push(int valor) {
+    Nodo* nuevo = new Nodo(valor);   <span class="c">// 1. creo el nodo</span>
+    nuevo-&gt;siguiente = tope;         <span class="c">// 2. el nuevo apunta al que estaba arriba</span>
+    tope = nuevo;                    <span class="c">// 3. ahora el de arriba es el nuevo</span>
+}</code></pre>
+
+<p><strong>Antes</strong> de <code>push(9)</code>:</p>
+<svg width="398" viewBox="0 0 398 108" role="img" aria-label="Pila antes de push: tope apunta a 7, luego 4" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl2m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-width="1.5"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="120" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="120" y1="72.0" x2="184" y2="72.0" stroke-width="1.5" marker-end="url(#fl2)"/><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">4</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="324" y2="72.0" stroke-width="1.5" marker-end="url(#fl2)"/><text x="328" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">tope</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" marker-end="url(#fl2)"/></svg>
+<p><strong>Después</strong> (el nodo nuevo, resaltado):</p>
+<svg width="540" viewBox="0 0 540 108" role="img" aria-label="Después de push(9): tope apunta al nodo nuevo 9, que apunta a 7" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl3m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g style="stroke:var(--acento)" stroke-width="2.5"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none">9</text><circle cx="120" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="120" y1="72.0" x2="184" y2="72.0" stroke-width="1.5" marker-end="url(#fl3)"/><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="326" y2="72.0" stroke-width="1.5" marker-end="url(#fl3)"/><g stroke-width="1.5"><rect x="328" y="50" width="96" height="44" rx="4"/><line x1="384" y1="50" x2="384" y2="94"/></g><text x="356" y="77" text-anchor="middle" fill="currentColor" stroke="none">4</text><circle cx="404" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="404" y1="72.0" x2="466" y2="72.0" stroke-width="1.5" marker-end="url(#fl3)"/><text x="470" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">tope</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" marker-end="url(#fl3)"/></svg>
+
+<p>Funciona también con la pila vacía: <code>tope</code> vale
+<code>nullptr</code>, así que el nuevo queda apuntando a <code>nullptr</code>.
+Es el único nodo y también el último. No hace falta un caso especial.</p>
+
+<h2>4. <code>pop</code>: desapilar</h2>
+
+<p>Quitar el de arriba es borrar la cabeza de la lista. El orden de los pasos
+importa:</p>
+
+<pre><code>void Pila::pop() {
+    if (vacia()) return;        <span class="c">// pila vacía: no hay nada que quitar</span>
+    Nodo* viejo = tope;         <span class="c">// 1. guardo el que voy a borrar</span>
+    tope = tope-&gt;siguiente;     <span class="c">// 2. bajo el tope al siguiente</span>
+    delete viejo;               <span class="c">// 3. ahora sí, lo libero</span>
+}</code></pre>
+
+<p><strong>Antes</strong> de <code>pop()</code>:</p>
+<svg width="540" viewBox="0 0 540 108" role="img" aria-label="Pila antes de pop: tope apunta a 9" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl4m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-width="1.5"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none">9</text><circle cx="120" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="120" y1="72.0" x2="184" y2="72.0" stroke-width="1.5" marker-end="url(#fl4)"/><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="326" y2="72.0" stroke-width="1.5" marker-end="url(#fl4)"/><g stroke-width="1.5"><rect x="328" y="50" width="96" height="44" rx="4"/><line x1="384" y1="50" x2="384" y2="94"/></g><text x="356" y="77" text-anchor="middle" fill="currentColor" stroke="none">4</text><circle cx="404" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="404" y1="72.0" x2="466" y2="72.0" stroke-width="1.5" marker-end="url(#fl4)"/><text x="470" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">tope</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" marker-end="url(#fl4)"/></svg>
+<p><strong>Después</strong>: el 9 ya no existe y <code>tope</code> apunta al 7.</p>
+<svg width="540" viewBox="0 0 540 108" role="img" aria-label="Después de pop: el 9 se borró y tope apunta a 7" style="max-width:100%;height:auto;display:block;margin:.4rem 0 1rem" font-family="monospace" font-size="15" fill="none" stroke="currentColor"><defs><marker id="fl5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" stroke="none"/></marker><marker id="fl5m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--mal)" stroke="none"/></marker></defs><g stroke-dasharray="5 4" opacity=".55"><rect x="44" y="50" width="96" height="44" rx="4"/><line x1="100" y1="50" x2="100" y2="94"/></g><text x="72" y="77" text-anchor="middle" fill="currentColor" stroke="none" opacity=".55">9</text><g style="stroke:var(--mal)" stroke-width="2"><line x1="50" y1="56" x2="134" y2="88"/><line x1="134" y1="56" x2="50" y2="88"/></g><g stroke-width="1.5"><rect x="186" y="50" width="96" height="44" rx="4"/><line x1="242" y1="50" x2="242" y2="94"/></g><text x="214" y="77" text-anchor="middle" fill="currentColor" stroke="none">7</text><circle cx="262" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="262" y1="72.0" x2="326" y2="72.0" stroke-width="1.5" marker-end="url(#fl5)"/><g stroke-width="1.5"><rect x="328" y="50" width="96" height="44" rx="4"/><line x1="384" y1="50" x2="384" y2="94"/></g><text x="356" y="77" text-anchor="middle" fill="currentColor" stroke="none">4</text><circle cx="404" cy="72.0" r="3.5" fill="currentColor" stroke="none"/><line x1="404" y1="72.0" x2="466" y2="72.0" stroke-width="1.5" marker-end="url(#fl5)"/><text x="470" y="77.0" fill="currentColor" stroke="none" font-size="13">nullptr</text><text x="92.0" y="16" text-anchor="middle" style="fill:var(--mal)" stroke="none" font-weight="700">viejo (borrado)</text><line x1="92.0" y1="22" x2="92.0" y2="47" stroke-width="1.5" style="stroke:var(--mal)" marker-end="url(#fl5m)"/><text x="234.0" y="16" text-anchor="middle" fill="currentColor" stroke="none" font-weight="700">tope</text><line x1="234.0" y1="22" x2="234.0" y2="47" stroke-width="1.5" marker-end="url(#fl5)"/></svg>
+
+<div class="ojo">
+<p><strong>Error típico: borrar primero y mover después.</strong></p>
+<pre><code>delete tope;
+tope = tope-&gt;siguiente;   <span class="c">// ✗ tope apunta a un nodo que ya no existe</span></code></pre>
+<p>Después del <code>delete</code>, <code>tope</code> es un <em>apuntador
+colgante</em> (lección 2.3): leer <code>tope-&gt;siguiente</code> es leer memoria
+liberada. A veces «funciona» por suerte y a veces se cae. Por eso se guarda el
+nodo en <code>viejo</code>, se mueve el <code>tope</code> y se borra al final.</p>
+</div>
+
+<h2>5. ¿Y si la pila está vacía?</h2>
+
+<p>Hay que decidir qué hacen <code>pop</code> y <code>top</code> sin nada que
+quitar o mirar. En esta guía usamos esta regla, que es la más simple:</p>
+
+<ul>
+<li><strong><code>pop()</code> sobre una pila vacía no hace nada.</strong> Lo
+resuelve el <code>if (vacia()) return;</code> de arriba.</li>
+<li><strong><code>top()</code> no se llama con la pila vacía.</strong> Quien la
+usa pregunta antes con <code>vacia()</code>. Es lo mismo que hace
+<a href="https://en.cppreference.com/w/cpp/container/stack/top"><code>std::stack::top</code></a>:
+llamarlo vacía es comportamiento indefinido.</li>
+</ul>
+
+<pre><code>int Pila::top() const {
+    return tope-&gt;dato;          <span class="c">// con tope == nullptr esto se cae</span>
+}
+
+<span class="c">// Así se usa bien:</span>
+if (!p.vacia()) {
+    cout &lt;&lt; p.top();
+}</code></pre>
+
+<p>Es la misma regla de la lección 2.2: <em>pregunta antes de desreferenciar</em>.</p>
+
+<h2>6. El destructor y el truco del contador</h2>
+
+<p>Cada <code>push</code> hace un <code>new</code>. Si la pila se destruye con
+nodos dentro, hay que liberarlos o tendrás una fuga de memoria. El destructor
+recorre igual que el de tu lista:</p>
+
+<pre><code>Pila::~Pila() {
+    Nodo* actual = tope;
+    while (actual != nullptr) {
+        Nodo* sig = actual-&gt;siguiente;   <span class="c">// guardo el siguiente ANTES de borrar</span>
+        delete actual;
+        actual = sig;
+    }
+}</code></pre>
+
+<p><code>tamano()</code> también es el de la lista: recorre contando.</p>
+
+<div class="nota">
+<p><strong>Truco didáctico para ver las fugas.</strong> En el miniproyecto el
+<code>Nodo</code> lleva un contador global <code>nodosVivos</code>: el constructor
+le suma 1 y el destructor le resta 1. Si al final del programa no vale 0, algún
+nodo se quedó sin <code>delete</code>. En un programa de verdad no se hace así;
+aquí sirve para que las pruebas te avisen.</p>
+<pre><code>int nodosVivos = 0;
+struct Nodo {
+    int dato;
+    Nodo* siguiente;
+    Nodo(int d) : dato(d), siguiente(nullptr) { nodosVivos++; }
+    ~Nodo() { nodosVivos--; }
+};</code></pre>
+</div>
+
+<h2>7. Para qué sirve: paréntesis balanceados</h2>
+
+<p>Un texto como <code>f(a[i]) + {x}</code> está <strong>balanceado</strong>:
+cada símbolo que abre se cierra con su pareja, y en el orden correcto. En
+cambio <code>([)]</code> no: el <code>]</code> llega cuando el último abierto
+era <code>(</code>. Esto lo comprueba cualquier compilador, y se hace con una pila:</p>
+
+<ol>
+<li>Recorre el texto carácter a carácter.</li>
+<li>Si <strong>abre</strong> (<code>( [ {</code>): <code>push</code>.</li>
+<li>Si <strong>cierra</strong> (<code>) ] }</code>): mira el <code>top</code>.
+Si la pila está vacía, o el de arriba no es su pareja, <strong>no está
+balanceado</strong>. Si es su pareja, <code>pop</code>.</li>
+<li>Al terminar, está balanceado <strong>solo si la pila quedó vacía</strong>.</li>
+</ol>
+
+<p>¿Por qué una pila? Porque el que se cierra primero es siempre el
+<em>último</em> que se abrió. Último en entrar, primero en salir.</p>
+
+<p>Así va con <code>([)]</code>:</p>
+<table>
+<tr><th>Carácter</th><th>Qué pasa</th><th>Pila (arriba a la izquierda)</th></tr>
+<tr><td><code>(</code></td><td>abre → push</td><td><code>(</code></td></tr>
+<tr><td><code>[</code></td><td>abre → push</td><td><code>[ (</code></td></tr>
+<tr><td><code>)</code></td><td>cierra; el top es <code>[</code>, no es su pareja</td><td>→ <strong>false</strong></td></tr>
+</table>
+
+<p>Un detalle: la pila guarda <code>int</code>, y apilas caracteres. No pasa
+nada: un <code>char</code> cabe en un <code>int</code> (se guarda su código),
+y <code>p.top() == '('</code> compara bien.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p><strong>No confundas las dos pilas.</strong> La memoria automática (la <em>pila de llamadas</em>
+o <em>stack</em>) es una zona que maneja el compilador: ahí cada función que se está ejecutando
+tiene su marco. Tu clase <code>Pila</code> es otra cosa: una estructura de datos que programas tú.
+Solo comparten la idea LIFO.</p>
+<p>De hecho, tu <code>Pila p;</code> está repartida en dos zonas. El objeto <code>p</code> vive en el
+marco de la función que lo declara y solo guarda <code>tope</code>. Los platos —los nodos— están en
+el montón (<em>heap</em>). Así queda tras <code>push(9)</code> (direcciones inventadas):</p>
+<div class="diagrama"><svg viewBox="0 0 540 256" width="100%" style="max-width:540px;height:auto;color:var(--texto);font-family:Consolas,monospace" role="img" aria-label="En la memoria automática, el objeto p guarda tope = 0x300. En el montón, los nodos 9 (0x300), 7 (0x200) y 4 (0x100) enlazados hasta nullptr">
+<defs><marker id="mm36" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+<g fill="currentColor">
+<rect x="4" y="4" width="236" height="118" rx="6" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".55"/>
+<text x="14" y="24" font-size="13" font-weight="700">memoria automática</text>
+<text x="14" y="40" font-size="12" opacity=".7">marco de la función</text>
+<rect x="24" y="50" width="196" height="48" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<text x="34" y="68" font-size="13" font-weight="700">p  (Pila)</text>
+<text x="34" y="86" font-size="13">tope: 0x300</text>
+<rect x="4" y="138" width="532" height="114" rx="6" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".55"/>
+<text x="526" y="158" text-anchor="end" font-size="13" font-weight="700">montón (heap)</text>
+<rect x="24" y="178" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<line x1="86" y1="178" x2="86" y2="218" stroke="currentColor" stroke-width="1.6"/>
+<text x="55" y="203" text-anchor="middle" font-size="16">9</text>
+<text x="74" y="238" text-anchor="middle" font-size="12" opacity=".7">0x300</text>
+<rect x="184" y="178" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<line x1="246" y1="178" x2="246" y2="218" stroke="currentColor" stroke-width="1.6"/>
+<text x="215" y="203" text-anchor="middle" font-size="16">7</text>
+<text x="234" y="238" text-anchor="middle" font-size="12" opacity=".7">0x200</text>
+<rect x="344" y="178" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<line x1="406" y1="178" x2="406" y2="218" stroke="currentColor" stroke-width="1.6"/>
+<text x="375" y="203" text-anchor="middle" font-size="16">4</text>
+<text x="394" y="238" text-anchor="middle" font-size="12" opacity=".7">0x100</text>
+<circle cx="105" cy="198" r="3.5"/>
+<line x1="105" y1="198" x2="184" y2="198" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm36)"/>
+<circle cx="265" cy="198" r="3.5"/>
+<line x1="265" y1="198" x2="344" y2="198" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm36)"/>
+<circle cx="425" cy="198" r="3.5"/>
+<line x1="425" y1="198" x2="473" y2="198" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm36)"/>
+<text x="477" y="202" font-size="13">nullptr</text>
+<text x="66" y="166" font-size="12" opacity=".8">tope</text>
+<circle cx="60" cy="98" r="3.5"/>
+<line x1="60" y1="98" x2="55" y2="175" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm36)"/>
+</g></svg></div>
+<p>Cada <code>push</code> hace un <code>new</code> arriba y cada <code>pop</code> un
+<code>delete</code> arriba: la memoria que ocupa crece y decrece con los elementos, un nodo por dato.
+En <code>balanceado</code>, <code>p</code> es local: en cualquier <code>return false</code> se llama a
+su destructor y libera los nodos que quedaban. Sin destructor, cada texto mal cerrado dejaría
+una fuga.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#estructuras">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+
+<table>
+<tr><th>Método</th><th>Qué hace</th><th>En la lista era…</th></tr>
+<tr><td><code>push(x)</code></td><td>apila <code>x</code> arriba</td><td><code>insertarAlInicio(x)</code></td></tr>
+<tr><td><code>pop()</code></td><td>quita y libera el de arriba; vacía → nada</td><td>eliminar la cabeza</td></tr>
+<tr><td><code>top()</code></td><td>devuelve el de arriba; antes comprueba <code>vacia()</code></td><td><code>cabeza-&gt;dato</code></td></tr>
+<tr><td><code>vacia()</code></td><td><code>tope == nullptr</code></td><td>igual</td></tr>
+<tr><td><code>tamano()</code></td><td>recorre contando</td><td>igual</td></tr>
+<tr><td><code>~Pila()</code></td><td>libera todos los nodos</td><td>igual</td></tr>
+</table>
+
+<p>Esto y los errores típicos están en la
+<a href="../reference/pila-y-cola.html">hoja de referencia de pila y cola</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+
+<div class="nota">
+<p><strong>Calentamiento:</strong> antes de empezar, repite sin mirar el quiz de la
+<a href="../nivel-3-estructuras-de-datos/03-lista-enlazada-2.html">lección 3.3</a>. Recordar lo de hace unos días
+es lo que lo fija.</p>
+</div>
+
+<p>Responde <em>sin volver a mirar arriba</em>. Esforzarte en recordar es lo que
+hace que se te quede.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="1" data-explica="Se apilan 1, 2 y 3; el 3 queda arriba. <code>pop()</code> quita el 3, así que arriba queda el 2.">
+<pre><code>Pila p;
+p.push(1);
+p.push(2);
+p.push(3);
+p.pop();
+cout &lt;&lt; p.top();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 1</button><button>Muestra 2</button><button>Muestra 3</button><button>Muestra 0</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Tras <code>delete tope</code>, <code>tope</code> es un apuntador colgante: <code>tope-&gt;siguiente</code> lee memoria ya liberada. Hay que guardar el nodo, mover el tope y borrar al final.">
+<pre><code>void Pila::pop() {
+    if (vacia()) return;
+    delete tope;
+    tope = tope-&gt;siguiente;
+}</code></pre>
+<p>¿Qué falla aquí?</p>
+<div class="opciones"><button>Nunca libera ningún nodo creado</button><button>No compila por el delete</button><button>Lee un nodo ya borrado</button><button>Funciona bien en todo caso</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Deshacer saca primero la ÚLTIMA acción: último en entrar, primero en salir. Las otras tres son colas: el primero que llega es el primero que sale.">
+<p>¿Cuál de estas cosas funciona como una pila?</p>
+<div class="opciones"><button>Botón deshacer del editor</button><button>Fila para pagar comida</button><button>Turnos de un banco</button><button>Documentos esperando en impresora</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="La pila está vacía: <code>tope</code> es <code>nullptr</code> y <code>top()</code> hace <code>tope-&gt;dato</code>. Desreferenciar <code>nullptr</code> es comportamiento indefinido; normalmente se cae. Hay que preguntar <code>vacia()</code> antes.">
+<pre><code>Pila p;
+cout &lt;&lt; p.top();</code></pre>
+<p>¿Qué pasa?</p>
+<div class="opciones"><button>Muestra cero sin problema</button><button>Muestra el número uno</button><button>No compila nunca jamás</button><button>Error grave al ejecutarse</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="push(5) → 1 nodo. pop() → 0. El segundo pop() sobre la pila vacía no hace nada. push(7) → 1 nodo.">
+<pre><code>Pila p;
+p.push(5);
+p.pop();
+p.pop();
+p.push(7);
+cout &lt;&lt; p.tamano();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 2</button><button>Muestra 0</button><button>Muestra 1</button><button>Muestra -1</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Se apilan <code>(</code> y <code>[</code>. Llega <code>)</code> y el top es <code>[</code>: no es su pareja, así que devuelve false. Los símbolos están cruzados.">
+<p>¿Qué devuelve <code>balanceado("([)]")</code>?</p>
+<div class="opciones"><button>Devuelve false</button><button>Devuelve true</button><button>Se cae</button><button>No compila</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 3.6 · Paréntesis balanceados</h2>
+
+<p>Abre <a href="../nivel-3-estructuras-de-datos/ejercicios/06-pila.cpp"><code>ejercicios/06-pila.cpp</code></a>.
+La clase <code>Pila</code> viene casi hecha (constructor, destructor,
+<code>vacia</code>, <code>tamano</code>, <code>top</code>). Tú completas:</p>
+
+<ol>
+<li><code>push(int valor)</code>: apila un valor.</li>
+<li><code>pop()</code>: desapila y libera el nodo; con la pila vacía, no hace nada.</li>
+<li><code>balanceado(string texto)</code>: el algoritmo de la sección 7. Ya
+tienes <code>esPareja(abre, cierra)</code> para no escribir los tres casos.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 06-pila.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás varias ✗. Terminaste cuando salgan todas en ✓.
+Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> haz primero <code>push</code> y
+<code>pop</code> y comprueba que las pruebas de «Pila» salen en ✓ antes de
+tocar <code>balanceado</code>. Para <code>balanceado</code>, haz a mano la
+tabla de la sección 7 con <code>"())"</code>. La solución está en
+<a href="../nivel-3-estructuras-de-datos/soluciones/06-pila.cpp"><code>../nivel-3-estructuras-de-datos/soluciones/06-pila.cpp</code></a>,
+pero ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/linked-lists1">Stanford CS106B — Linked Lists 1</a>
+(en inglés). Es una clase universitaria real. Lee la parte donde construyen una
+pila con nodos enlazados (<em>stack</em>): verás <code>push</code> y
+<code>pop</code> casi idénticos a los tuyos. Unos 15 minutos.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy. Cuando termines el miniproyecto, dímelo y pasamos a la
+lección 7.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="../nivel-3-estructuras-de-datos/05-copiar-estructuras.html">← Lección anterior</a> ·
+<a href="../nivel-3-estructuras-de-datos/07-cola.html">Siguiente: Lección 3.7 · Cola →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

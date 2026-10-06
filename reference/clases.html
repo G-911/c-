@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Clases y objetos</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Clases y objetos</h1>
+<p class="subtitulo">Hoja de consulta rápida de la lección 3.</p>
+
+<h2>Sintaxis</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>class X { ... };</code></td><td>define un tipo nuevo; lleva <code>;</code> al final</td></tr>
+<tr><td><code>private:</code></td><td>solo los métodos de la clase pueden tocarlo</td></tr>
+<tr><td><code>public:</code></td><td>se puede usar desde fuera</td></tr>
+<tr><td><code>X(int a) : at(a) {}</code></td><td>constructor con lista de inicialización; se ejecuta al nacer</td></tr>
+<tr><td><code>~X() { ... }</code></td><td>destructor; se ejecuta al morir</td></tr>
+<tr><td><code>X obj(5);</code></td><td>objeto normal; muere al llegar a la <code>}</code> de su bloque</td></tr>
+<tr><td><code>obj.metodo()</code></td><td>usar un miembro de un <strong>objeto</strong>: punto</td></tr>
+<tr><td><code>X* p = new X(5);</code></td><td>objeto creado con <code>new</code>; <code>p</code> guarda su dirección</td></tr>
+<tr><td><code>p-&gt;metodo()</code></td><td>usar un miembro a través de un <strong>apuntador</strong>: flecha. Igual que <code>(*p).metodo()</code></td></tr>
+<tr><td><code>delete p; p = nullptr;</code></td><td>ejecuta el destructor, libera el objeto y evita el apuntador colgante</td></tr>
+<tr><td><code>this-&gt;x</code></td><td>el atributo <code>x</code> del objeto actual (útil si un parámetro se llama igual)</td></tr>
+<tr><td><code>struct</code></td><td>igual que <code>class</code>, pero todo <code>public</code> por defecto</td></tr>
+</table>
+
+<h2>Plantilla de clase</h2>
+<pre><code>class Cuenta {
+private:                           <span class="c">// datos: protegidos</span>
+    double saldo;
+    int movimientos;
+
+public:                            <span class="c">// lo que se puede pedir desde fuera</span>
+    Cuenta(double inicial) : saldo(inicial), movimientos(0) {}   <span class="c">// nacer bien</span>
+    ~Cuenta() {}                   <span class="c">// morir limpio (aquí iría el delete de lo que pidió)</span>
+
+    bool retirar(double c) {
+        if (c &lt;= 0 || c &gt; saldo) return false;   <span class="c">// la clase protege su regla</span>
+        saldo -= c;
+        movimientos++;
+        return true;
+    }
+    double getSaldo() { return saldo; }          <span class="c">// getter: leer sin poder cambiar</span>
+};</code></pre>
+
+<h2>¿Punto o flecha?</h2>
+<table>
+<tr><th>Tienes</th><th>Usas</th><th>Ejemplo</th></tr>
+<tr><td>un objeto</td><td><code>.</code></td><td><code>c.getSaldo()</code></td></tr>
+<tr><td>un apuntador a objeto</td><td><code>-&gt;</code></td><td><code>p-&gt;getSaldo()</code>, <code>actual-&gt;siguiente</code></td></tr>
+<tr><td>dentro de un método, tus atributos</td><td>nada</td><td><code>saldo -= c;</code></td></tr>
+</table>
+
+<h2>Cuándo se ejecuta cada cosa</h2>
+<table>
+<tr><th>Momento</th><th>Objeto normal</th><th>Objeto con <code>new</code></th></tr>
+<tr><td>Constructor</td><td>al declararlo: <code>X obj(5);</code></td><td>al hacer <code>new X(5)</code></td></tr>
+<tr><td>Destructor</td><td>solo, al llegar a la <code>}</code> de su bloque</td><td>solo cuando haces <code>delete p</code>; si lo olvidas, nunca</td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>olvidar el <code>;</code> tras la <code>}</code> de la clase</td><td>error de compilación raro en la línea siguiente</td><td>escribir <code>};</code> al abrir la clase</td></tr>
+<tr><td>tocar un atributo <code>private</code> desde fuera</td><td>no compila</td><td>añadir un método público que haga el trabajo</td></tr>
+<tr><td><code>*p.metodo()</code></td><td>no compila: el punto va antes que el <code>*</code></td><td>usar <code>p-&gt;metodo()</code></td></tr>
+<tr><td><code>p.metodo()</code> con <code>p</code> apuntador</td><td>no compila</td><td>apuntador → flecha</td></tr>
+<tr><td><code>p-&gt;metodo()</code> con <code>p == nullptr</code></td><td>comportamiento indefinido; suele caerse</td><td>comprobar <code>if (p != nullptr)</code></td></tr>
+<tr><td><code>new</code> sin <code>delete</code></td><td>el destructor nunca corre: fuga de memoria</td><td>cada <code>new</code> con su <code>delete</code>, luego <code>= nullptr</code></td></tr>
+<tr><td>clase que hace <code>new</code> sin destructor que libere</td><td>fuga cada vez que muere un objeto</td><td>lo que se pide en la clase se devuelve en <code>~X()</code></td></tr>
+</table>
+
+<p class="cita">Fuentes: <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-classes/">LearnCpp — Introduction to classes</a> · <a href="https://www.learncpp.com/cpp-tutorial/constructor-member-initializer-lists/">Member initializer lists</a> · <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-destructors/">Destructors</a> · <a href="https://www.learncpp.com/cpp-tutorial/member-selection-with-pointers-and-references/">Member selection with pointers</a> · <a href="https://www.learncpp.com/cpp-tutorial/the-hidden-this-pointer-and-member-function-chaining/">The hidden this pointer</a></p>
+
+</main>
+</body>
+</html>

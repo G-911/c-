@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 3.4 · Lista doble y lista circular</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+<marker id="fla" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--acento)"/></marker>
+<marker id="flx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--suave)"/></marker>
+</defs>
+</svg>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 3 · Estructuras de datos › Lección 4 de 9</div>
+<h1>Lista doble y lista circular</h1>
+<p class="subtitulo">Una flecha más hacia atrás, o una flecha que vuelve al principio. ~35 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> escribir una lista doble que inserta al final
+sin recorrer y elimina un nodo reenganchando sus dos vecinos, recorrer una lista
+circular sin entrar en un bucle infinito, y elegir entre lista simple, doble o
+circular según el problema.</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la lección anterior,
+<a href="03-lista-enlazada-2.html">Lección 3.3 · Lista enlazada II</a>.
+Recordar lo de hace días es lo que lo fija.</p>
+</div>
+
+<p><strong>Por qué.</strong> En la lista simple solo puedes ir hacia adelante. Para
+llegar al último hay que recorrerla entera, y para borrar un nodo necesitas arrastrar
+un segundo apuntador con «el de antes». La lista doble y la circular son las dos
+variantes que piden en casi todos los cursos de estructuras de datos. Y la doble es,
+por dentro, el <code>std::list</code> de la biblioteca estándar
+(<a href="https://en.cppreference.com/w/cpp/container/list">cppreference, std::list</a>).
+Es la misma lista de las lecciones 3.2 y 3.3 con una flecha más.</p>
+
+<h2>1. El nodo doble: dos flechas</h2>
+
+<p>Al nodo de siempre se le añade un apuntador <code>anterior</code>, que mira al nodo
+de atrás:</p>
+
+<pre><code>struct Nodo {
+    int dato;
+    Nodo* anterior;     <span class="c">// el de atrás (nullptr si es el primero)</span>
+    Nodo* siguiente;    <span class="c">// el de adelante (nullptr si es el último)</span>
+
+    Nodo(int d) : dato(d), anterior(nullptr), siguiente(nullptr) {}
+};</code></pre>
+
+<p>Así se dibuja. La raya diagonal en una casilla significa <code>nullptr</code>:</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 330 120" width="330" height="120" role="img" aria-label="Un nodo doble: a la izquierda la flecha anterior, en medio el dato 5, a la derecha la flecha siguiente; las dos valen nullptr" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="100" y="20" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="105" y1="55" x2="129" y2="25" stroke="currentColor" stroke-width="1.6"/><line x1="134" y1="20" x2="134" y2="60" stroke="currentColor" stroke-width="1.6"/><text x="165.0" y="46" text-anchor="middle" font-size="16" fill="currentColor">5</text><line x1="196" y1="20" x2="196" y2="60" stroke="currentColor" stroke-width="1.6"/><line x1="201" y1="55" x2="225" y2="25" stroke="currentColor" stroke-width="1.6"/><text x="117" y="90" text-anchor="middle" font-size="13" fill="currentColor">anterior</text><text x="165" y="112" text-anchor="middle" font-size="13" fill="currentColor">dato</text><text x="213" y="90" text-anchor="middle" font-size="13" fill="currentColor">siguiente</text><line x1="117" y1="64" x2="117" y2="76" stroke="currentColor" stroke-width="1"/><line x1="165" y1="64" x2="165" y2="98" stroke="currentColor" stroke-width="1"/><line x1="213" y1="64" x2="213" y2="76" stroke="currentColor" stroke-width="1"/></svg></div>
+
+<h2>2. La clase <code>ListaDoble</code>: cabeza y último</h2>
+
+<p>Ya que hay flechas hacia atrás, vale la pena guardar también el <strong>último</strong>
+nodo. Así la lista se puede recorrer desde cualquiera de las dos puntas.</p>
+
+<pre><code>class ListaDoble {
+private:
+    Nodo* cabeza;    <span class="c">// primer nodo</span>
+    Nodo* ultimo;    <span class="c">// último nodo</span>
+public:
+    ListaDoble() : cabeza(nullptr), ultimo(nullptr) {}   <span class="c">// vacía: los dos en nullptr</span>
+};</code></pre>
+
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 540 116" width="540" height="116" role="img" aria-label="Lista doble: cabeza apunta a 1, ultimo apunta a 3; 1, 2 y 3 enlazados en los dos sentidos; los extremos valen nullptr" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="17" y1="93" x2="41" y2="63" stroke="currentColor" stroke-width="1.6"/><line x1="46" y1="58" x2="46" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="77.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">1</text><line x1="108" y1="58" x2="108" y2="98" stroke="currentColor" stroke-width="1.6"/><rect x="202" y="58" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="236" y1="58" x2="236" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="267.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">2</text><line x1="298" y1="58" x2="298" y2="98" stroke="currentColor" stroke-width="1.6"/><rect x="392" y="58" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="426" y1="58" x2="426" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="457.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">3</text><line x1="488" y1="58" x2="488" y2="98" stroke="currentColor" stroke-width="1.6"/><line x1="493" y1="93" x2="517" y2="63" stroke="currentColor" stroke-width="1.6"/><circle cx="125" cy="71" r="3.5" fill="currentColor"/><line x1="125" y1="71" x2="202" y2="71" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="219" cy="85" r="3.5" fill="currentColor"/><line x1="219" y1="85" x2="142" y2="85" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="315" cy="71" r="3.5" fill="currentColor"/><line x1="315" y1="71" x2="392" y2="71" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="409" cy="85" r="3.5" fill="currentColor"/><line x1="409" y1="85" x2="332" y2="85" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="77" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="77" y1="26" x2="77" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="457" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">ultimo</text><line x1="457" y1="26" x2="457" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/></svg></div>
+
+<p>La regla que nunca se rompe: <strong>si <code>A-&gt;siguiente</code> es <code>B</code>,
+entonces <code>B-&gt;anterior</code> es <code>A</code></strong>. Cada vez que cambies una
+flecha, pregúntate cuál es su pareja.</p>
+
+<h2>3. Insertar al final sin recorrer</h2>
+
+<p>En la lección 3.3, <code>insertarAlFinal</code> caminaba hasta el último nodo. Con
+<code>ultimo</code> no hace falta: ya sabemos dónde está.</p>
+
+<pre><code>void insertarAlFinal(int valor) {
+    Nodo* nuevo = new Nodo(valor);
+    if (ultimo == nullptr) {         <span class="c">// lista vacía: es el primero Y el último</span>
+        cabeza = nuevo;
+        ultimo = nuevo;
+        return;
+    }
+    nuevo-&gt;anterior = ultimo;        <span class="c">// 1. el nuevo mira atrás, al viejo último</span>
+    ultimo-&gt;siguiente = nuevo;       <span class="c">// 2. el viejo último mira adelante, al nuevo</span>
+    ultimo = nuevo;                  <span class="c">// 3. ahora el último es él</span>
+}</code></pre>
+
+<p><strong>Antes.</strong> La lista es <code>1 ⇄ 2</code> y el nodo nuevo está creado aparte.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 540 200" width="540" height="200" role="img" aria-label="Antes: lista 1, 2 con ultimo en 2; el nodo nuevo 3 está creado aparte, con sus dos flechas en nullptr" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="17" y1="93" x2="41" y2="63" stroke="currentColor" stroke-width="1.6"/><line x1="46" y1="58" x2="46" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="77.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">1</text><line x1="108" y1="58" x2="108" y2="98" stroke="currentColor" stroke-width="1.6"/><rect x="202" y="58" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="236" y1="58" x2="236" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="267.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">2</text><line x1="298" y1="58" x2="298" y2="98" stroke="currentColor" stroke-width="1.6"/><line x1="303" y1="93" x2="327" y2="63" stroke="currentColor" stroke-width="1.6"/><circle cx="125" cy="71" r="3.5" fill="currentColor"/><line x1="125" y1="71" x2="202" y2="71" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="219" cy="85" r="3.5" fill="currentColor"/><line x1="219" y1="85" x2="142" y2="85" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="77" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="77" y1="26" x2="77" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="267" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">ultimo</text><line x1="267" y1="26" x2="267" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="392" y="120" width="130" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="397" y1="155" x2="421" y2="125" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="426" y1="120" x2="426" y2="160" style="stroke:var(--acento)" stroke-width="2.2"/><text x="457.0" y="146" text-anchor="middle" font-size="16" style="fill:var(--acento)">3</text><line x1="488" y1="120" x2="488" y2="160" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="493" y1="155" x2="517" y2="125" style="stroke:var(--acento)" stroke-width="2.2"/><text x="457" y="192" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">nuevo</text><line x1="457" y1="178" x2="457" y2="163" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+
+<p><strong>Después.</strong> Lo que cambió va en color: las dos flechas entre el 2 y el 3,
+y <code>ultimo</code>.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 540 116" width="540" height="116" role="img" aria-label="Después: 1, 2 y 3 enlazados en los dos sentidos; ultimo apunta a 3. Las flechas nuevas, en color" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="58" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="17" y1="93" x2="41" y2="63" stroke="currentColor" stroke-width="1.6"/><line x1="46" y1="58" x2="46" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="77.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">1</text><line x1="108" y1="58" x2="108" y2="98" stroke="currentColor" stroke-width="1.6"/><rect x="202" y="58" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="236" y1="58" x2="236" y2="98" stroke="currentColor" stroke-width="1.6"/><text x="267.0" y="84" text-anchor="middle" font-size="16" fill="currentColor">2</text><line x1="298" y1="58" x2="298" y2="98" stroke="currentColor" stroke-width="1.6"/><rect x="392" y="58" width="130" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="426" y1="58" x2="426" y2="98" style="stroke:var(--acento)" stroke-width="2.2"/><text x="457.0" y="84" text-anchor="middle" font-size="16" style="fill:var(--acento)">3</text><line x1="488" y1="58" x2="488" y2="98" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="493" y1="93" x2="517" y2="63" style="stroke:var(--acento)" stroke-width="2.2"/><circle cx="125" cy="71" r="3.5" fill="currentColor"/><line x1="125" y1="71" x2="202" y2="71" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="219" cy="85" r="3.5" fill="currentColor"/><line x1="219" y1="85" x2="142" y2="85" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="315" cy="71" r="3.5" style="fill:var(--acento)"/><line x1="315" y1="71" x2="392" y2="71" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/><circle cx="409" cy="85" r="3.5" style="fill:var(--acento)"/><line x1="409" y1="85" x2="332" y2="85" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/><text x="77" y="20" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="77" y1="26" x2="77" y2="55" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="457" y="20" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">ultimo</text><line x1="457" y1="26" x2="457" y2="55" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+
+<p><code>insertarAlInicio</code> es el espejo: <code>nuevo-&gt;siguiente = cabeza;
+cabeza-&gt;anterior = nuevo; cabeza = nuevo;</code>, con el mismo caso especial de la
+lista vacía.</p>
+
+<h2>4. Eliminar: reenganchar los dos vecinos</h2>
+
+<p>Aquí la lista doble brilla. En la simple necesitabas el apuntador <code>anterior</code>
+del recorrido. Aquí <em>el propio nodo</em> sabe quién va antes. Primero lo buscas; luego
+haces que sus dos vecinos se salten el nodo:</p>
+
+<pre><code>bool eliminar(int valor) {
+    Nodo* actual = cabeza;
+    while (actual != nullptr &amp;&amp; actual-&gt;dato != valor) {
+        actual = actual-&gt;siguiente;
+    }
+    if (actual == nullptr) return false;           <span class="c">// vacía o no estaba</span>
+
+    if (actual-&gt;anterior != nullptr)
+        actual-&gt;anterior-&gt;siguiente = actual-&gt;siguiente;   <span class="c">// el de atrás salta adelante</span>
+    else
+        cabeza = actual-&gt;siguiente;                        <span class="c">// era la cabeza</span>
+
+    if (actual-&gt;siguiente != nullptr)
+        actual-&gt;siguiente-&gt;anterior = actual-&gt;anterior;    <span class="c">// el de adelante salta atrás</span>
+    else
+        ultimo = actual-&gt;anterior;                         <span class="c">// era el último</span>
+
+    delete actual;                                 <span class="c">// ya nadie apunta a él</span>
+    return true;
+}</code></pre>
+
+<p><strong>Antes:</strong> queremos borrar el 2, y <code>actual</code> ya lo encontró.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 540 160" width="540" height="160" role="img" aria-label="Antes de eliminar el 2: lista 1, 2, 3 y el apuntador actual señala al nodo 2" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="40" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="17" y1="75" x2="41" y2="45" stroke="currentColor" stroke-width="1.6"/><line x1="46" y1="40" x2="46" y2="80" stroke="currentColor" stroke-width="1.6"/><text x="77.0" y="66" text-anchor="middle" font-size="16" fill="currentColor">1</text><line x1="108" y1="40" x2="108" y2="80" stroke="currentColor" stroke-width="1.6"/><rect x="202" y="40" width="130" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="236" y1="40" x2="236" y2="80" style="stroke:var(--acento)" stroke-width="2.2"/><text x="267.0" y="66" text-anchor="middle" font-size="16" style="fill:var(--acento)">2</text><line x1="298" y1="40" x2="298" y2="80" style="stroke:var(--acento)" stroke-width="2.2"/><rect x="392" y="40" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="426" y1="40" x2="426" y2="80" stroke="currentColor" stroke-width="1.6"/><text x="457.0" y="66" text-anchor="middle" font-size="16" fill="currentColor">3</text><line x1="488" y1="40" x2="488" y2="80" stroke="currentColor" stroke-width="1.6"/><line x1="493" y1="75" x2="517" y2="45" stroke="currentColor" stroke-width="1.6"/><circle cx="125" cy="53" r="3.5" fill="currentColor"/><line x1="125" y1="53" x2="202" y2="53" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="219" cy="67" r="3.5" fill="currentColor"/><line x1="219" y1="67" x2="142" y2="67" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="315" cy="53" r="3.5" fill="currentColor"/><line x1="315" y1="53" x2="392" y2="53" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="409" cy="67" r="3.5" fill="currentColor"/><line x1="409" y1="67" x2="332" y2="67" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="267" y="130" text-anchor="middle" font-size="14" font-weight="700" style="fill:var(--acento)">actual</text><line x1="267" y1="114" x2="267" y2="83" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+
+<p><strong>Después:</strong> el 1 mira adelante al 3, el 3 mira atrás al 1, y el 2 se
+libera.</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 540 160" width="540" height="160" role="img" aria-label="Después: el 1 apunta hacia adelante al 3 y el 3 apunta hacia atrás al 1; el nodo 2 está liberado" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="60" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="17" y1="95" x2="41" y2="65" stroke="currentColor" stroke-width="1.6"/><line x1="46" y1="60" x2="46" y2="100" stroke="currentColor" stroke-width="1.6"/><text x="77.0" y="86" text-anchor="middle" font-size="16" fill="currentColor">1</text><line x1="108" y1="60" x2="108" y2="100" stroke="currentColor" stroke-width="1.6"/><rect x="202" y="60" width="130" height="40" rx="4" fill="none" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4"/><line x1="236" y1="60" x2="236" y2="100" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4"/><text x="267.0" y="86" text-anchor="middle" font-size="16" style="fill:var(--suave)">2</text><line x1="298" y1="60" x2="298" y2="100" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4"/><rect x="392" y="60" width="130" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="426" y1="60" x2="426" y2="100" stroke="currentColor" stroke-width="1.6"/><text x="457.0" y="86" text-anchor="middle" font-size="16" fill="currentColor">3</text><line x1="488" y1="60" x2="488" y2="100" stroke="currentColor" stroke-width="1.6"/><line x1="493" y1="95" x2="517" y2="65" stroke="currentColor" stroke-width="1.6"/><text x="267" y="122" text-anchor="middle" font-size="13" style="fill:var(--suave)">liberado</text><circle cx="125" cy="73" r="3.5" style="fill:var(--acento)"/><path d="M125,73 L125,30 L412,30 L412,57" fill="none" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/><circle cx="409" cy="87" r="3.5" style="fill:var(--acento)"/><path d="M409,87 L409,140 L125,140 L125,103" fill="none" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+
+<p>Fíjate en los dos <code>if</code>: cubren los cuatro casos de golpe. Borrar en medio
+(los dos vecinos existen), la cabeza (no hay anterior), el último (no hay siguiente) y el
+único nodo (no hay ninguno: <code>cabeza</code> y <code>ultimo</code> quedan en
+<code>nullptr</code>).</p>
+
+<div class="ojo">
+<p><strong>Error típico: arreglar solo una dirección.</strong> Si haces
+<code>actual-&gt;anterior-&gt;siguiente = actual-&gt;siguiente;</code> y olvidas la línea
+de <code>anterior</code>, la lista se ve bien de izquierda a derecha… pero el 3 sigue
+mirando atrás a un nodo borrado. El día que recorras al revés, lees memoria liberada
+(apuntador colgante). Por eso en el miniproyecto cada prueba de <code>eliminar</code>
+comprueba la lista <em>en los dos sentidos</em>. Igual con <code>ultimo</code>: si borras
+el último y no lo mueves, queda apuntando a un nodo muerto.</p>
+</div>
+
+<h2>5. Recorrer al revés</h2>
+
+<p>Es el recorrido de siempre, empezando por el otro extremo y avanzando por la otra
+flecha:</p>
+
+<pre><code>for (Nodo* actual = ultimo; actual != nullptr; actual = actual-&gt;anterior) {
+    cout &lt;&lt; actual-&gt;dato &lt;&lt; " ";       <span class="c">// con 1 ⇄ 2 ⇄ 3 muestra: 3 2 1</span>
+}</code></pre>
+
+<h2>6. La lista circular: el último vuelve a la cabeza</h2>
+
+<p>En una <strong>lista circular</strong> el último nodo no apunta a <code>nullptr</code>:
+apunta otra vez a la cabeza. La cadena se cierra en un círculo. (Aquí la hacemos con
+nodos simples; también existe la doble circular.)</p>
+
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 470 150" width="470" height="150" role="img" aria-label="Lista circular: cabeza apunta a 10, 10 a 20, 20 a 30, y 30 vuelve a apuntar a 10. No hay nullptr" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="12" y="50" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="43.0" y="76" text-anchor="middle" font-size="16" fill="currentColor">10</text><line x1="74" y1="50" x2="74" y2="90" stroke="currentColor" stroke-width="1.6"/><rect x="162" y="50" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="193.0" y="76" text-anchor="middle" font-size="16" fill="currentColor">20</text><line x1="224" y1="50" x2="224" y2="90" stroke="currentColor" stroke-width="1.6"/><rect x="312" y="50" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="343.0" y="76" text-anchor="middle" font-size="16" fill="currentColor">30</text><line x1="374" y1="50" x2="374" y2="90" stroke="currentColor" stroke-width="1.6"/><circle cx="93" cy="70" r="3.5" fill="currentColor"/><line x1="93" y1="70" x2="162" y2="70" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="243" cy="70" r="3.5" fill="currentColor"/><line x1="243" y1="70" x2="312" y2="70" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="43" y="12" text-anchor="middle" font-size="14" font-weight="700" fill="currentColor">cabeza</text><line x1="43" y1="18" x2="43" y2="47" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="393" cy="70" r="3.5" style="fill:var(--acento)"/><path d="M393,70 L433,70 L433,125 L43,125 L43,93" fill="none" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+
+<p>Consecuencia directa: <strong>no hay <code>nullptr</code> al final</strong>. El
+recorrido de siempre, <code>while (actual != nullptr)</code>, no termina nunca. La
+condición de parada pasa a ser «volví a la cabeza». Como hay que dar al menos un paso
+antes de comparar, encaja un <code>do-while</code>:</p>
+
+<pre><code>void imprimir() {
+    if (cabeza == nullptr) return;          <span class="c">// vacía: nada que hacer</span>
+    Nodo* actual = cabeza;
+    do {
+        cout &lt;&lt; actual-&gt;dato &lt;&lt; " ";
+        actual = actual-&gt;siguiente;
+    } while (actual != cabeza);             <span class="c">// paro al dar la vuelta completa</span>
+}
+<span class="c">// Con 10 → 20 → 30 → (10) muestra: 10 20 30</span></code></pre>
+
+<p>Dos detalles más. Con <strong>un solo nodo</strong>, ese nodo se apunta a sí mismo
+(<code>nuevo-&gt;siguiente = nuevo;</code>). Y el <strong>destructor</strong> tiene que
+romper el círculo primero (poner el <code>siguiente</code> del último en
+<code>nullptr</code>); a partir de ahí es el destructor de la lección 3.2.</p>
+
+<div class="ojo">
+<p><strong>Error típico: recorrer una circular con <code>while (actual != nullptr)</code>.</strong>
+Nunca llega a <code>nullptr</code>: el programa se queda dando vueltas para siempre. Si
+dentro del bucle hay un <code>cout</code>, verás números repitiéndose sin fin; si no,
+parecerá «colgado». Ctrl+C lo detiene. En una circular, la parada es siempre
+<code>actual != cabeza</code>.</p>
+</div>
+
+<h2>7. ¿Cuándo sirve cada una?</h2>
+
+<table>
+<tr><th>Lista</th><th>Ventaja</th><th>Ejemplos típicos</th></tr>
+<tr><td>Simple</td><td>la más sencilla y ligera: una flecha por nodo</td><td>pila y cola (lecciones 3.6 y 3.7), listas que solo se recorren hacia adelante</td></tr>
+<tr><td>Doble</td><td>ir hacia atrás; borrar un nodo conocido sin buscar su anterior; insertar al final sin recorrer</td><td>botones atrás/adelante, lista de canciones con «anterior», editores de texto, <code>std::list</code></td></tr>
+<tr><td>Circular</td><td>después del último viene otra vez el primero, sin caso especial</td><td>turnos que rotan (jugadores, procesos del sistema operativo), reproducir en bucle</td></tr>
+</table>
+
+<p>El precio de la doble: una flecha más por nodo (más memoria) y el doble de flechas que
+mantener bien en cada operación. Si no necesitas ir hacia atrás, la simple basta.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>El nodo doble es el simple con una casilla más, y eso se paga en cada nodo del montón
+(<em>heap</em>). Compruébalo con <code>cout &lt;&lt; sizeof(Nodo);</code>: en un ordenador de
+64 bits normalmente da esto (el <code>int</code> ocupa 4 bytes, cada apuntador 8, y el compilador
+mete 4 de relleno para alinear):</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">Nodo simple</div>dato · siguiente<div class="dir">sizeof: normalmente 16</div></div>
+  <div class="caja"><div class="nombre">Nodo doble</div>dato · anterior · siguiente<div class="dir">sizeof: normalmente 24</div></div>
+</div>
+<p>Con un millón de nodos, unos 8 MB más. El objeto <code>ListaDoble</code>, en la memoria
+automática (la <em>pila de llamadas</em> o <em>stack</em>) si lo declaras en <code>main</code>, guarda
+dos apuntadores: <code>cabeza</code> y <code>ultimo</code>.</p>
+<p>La circular no tiene <code>nullptr</code> que marque el final, y eso afecta al liberar. El
+destructor de la lección 3.2 borraría el 10, el 20 y el 30, y luego seguiría la flecha del 30…
+hasta el 10, ya liberado: leerlo y borrarlo otra vez es una doble liberación. Por eso primero se
+rompe el círculo. En la doble, antes de cada <code>delete</code> hay que redirigir las
+<em>dos</em> flechas que llegan al nodo; la que olvides queda colgante.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#estructuras">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+
+<table>
+<tr><th>Operación</th><th>Idea</th><th>Código clave</th></tr>
+<tr><td>nodo doble</td><td>dato + dos flechas</td><td><code>Nodo* anterior; Nodo* siguiente;</code></td></tr>
+<tr><td>regla de oro</td><td>cada flecha tiene su pareja</td><td><code>A-&gt;siguiente == B</code> ⇔ <code>B-&gt;anterior == A</code></td></tr>
+<tr><td><code>insertarAlFinal</code></td><td>sin recorrer, gracias a <code>ultimo</code></td><td><code>nuevo-&gt;anterior = ultimo; ultimo-&gt;siguiente = nuevo; ultimo = nuevo;</code></td></tr>
+<tr><td><code>eliminar</code></td><td>los vecinos se saltan el nodo; si no hay vecino, mover cabeza/último</td><td><code>actual-&gt;anterior-&gt;siguiente = actual-&gt;siguiente;</code></td></tr>
+<tr><td>al revés</td><td>desde <code>ultimo</code>, por <code>anterior</code></td><td><code>actual = actual-&gt;anterior</code></td></tr>
+<tr><td>circular</td><td>el último apunta a la cabeza; no hay <code>nullptr</code></td><td><code>do { ... } while (actual != cabeza);</code></td></tr>
+</table>
+
+<p>Todo esto, con el código completo, está en la
+<a href="../reference/listas-dobles-y-copia.html">hoja de referencia de listas dobles y copia</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+
+<p>Responde <em>sin volver a mirar arriba</em>. Esforzarte en recordar es lo que
+hace que se te quede.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="2" data-explica="Se insertan 1, 2 y 3 al final, así que la lista es 1 ⇄ 2 ⇄ 3. El recorrido empieza en <code>ultimo</code> (el 3) y avanza por <code>anterior</code>: 3, 2, 1.">
+<pre><code>ListaDoble l;
+l.insertarAlFinal(1);
+l.insertarAlFinal(2);
+l.insertarAlFinal(3);
+<span class="c">// dentro de la clase:</span>
+for (Nodo* a = ultimo; a != nullptr; a = a-&gt;anterior)
+    cout &lt;&lt; a-&gt;dato;</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 123</button><button>Muestra 3</button><button>Muestra 321</button><button>Muestra 1</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Si la lista está vacía, <code>ultimo</code> es <code>nullptr</code> y <code>ultimo-&gt;siguiente</code> desreferencia <code>nullptr</code>: el programa se cae. Falta el caso especial: si está vacía, el nuevo es cabeza y último a la vez.">
+<pre><code>void insertarAlFinal(int valor) {
+    Nodo* nuevo = new Nodo(valor);
+    nuevo-&gt;anterior = ultimo;
+    ultimo-&gt;siguiente = nuevo;
+    ultimo = nuevo;
+}</code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>Se cae con lista vacía</button><button>Deja los datos al revés</button><button>Pierde el nodo de cabeza</button><button>No compila por el apuntador</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Solo se arregló la flecha hacia adelante. El nodo que iba después de <code>actual</code> sigue con su <code>anterior</code> apuntando al nodo borrado. Recorrer de izquierda a derecha funciona; recorrer al revés lee memoria liberada.">
+<pre><code><span class="c">// actual está en medio de la lista</span>
+actual-&gt;anterior-&gt;siguiente = actual-&gt;siguiente;
+delete actual;</code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>Pierde todos los nodos siguientes</button><button>Borra también el nodo anterior</button><button>No libera ningún nodo realmente</button><button>Queda colgante la flecha atrás</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="En una lista circular el último apunta a la cabeza: nunca aparece <code>nullptr</code>. La condición <code>actual != nullptr</code> siempre se cumple y el bucle no termina; imprime 10 20 30 10 20 30… sin fin.">
+<pre><code><span class="c">// lista circular: 10 → 20 → 30 → (10)</span>
+Nodo* actual = cabeza;
+while (actual != nullptr) {
+    cout &lt;&lt; actual-&gt;dato &lt;&lt; " ";
+    actual = actual-&gt;siguiente;
+}</code></pre>
+<p>¿Qué pasa?</p>
+<div class="opciones"><button>Muestra 10 20 30 y termina</button><button>Repite los números sin terminar nunca</button><button>Muestra solo el 10 y termina</button><button>Se cae al llegar al final</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Desde el 10, cada paso avanza uno: 20, 30, 10, 20, 30. Tras cinco pasos estás en el 30. En un círculo puedes dar más pasos que nodos hay.">
+<pre><code><span class="c">// lista circular: 10 → 20 → 30 → (10)</span>
+Nodo* actual = cabeza;
+for (int i = 0; i &lt; 5; i++)
+    actual = actual-&gt;siguiente;
+cout &lt;&lt; actual-&gt;dato;</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 10</button><button>Muestra 20</button><button>Muestra 30</button><button>Se cae</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Volver a la canción anterior es ir hacia atrás: eso es justo lo que añade la lista doble con su flecha <code>anterior</code>. Y si además quieres que tras la última suene la primera, sería doble y circular.">
+<p>Un reproductor necesita los botones «anterior» y «siguiente» canción. ¿Qué lista encaja mejor?</p>
+<div class="opciones"><button>Una lista simple</button><button>Una lista doble</button><button>Una pila enlazada</button><button>Una cola enlazada</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 3.4 · Lista doble y lista circular</h2>
+
+<p>Abre <a href="ejercicios/04-lista-doble-y-circular.cpp"><code>ejercicios/04-lista-doble-y-circular.cpp</code></a>.
+Tiene dos clases a medio hacer y pruebas que se corrigen solas. Completa los cinco
+métodos marcados con <code>TODO</code>:</p>
+
+<ol>
+<li><strong>Parte A · <code>ListaDoble</code></strong>
+<ol>
+<li><code>insertarAlFinal(valor)</code> — sin recorrer, con <code>ultimo</code> (sección 3).</li>
+<li><code>alReves()</code> — devuelve el texto del último a la cabeza, p. ej. <code>"3,2,1"</code> (sección 5).</li>
+<li><code>eliminar(valor)</code> — reenganchar los dos vecinos (sección 4).</li>
+</ol></li>
+<li><strong>Parte B · <code>ListaCircular</code></strong>
+<ol>
+<li><code>tamano()</code> — contar hasta volver a la cabeza (sección 6).</li>
+<li>El destructor — romper el círculo y liberar.</li>
+</ol></li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 04-lista-doble-y-circular.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás muchas ✗. Terminaste cuando salgan todas en ✓, incluida la de
+«no quedan nodos sin liberar» (el contador <code>nodosVivos</code> de la lección 3.2).
+Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> dibuja tres nodos dobles en un papel y, por cada
+línea de código, borra y vuelve a pintar la flecha que cambia. Antes de cada
+<code>delete</code>, comprueba que ninguna flecha (ni hacia adelante ni hacia atrás)
+llega al nodo que vas a borrar. Si el programa se queda «colgado» en la parte B, tu
+bucle busca un <code>nullptr</code> que no existe: Ctrl+C y cambia la condición.</p>
+<p>La solución está en
+<a href="soluciones/04-lista-doble-y-circular.cpp"><code>soluciones/04-lista-doble-y-circular.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://opendsa-server.cs.vt.edu/ODSA/Books/CS3/html/ListDouble.html">OpenDSA — 5.6 Doubly Linked Lists</a>
+(Virginia Tech, en inglés). Mira las animaciones de insertar y borrar: son las mismas
+cuatro flechas de las secciones 3 y 4. El código del libro está en Java, pero se lee
+igual; quédate con los dibujos. Unos 15 minutos.</p>
+<p>Para ver la lista doble «de verdad» de C++:
+<a href="https://en.cppreference.com/w/cpp/container/list">cppreference — std::list</a>.
+Lee solo el primer párrafo; la usarás en la lección 3.9.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una flecha que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="03-lista-enlazada-2.html">← Lección anterior</a> ·
+<a href="05-copiar-estructuras.html">Siguiente: Lección 3.5 · Copiar estructuras →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

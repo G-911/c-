@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Referencias y operadores</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Referencias y operadores</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones
+<a href="../nivel-2-memoria-y-poo/01-referencias-y-const.html">2.1</a> y
+<a href="../nivel-2-memoria-y-poo/07-sobrecarga-de-operadores.html">2.7</a>.</p>
+
+<h2>Referencias: sintaxis</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>int&amp; r = x;</code></td><td><code>r</code> es otro nombre de <code>x</code>: misma casilla</td></tr>
+<tr><td><code>int&amp; r;</code></td><td>no compila: una referencia nace pegada a algo</td></tr>
+<tr><td><code>r = y;</code></td><td>copia el valor de <code>y</code> en <code>x</code>; <code>r</code> no cambia de destino</td></tr>
+<tr><td><code>const int&amp; r = x;</code></td><td>otro nombre de <code>x</code>, solo para leer</td></tr>
+<tr><td><code>for (int&amp; e : v)</code></td><td>recorrer pudiendo cambiar cada elemento</td></tr>
+<tr><td><code>for (const string&amp; s : v)</code></td><td>recorrer sin copiar y sin cambiar</td></tr>
+</table>
+
+<h2>¿Cómo paso este parámetro?</h2>
+<table>
+<tr><th>Quieres</th><th>Tipo pequeño (int, double, char, bool)</th><th>Tipo grande (string, vector, objetos)</th></tr>
+<tr><td>Solo leer</td><td><code>int n</code> (por valor)</td><td><code>const vector&lt;int&gt;&amp; v</code></td></tr>
+<tr><td>Cambiar la variable de quien llama</td><td><code>int&amp; n</code></td><td><code>vector&lt;int&gt;&amp; v</code></td></tr>
+</table>
+
+<h2>El patrón de la función que modifica</h2>
+<pre><code>void doblar(int&amp; n) { n = n * 2; }    <span class="c">// n ES la variable de quien llama</span>
+
+int a = 4;
+doblar(a);                            <span class="c">// se llama sin nada especial → a vale 8</span></code></pre>
+<p>La misma función con apuntador se ve en la
+<a href="../nivel-2-memoria-y-poo/02-apuntadores.html">lección 2.2</a>:
+<code>void doblar(int* n) { *n = *n * 2; }</code> y se llama <code>doblar(&amp;a)</code>.</p>
+
+<h2>Referencia vs apuntador, en una tabla</h2>
+<table>
+<tr><th></th><th>Referencia <code>int&amp;</code></th><th>Apuntador <code>int*</code></th></tr>
+<tr><td>¿Puede no apuntar a nada?</td><td>no</td><td>sí, <code>nullptr</code></td></tr>
+<tr><td>¿Puede cambiar de destino?</td><td>no</td><td>sí</td></tr>
+<tr><td>Para usar el valor</td><td><code>r</code></td><td><code>*p</code></td></tr>
+<tr><td>Al llamar a la función</td><td><code>f(a)</code></td><td><code>f(&amp;a)</code></td></tr>
+</table>
+
+<h2>Errores típicos con referencias</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>olvidar el <code>&amp;</code>: <code>void f(int n)</code></td><td>compila; la función cambia una copia y no avisa</td><td>si debe cambiar tu variable, lleva <code>&amp;</code></td></tr>
+<tr><td><code>doblar(5)</code> con <code>int&amp; n</code></td><td>no compila: un 5 no es una variable</td><td>pásale una variable</td></tr>
+<tr><td>asignar a un <code>const &amp;</code></td><td>no compila</td><td>si debe cambiar, quita el <code>const</code></td></tr>
+<tr><td><code>for (int e : v) e = 0;</code></td><td>cambia copias; <code>v</code> queda igual</td><td><code>for (int&amp; e : v)</code></td></tr>
+<tr><td>confundir <code>int&amp; r</code> con <code>&amp;x</code></td><td>el primero es referencia; el segundo, dirección</td><td>pegado a un tipo = referencia</td></tr>
+</table>
+
+<h2>Operadores: plantilla de la clase</h2>
+<pre><code>class Punto {
+private:
+    int x, y;
+public:
+    Punto(int px = 0, int py = 0) : x(px), y(py) {}
+
+    bool operator==(const Punto&amp; otro) const {
+        return x == otro.x &amp;&amp; y == otro.y;
+    }
+    bool operator!=(const Punto&amp; otro) const {
+        return !(*this == otro);
+    }
+    Punto operator+(const Punto&amp; otro) const {        <span class="c">// devuelve uno NUEVO</span>
+        return Punto(x + otro.x, y + otro.y);
+    }
+    friend ostream&amp; operator&lt;&lt;(ostream&amp; os, const Punto&amp; p) {
+        os &lt;&lt; "(" &lt;&lt; p.x &lt;&lt; ", " &lt;&lt; p.y &lt;&lt; ")";
+        return os;                                     <span class="c">// para encadenar</span>
+    }
+};</code></pre>
+<p><code>a == b</code> llama a <code>a.operator==(b)</code>. <code>cout &lt;&lt; a</code> llama a
+<code>operator&lt;&lt;(cout, a)</code>: por eso no es método y va con <code>friend</code>.</p>
+
+<h2>Errores típicos con operadores</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>+</code> que modifica <code>*this</code></td><td>compila, pero <code>a + b</code> cambia <code>a</code></td><td><code>const</code> al final y <code>return Punto(...)</code></td></tr>
+<tr><td><code>&lt;&lt;</code> como método con dos parámetros</td><td>no compila: «must have exactly one argument»</td><td>declararlo <code>friend</code></td></tr>
+<tr><td>olvidar <code>return os;</code></td><td>aviso de <code>-Wall</code>; puede caerse al encadenar</td><td>siempre termina con <code>return os;</code></td></tr>
+<tr><td>escribir en <code>cout</code> dentro de <code>&lt;&lt;</code></td><td>no sirve para archivos ni <code>ostringstream</code></td><td>escribe en <code>os</code></td></tr>
+<tr><td>operador sin significado obvio</td><td>código que nadie entiende</td><td>usa una función con nombre</td></tr>
+</table>
+
+<h2>Límites</h2>
+<p>No se inventan operadores nuevos, no se cambia la precedencia y al menos un
+operando tiene que ser de tu clase.</p>
+
+<p class="cita">Fuentes: <a href="https://www.learncpp.com/cpp-tutorial/lvalue-references/">LearnCpp 12.3 — Lvalue references</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/pass-by-lvalue-reference/">12.5 — Pass by lvalue reference</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/pass-by-const-lvalue-reference/">12.6 — Pass by const lvalue reference</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/introduction-to-operator-overloading/">21.1 — Introduction to operator overloading</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/overloading-the-io-operators/">21.4 — Overloading the I/O operators</a></p>
+
+</main>
+</body>
+</html>

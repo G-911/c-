@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 1.7 · Arreglos y strings</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 1 · Fundamentos › Lección 7 de 8</div>
+<h1>Arreglos y strings</h1>
+<p class="subtitulo">Muchos datos bajo un solo nombre, y el texto como una fila de letras. ~40 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> crear y recorrer un arreglo, pasarlo a una función
+junto con su tamaño, y trabajar con texto usando <code>size</code>, <code>[]</code>,
+<code>+</code>, <code>substr</code>, <code>find</code> y <code>getline</code>.</p>
+</div>
+
+<div class="nota">
+<p><strong>Calentamiento (2 minutos):</strong> antes de empezar, repite sin mirar el quiz de la
+<a href="06-funciones.html">lección 1.6 · Funciones</a>. Si fallas la de la copia
+(<code>sumarUno</code>), vuelve a leer su punto 6: hoy aparece una excepción.</p>
+</div>
+
+<p><strong>Por qué importa.</strong> El arreglo es la estructura de datos más simple y la
+vara con la que se miden las demás. En el Nivel 3 compararás la lista enlazada con el
+arreglo una y otra vez: «insertar al inicio en un arreglo obliga a mover todo; en una
+lista, no». Para entender esa frase hay que haber recorrido arreglos a mano.</p>
+
+<h2>1. Un arreglo: cajas seguidas con un solo nombre</h2>
+
+<pre><code>int notas[5] = {7, 9, 6, 10, 8};   <span class="c">// 5 enteros, uno detrás de otro</span>
+cout &lt;&lt; notas[0];                    <span class="c">// 7  — el PRIMERO es el 0</span>
+cout &lt;&lt; notas[4];                    <span class="c">// 8  — el ÚLTIMO es el 4 (tamaño − 1)</span>
+notas[2] = 10;                       <span class="c">// se lee y se escribe con [ ]</span></code></pre>
+
+<div class="memoria">
+  <div class="caja"><div class="nombre">notas[0]</div>7</div>
+  <div class="caja"><div class="nombre">notas[1]</div>9</div>
+  <div class="caja"><div class="nombre">notas[2]</div>10</div>
+  <div class="caja"><div class="nombre">notas[3]</div>10</div>
+  <div class="caja"><div class="nombre">notas[4]</div>8</div>
+</div>
+
+<p>El número entre corchetes es el <strong>índice</strong>: cuántos pasos hay desde el
+principio. Por eso el primero es el 0. El tamaño es <strong>fijo</strong>: se decide al
+escribir el programa y no crece.</p>
+
+<h2>2. Recorrer: el <code>for</code> de siempre</h2>
+
+<pre><code>const int N = 5;
+int notas[N] = {7, 9, 6, 10, 8};
+
+int suma = 0;
+for (int i = 0; i &lt; N; i++) {    <span class="c">// i = 0, 1, 2, 3, 4</span>
+    suma += notas[i];
+}
+cout &lt;&lt; suma / static_cast&lt;double&gt;(N);   <span class="c">// 8 — el promedio</span></code></pre>
+
+<p>Guarda el tamaño en una constante (<code>const int N</code>) y úsala en todas partes. Si
+mañana son 6 notas, cambias un solo número.</p>
+
+<div class="ojo">
+<p><strong>Salirse del arreglo no da error: da basura.</strong> <code>notas[5]</code> en un
+arreglo de 5 no existe, pero C++ <em>no lo comprueba</em>: lee o escribe la memoria de
+al lado. El programa puede mostrar un número raro, estropear otra variable o caerse más
+tarde. Se llama comportamiento indefinido.</p>
+<p>El culpable casi siempre es <code>i &lt;= N</code> en vez de <code>i &lt; N</code>. En la
+lección 1.8 verás <code>at()</code>, que sí avisa.</p>
+</div>
+
+<h2>3. Pasar un arreglo a una función</h2>
+
+<p>Un arreglo <strong>no sabe su tamaño</strong> cuando llega a una función. Por eso se
+pasa siempre con un segundo parámetro, el tamaño:</p>
+
+<pre><code>int sumar(int arr[], int n) {     <span class="c">// arr[] sin número; n dice cuántos hay</span>
+    int s = 0;
+    for (int i = 0; i &lt; n; i++) s += arr[i];
+    return s;
+}
+
+int datos[4] = {1, 2, 3, 4};
+cout &lt;&lt; sumar(datos, 4);          <span class="c">// 10 — se pasa el nombre, sin [ ]</span></code></pre>
+
+<p><strong>La excepción a la regla de la copia.</strong> En la lección 1.6 viste que una
+función recibe una copia. Con los arreglos no: la función trabaja sobre el arreglo
+<em>original</em>, y si lo cambia, el cambio se queda.</p>
+
+<pre><code>void ponerACero(int arr[], int n) {
+    for (int i = 0; i &lt; n; i++) arr[i] = 0;
+}
+
+int v[3] = {4, 5, 6};
+ponerACero(v, 3);
+cout &lt;&lt; v[0];        <span class="c">// 0 — sí cambió</span></code></pre>
+
+<p>El porqué (la función recibe la <em>dirección</em> del primer elemento) lo entenderás de
+golpe en la <a href="../nivel-2-memoria-y-poo/02-apuntadores.html">lección 2.2 · Apuntadores</a>.</p>
+
+<h2>4. <code>std::string</code>: texto que sabe su tamaño</h2>
+
+<p>Un <code>string</code> es una fila de caracteres (<code>char</code>), como un arreglo,
+pero mucho más cómodo: sabe su tamaño, crece solo y trae herramientas. Necesita
+<code>#include &lt;string&gt;</code>.</p>
+
+<pre><code>string s = "pila";
+cout &lt;&lt; s.size();          <span class="c">// 4      — cuántos caracteres</span>
+cout &lt;&lt; s[0];              <span class="c">// p      — un char, igual que en un arreglo</span>
+s[0] = 'P';                <span class="c">// "Pila" — los char van con comillas simples</span>
+string t = s + " y cola";  <span class="c">// "Pila y cola" — + une textos</span>
+s += "s";                  <span class="c">// "Pilas"</span>
+if (s == "Pilas") { }      <span class="c">// == compara el texto entero</span>
+
+for (size_t i = 0; i &lt; s.size(); i++) {   <span class="c">// recorrer letra a letra</span>
+    cout &lt;&lt; s[i] &lt;&lt; "-";                  <span class="c">// P-i-l-a-s-</span>
+}</code></pre>
+
+<p><code>size()</code> devuelve un número sin signo (<code>size_t</code>). Si comparas con un
+<code>int</code>, <code>-Wall</code> avisa. Usa <code>size_t i</code> como arriba, o
+guarda <code>int n = static_cast&lt;int&gt;(s.size());</code>.</p>
+
+<h2>5. Cortar y buscar: <code>substr</code> y <code>find</code></h2>
+
+<pre><code>string s = "hola mundo";
+<span class="c">//          0123456789</span>
+cout &lt;&lt; s.substr(5, 3);     <span class="c">// "mun"   — desde la posición 5, 3 caracteres</span>
+cout &lt;&lt; s.substr(5);        <span class="c">// "mundo" — desde la 5 hasta el final</span>
+cout &lt;&lt; s.find("mu");       <span class="c">// 5       — dónde empieza</span>
+
+if (s.find("z") == string::npos) {   <span class="c">// npos = "no lo encontré"</span>
+    cout &lt;&lt; "no hay z";
+}</code></pre>
+
+<p><code>find</code> no devuelve −1 cuando no encuentra: devuelve el valor especial
+<code>string::npos</code>. Compara siempre con él.</p>
+
+<h2>6. Leer una línea entera: <code>getline</code></h2>
+
+<p><code>cin &gt;&gt; s</code> lee solo <strong>hasta el primer espacio</strong>. Para leer
+un nombre completo, usa <code>getline</code>:</p>
+
+<pre><code>string nombre;
+cout &lt;&lt; "Nombre completo: ";
+getline(cin, nombre);        <span class="c">// "Ana María López" entero</span></code></pre>
+
+<div class="ojo">
+<p><strong>El <code>getline</code> que «se salta»:</strong> si antes hiciste
+<code>cin &gt;&gt; edad;</code>, el Enter que pulsaste se queda esperando, y el
+<code>getline</code> siguiente lo lee como una línea vacía. Arreglo: pon
+<code>cin.ignore();</code> entre los dos.</p>
+<pre><code>cin &gt;&gt; edad;
+cin.ignore();                <span class="c">// se come el Enter que quedó</span>
+getline(cin, nombre);</code></pre>
+</div>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Las 5 cajas de <code>notas</code> están <strong>pegadas</strong>, en orden, dentro del <strong>marco</strong> de
+<code>main</code>. Con direcciones inventadas y un <code>int</code> de 4 bytes (lo normal), quedaría así:</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">notas[0]</div>7<div class="dir">0x100</div></div>
+  <div class="caja"><div class="nombre">notas[1]</div>9<div class="dir">0x104</div></div>
+  <div class="caja"><div class="nombre">notas[2]</div>10<div class="dir">0x108</div></div>
+  <div class="caja"><div class="nombre">notas[3]</div>10<div class="dir">0x10C</div></div>
+  <div class="caja"><div class="nombre">notas[4]</div>8<div class="dir">0x110</div></div>
+  <div class="caja" style="border-style: dashed"><div class="nombre">«notas[5]»</div>¿?<div class="dir">0x114: memoria ajena</div></div>
+</div>
+<p><code>notas[i]</code> es «la dirección del primero + i cajas». Nadie comprueba el límite, así que
+<code>notas[5]</code> cae en memoria que no es del arreglo. Al llamar <code>ponerACero(v, 3)</code> no se copian las
+cajas: la función recibe solo la dirección de <code>v[0]</code> y escribe en las originales.</p>
+<p>Un <code>string</code> es distinto: en el marco hay un objeto pequeño, y las letras, normalmente, van en otra zona,
+el <strong>montón</strong> (<em>heap</em>), donde pueden crecer. Muchas bibliotecas guardan los textos cortos como
+<code>"pila"</code> dentro del propio objeto. En los dos casos el <code>string</code> se encarga solo de esa memoria.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#estructuras">mapa de la memoria</a>.</p>
+</div>
+
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>int a[5] = {...};</code></td><td>arreglo de 5 enteros; índices 0 a 4</td></tr>
+<tr><td><code>for (int i = 0; i &lt; n; i++)</code></td><td>recorrer un arreglo de <code>n</code></td></tr>
+<tr><td><code>void f(int arr[], int n)</code></td><td>recibir un arreglo (siempre con su tamaño); los cambios se quedan</td></tr>
+<tr><td><code>s.size()</code></td><td>cantidad de caracteres</td></tr>
+<tr><td><code>s[i]</code>, <code>s + t</code>, <code>s == t</code></td><td>un carácter · unir · comparar</td></tr>
+<tr><td><code>s.substr(pos, cuantos)</code></td><td>un trozo del texto</td></tr>
+<tr><td><code>s.find("x")</code></td><td>posición, o <code>string::npos</code> si no está</td></tr>
+<tr><td><code>getline(cin, s)</code></td><td>leer una línea con espacios</td></tr>
+</table>
+
+<p>Más en la <a href="../reference/bucles-funciones-y-colecciones.html">hoja de referencia de bucles, funciones y colecciones</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>. Esforzarte en recordar es lo que
+hace que se te quede.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="1" data-explica="Los índices empiezan en 0: <code>a[1]</code> es 8 y <code>a[3]</code> es 7. 8 + 7 = 15.">
+<pre><code>int a[4] = {5, 8, 2, 7};
+cout &lt;&lt; a[1] + a[3];</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 13</button><button>Muestra 15</button><button>Muestra 10</button><button>Muestra 7</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Con <code>i &lt;= 3</code> la última vuelta lee <code>a[3]</code>, que no existe. C++ no lo detiene: es comportamiento indefinido. Debe ser <code>i &lt; 3</code>.">
+<pre><code>int a[3] = {1, 2, 3};
+for (int i = 0; i &lt;= 3; i++)
+    cout &lt;&lt; a[i];</code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>Lee fuera del arreglo</button><button>No compila por tamaño</button><button>Muestra 123 sin problema</button><button>Solo muestra el uno</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="«programa» tiene 8 letras, y la posición 0 es la primera: la <code>p</code>.">
+<pre><code>string s = "programa";
+cout &lt;&lt; s.size() &lt;&lt; " " &lt;&lt; s[0];</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 7 p</button><button>Muestra 8 r</button><button>Muestra 9 a</button><button>Muestra 8 p</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="La posición 5 es la <code>m</code> (cuenta el espacio, que es la 4). Desde ahí, 3 caracteres: <code>mun</code>.">
+<pre><code>string s = "hola mundo";
+cout &lt;&lt; s.substr(5, 3);</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra mundo</button><button>Muestra und</button><button>Muestra mun</button><button>Muestra hol</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Los arreglos no se copian al pasarlos: la función escribe en el original. <code>v[0]</code> queda en 0.">
+<pre><code>void ponerACero(int a[], int n) {
+    for (int i = 0; i &lt; n; i++) a[i] = 0;
+}
+int v[3] = {4, 5, 6};
+ponerACero(v, 3);
+cout &lt;&lt; v[0];</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 4</button><button>Muestra 0</button><button>Muestra 6</button><button>Muestra 5</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="No hay ninguna <code>z</code> en «pila», así que <code>find</code> devuelve <code>string::npos</code> y entra en el <code>if</code>.">
+<pre><code>string s = "pila";
+if (s.find("z") == string::npos) cout &lt;&lt; "no";
+else cout &lt;&lt; "si";</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra no</button><button>Muestra si</button><button>Muestra -1</button><button>Muestra 0</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 1.7 · tres de arreglos, tres de texto</h2>
+
+<p>Abre <a href="ejercicios/07-arreglos-y-strings.cpp"><code>ejercicios/07-arreglos-y-strings.cpp</code></a>.</p>
+
+<ol>
+<li><code>sumaArreglo(arr, n)</code>: el recorrido básico.</li>
+<li><code>indiceDe(arr, n, buscado)</code>: búsqueda lineal; devuelve −1 si no está.</li>
+<li><code>invertir(arr, n)</code>: da la vuelta al arreglo en su sitio (el cambio se queda).</li>
+<li><code>contarVocales(texto)</code>: recorrer un <code>string</code> letra a letra.</li>
+<li><code>esPalindromo(texto)</code>: «reconocer» se lee igual al revés.</li>
+<li><code>primeraPalabra(frase)</code>: <code>find</code> + <code>substr</code>.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 07-arreglos-y-strings.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás varias ✗. Terminaste cuando salgan todas en ✓. Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> dibuja las cajas del arreglo con sus índices, como en el
+diagrama de arriba, y marca con dos dedos las posiciones <code>i</code> y
+<code>n - 1 - i</code>. <code>invertir</code> y <code>esPalindromo</code> son el mismo
+movimiento: los dedos se acercan hasta encontrarse en la mitad.</p>
+<p>La solución está en <a href="soluciones/07-arreglos-y-strings.cpp"><code>soluciones/07-arreglos-y-strings.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://www.learncpp.com/cpp-tutorial/introduction-to-c-style-arrays/">LearnCpp — Introduction to C-style arrays</a>
+y <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-stdstring/">Introduction to std::string</a>
+(en inglés). De la primera, lee hasta «Aggregate initialization of C-style arrays». De la segunda,
+hasta «The length of a std::string» incluido; verás que luego recomienda no pasar
+<code>string</code> por valor: eso se resuelve en la lección 2.1. Unos 20 minutos.
+Para la lista completa de funciones de <code>string</code>:
+<a href="https://en.cppreference.com/w/cpp/string/basic_string">cppreference — std::basic_string</a>.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="06-funciones.html">← Lección anterior</a> ·
+<a href="08-vector.html">Siguiente: Lección 1.8 · vector →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

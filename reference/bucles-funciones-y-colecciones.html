@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Bucles, funciones y colecciones</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Bucles, funciones y colecciones</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones 1.5 a 1.8.</p>
+
+<h2>Bucles (1.5)</h2>
+<pre><code>for (int i = 0; i &lt; n; i++) { }     <span class="c">// n vueltas: i = 0 … n-1</span>
+while (condicion) { }               <span class="c">// pregunta antes; puede no entrar nunca</span>
+do { } while (condicion);           <span class="c">// entra al menos una vez; lleva ;</span>
+break;                              <span class="c">// sale del bucle ya</span>
+continue;                           <span class="c">// salta a la siguiente vuelta</span></code></pre>
+<table>
+<tr><th>Bucle</th><th>Cuándo</th></tr>
+<tr><td><code>for</code></td><td>sabes cuántas vueltas</td></tr>
+<tr><td><code>while</code></td><td>paras cuando pase algo (recorrer una lista hasta <code>nullptr</code>)</td></tr>
+<tr><td><code>do-while</code></td><td>al menos una vez (menús, validar una entrada)</td></tr>
+</table>
+
+<h2>Funciones (1.6)</h2>
+<pre><code>int suma(int a, int b);                 <span class="c">// prototipo (va arriba)</span>
+int suma(int a, int b) { return a + b; } <span class="c">// definición</span>
+void mostrar(string s) { cout &lt;&lt; s; }  <span class="c">// void: no devuelve nada</span>
+double area(double b, double h = 1.0);  <span class="c">// por defecto: al final y solo en el prototipo</span>
+int maximo(int a, int b);               <span class="c">// sobrecarga: mismo nombre,</span>
+int maximo(int a, int b, int c);        <span class="c">//   distintos parámetros</span></code></pre>
+<p>Los parámetros son <strong>copias</strong> (salvo los arreglos). Las variables locales
+desaparecen al salir de la función.</p>
+
+<h2>Arreglos (1.7)</h2>
+<pre><code>const int N = 5;
+int a[N] = {7, 9, 6, 10, 8};        <span class="c">// índices 0 … N-1; tamaño fijo</span>
+for (int i = 0; i &lt; N; i++) cout &lt;&lt; a[i];
+int sumar(int arr[], int n);        <span class="c">// a una función: SIEMPRE con su tamaño</span>
+sumar(a, N);                        <span class="c">// los cambios dentro SÍ se quedan</span></code></pre>
+
+<h2><code>std::string</code> (1.7)</h2>
+<table>
+<tr><th>Escribes</th><th>Hace</th></tr>
+<tr><td><code>s.size()</code></td><td>cantidad de caracteres (sin signo: <code>size_t</code>)</td></tr>
+<tr><td><code>s[i]</code></td><td>el carácter <code>i</code> (un <code>char</code>, comillas simples)</td></tr>
+<tr><td><code>s + t</code>, <code>s += t</code></td><td>unir textos</td></tr>
+<tr><td><code>s == t</code></td><td>comparar el texto entero</td></tr>
+<tr><td><code>s.substr(pos, cuantos)</code></td><td>trozo desde <code>pos</code>; sin <code>cuantos</code>, hasta el final</td></tr>
+<tr><td><code>s.find("x")</code></td><td>posición; si no está, <code>string::npos</code> (no −1)</td></tr>
+<tr><td><code>getline(cin, s)</code></td><td>leer una línea con espacios (tras <code>cin &gt;&gt;</code>, antes <code>cin.ignore()</code>)</td></tr>
+</table>
+
+<h2><code>std::vector</code> (1.8)</h2>
+<table>
+<tr><th>Escribes</th><th>Hace</th></tr>
+<tr><td><code>vector&lt;int&gt; v = {1, 2};</code></td><td>con valores</td></tr>
+<tr><td><code>vector&lt;int&gt; v(n, 0);</code></td><td><code>n</code> ceros (paréntesis; <code>{n}</code> sería un solo elemento)</td></tr>
+<tr><td><code>v.push_back(x)</code> / <code>v.pop_back()</code></td><td>añadir al final / quitar el último</td></tr>
+<tr><td><code>v.size()</code> / <code>v.empty()</code></td><td>cuántos / ¿ninguno?</td></tr>
+<tr><td><code>v[i]</code> / <code>v.at(i)</code></td><td>sin comprobar / se detiene si <code>i</code> se sale</td></tr>
+<tr><td><code>for (int x : v)</code></td><td>recorrer; <code>x</code> es una copia</td></tr>
+<tr><td><code>vector&lt;vector&lt;int&gt;&gt; m(f, vector&lt;int&gt;(c, 0));</code></td><td>matriz <code>f</code> × <code>c</code>; <code>m[i][j]</code></td></tr>
+</table>
+<p>Un <code>vector</code> pasado a una función <strong>se copia</strong>; para sacar un
+resultado, devuélvelo con <code>return</code>.</p>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>olvidar <code>i++</code> en un <code>while</code></td><td>bucle infinito (Ctrl + C para pararlo)</td><td>revisa qué cambia en cada vuelta</td></tr>
+<tr><td><code>for (...);</code> con <code>;</code></td><td>cuerpo vacío; el bloque se ejecuta una vez</td><td>nunca <code>;</code> tras el paréntesis</td></tr>
+<tr><td><code>i &lt;= n</code> al recorrer</td><td>se sale del arreglo: comportamiento indefinido</td><td><code>i &lt; n</code>; o <code>at()</code> en un vector</td></tr>
+<tr><td>función no <code>void</code> sin <code>return</code></td><td>devuelve basura (aviso de <code>-Wall</code>)</td><td>todo camino termina en <code>return</code></td></tr>
+<tr><td>llamar antes de definir</td><td>«was not declared in this scope»</td><td>prototipo arriba</td></tr>
+<tr><td>arreglo a función sin tamaño</td><td>la función no sabe cuántos hay</td><td>parámetro <code>int n</code></td></tr>
+<tr><td><code>find(...) == -1</code></td><td>no funciona como esperas</td><td>compara con <code>string::npos</code></td></tr>
+<tr><td><code>getline</code> tras <code>cin &gt;&gt;</code></td><td>lee una línea vacía</td><td><code>cin.ignore();</code> en medio</td></tr>
+<tr><td><code>v[0] = 5</code> en vector vacío</td><td>escribe fuera</td><td><code>push_back</code></td></tr>
+<tr><td><code>v.size() - 1</code> con <code>v</code> vacío</td><td>número gigante (no hay negativos sin signo)</td><td><code>int n = static_cast&lt;int&gt;(v.size());</code></td></tr>
+</table>
+
+<p class="cita">Fuentes: <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-loops-and-while-statements/">LearnCpp — Loops and while</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/for-statements/">For statements</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/introduction-to-functions/">Introduction to functions</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/introduction-to-c-style-arrays/">C-style arrays</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/introduction-to-stdstring/">std::string</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/introduction-to-stdvector-and-list-constructors/">std::vector</a> ·
+<a href="https://en.cppreference.com/w/cpp/container/vector">cppreference — std::vector</a></p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 3.5 · Copiar estructuras: la regla de tres</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+<marker id="fla" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--acento)"/></marker>
+<marker id="flx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--suave)"/></marker>
+</defs>
+</svg>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 3 · Estructuras de datos › Lección 5 de 9</div>
+<h1>Copiar estructuras: la regla de tres</h1>
+<p class="subtitulo">Por qué <code>ListaEnlazada b = a;</code> rompe tu programa, y cómo arreglarlo. ~35 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> explicar por qué copiar una lista con lo que
+C++ trae de fábrica acaba en un doble <code>delete</code>, y escribir para tu
+<code>ListaEnlazada</code> un constructor de copia y un <code>operator=</code> que hacen
+una copia profunda, incluida la autoasignación <code>a = a</code>.</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la lección anterior,
+<a href="04-lista-doble-y-circular.html">Lección 3.4 · Lista doble y lista circular</a>.
+Recordar lo de hace días es lo que lo fija.</p>
+</div>
+
+<p><strong>Por qué.</strong> Tu lista ya funciona… hasta que la copias. Pasarla por valor
+a una función, o escribir <code>b = a</code>, la rompe sin que el compilador diga nada.
+Es de los fallos más comunes en los proyectos de estructuras de datos de la universidad,
+y la pregunta «¿qué es la regla de tres?» cae en exámenes y entrevistas. Lo de hoy vale
+igual para la <code>Pila</code> y la <code>Cola</code> de las lecciones 3.6 y 3.7: toda
+clase que hace <code>new</code> en su interior tiene este problema.</p>
+
+<h2>1. El fallo: copiar una lista la rompe</h2>
+
+<p>Toma la <code>ListaEnlazada</code> de las lecciones 3.2 y 3.3 (con su destructor que
+libera todos los nodos) y copia una lista. Nada más:</p>
+
+<pre><code> 1  #include &lt;iostream&gt;
+ 2  using namespace std;
+ 3
+ 4  struct Nodo {
+ 5      int dato;
+ 6      Nodo* siguiente;
+ 7      Nodo(int d) : dato(d), siguiente(nullptr) {}
+ 8  };
+ 9
+10  class ListaEnlazada {
+11  private:
+12      Nodo* cabeza;
+13  public:
+14      ListaEnlazada() : cabeza(nullptr) {}
+15      void insertarAlInicio(int valor) {
+16          Nodo* nuevo = new Nodo(valor);
+17          nuevo-&gt;siguiente = cabeza;
+18          cabeza = nuevo;
+19      }
+20      ~ListaEnlazada() {
+21          Nodo* actual = cabeza;
+22          while (actual != nullptr) {
+23              Nodo* sig = actual-&gt;siguiente;
+24              delete actual;
+25              actual = sig;
+26          }
+27      }
+28  };
+29
+30  int main() {
+31      ListaEnlazada a;
+32      a.insertarAlInicio(7);
+33      a.insertarAlInicio(3);
+34      ListaEnlazada b = a;          <span class="c">// ← copiar. Compila sin un solo aviso.</span>
+35      cout &lt;&lt; "fin de main\n";
+36  }</code></pre>
+
+<p>Compila limpio, incluso con <code>-Wall -Wextra</code>. Pero al ejecutarlo (Linux,
+g++ 15):</p>
+
+<pre><code>$ g++ -std=c++17 -Wall copia.cpp -o prog &amp;&amp; ./prog
+fin de main
+free(): double free detected in tcache 2
+Abortado (`core' generado)</code></pre>
+
+<p>«<em>double free</em>»: se liberó dos veces la misma memoria. El programa muere
+<em>después</em> de la última línea de <code>main</code>, justo cuando se destruyen las
+listas. En Windows el síntoma puede ser otro (se cierra sin mensaje, o «funciona» por
+suerte), pero el error es el mismo.</p>
+
+<h2>2. Qué pasó: copia superficial</h2>
+
+<p>Si no escribes cómo se copia tu clase, C++ fabrica un <strong>constructor de copia
+por defecto</strong> que copia atributo por atributo
+(<a href="https://www.learncpp.com/cpp-tutorial/introduction-to-the-copy-constructor/">LearnCpp, Introduction to the copy constructor</a>).
+<code>ListaEnlazada</code> tiene un solo atributo, <code>cabeza</code>. Así que
+<code>b = a</code> copia <em>la dirección</em> guardada en <code>a.cabeza</code>…
+y nada más. Los nodos no se copian:</p>
+
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 520 140" width="520" height="140" role="img" aria-label="Copia superficial: a.cabeza y b.cabeza apuntan al MISMO nodo 3, que apunta a 7. Solo hay una cadena de nodos" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="200" y="50" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="231.0" y="76" text-anchor="middle" font-size="16" fill="currentColor">3</text><line x1="262" y1="50" x2="262" y2="90" stroke="currentColor" stroke-width="1.6"/><rect x="350" y="50" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="381.0" y="76" text-anchor="middle" font-size="16" fill="currentColor">7</text><line x1="412" y1="50" x2="412" y2="90" stroke="currentColor" stroke-width="1.6"/><line x1="417" y1="85" x2="445" y2="55" stroke="currentColor" stroke-width="1.6"/><circle cx="281" cy="70" r="3.5" fill="currentColor"/><line x1="281" y1="70" x2="350" y2="70" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="12" y="30" text-anchor="start" font-size="14" font-weight="700" fill="currentColor">a.cabeza</text><path d="M92,26 L150,26 L220,47" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="12" y="125" text-anchor="start" font-size="14" font-weight="700" style="fill:var(--acento)">b.cabeza</text><path d="M92,120 L150,120 L220,93" fill="none" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+
+<p>Esto es una <strong>copia superficial</strong>: dos objetos que creen ser dueños de los
+mismos nodos. Al final de <code>main</code> mueren los dos (primero <code>b</code>, luego
+<code>a</code>):</p>
+
+<ol>
+<li>Muere <code>b</code>: su destructor recorre la cadena y libera el 3 y el 7. Correcto.</li>
+<li>Muere <code>a</code>: su <code>cabeza</code> sigue apuntando al 3, que ya no existe.
+Es un <strong>apuntador colgante</strong> (lección 2.3).</li>
+<li>El destructor de <code>a</code> lee <code>actual-&gt;siguiente</code> de un nodo
+liberado y vuelve a hacer <code>delete</code> sobre él: <strong>doble delete</strong>.</li>
+</ol>
+
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 520 140" width="520" height="140" role="img" aria-label="Tras destruir b: los nodos 3 y 7 están liberados, pero a.cabeza sigue apuntando ahí: apuntador colgante" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="200" y="50" width="100" height="40" rx="4" fill="none" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4"/><text x="231.0" y="76" text-anchor="middle" font-size="16" style="fill:var(--suave)">3</text><line x1="262" y1="50" x2="262" y2="90" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4"/><rect x="350" y="50" width="100" height="40" rx="4" fill="none" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4"/><text x="381.0" y="76" text-anchor="middle" font-size="16" style="fill:var(--suave)">7</text><line x1="412" y1="50" x2="412" y2="90" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4"/><line x1="417" y1="85" x2="445" y2="55" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4"/><circle cx="281" cy="70" r="3.5" style="fill:var(--suave)"/><line x1="281" y1="70" x2="350" y2="70" style="stroke:var(--suave)" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#flx)"/><text x="12" y="30" text-anchor="start" font-size="14" font-weight="700" style="fill:var(--acento)">a.cabeza</text><path d="M92,26 L150,26 L220,47" fill="none" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/><text x="12" y="125" text-anchor="start" font-size="14" style="fill:var(--suave)">b: ya murió</text><text x="325" y="116" text-anchor="middle" font-size="13" style="fill:var(--suave)">liberados</text></svg></div>
+
+<p>No hace falta llegar al final para ver el daño: mientras viven las dos, un cambio en
+una se ve en la otra, porque comparten la cadena.</p>
+
+<h2>3. Pruébalo con AddressSanitizer</h2>
+
+<p>AddressSanitizer (ASan) es una herramienta que viene con g++ y clang: vigila cada
+acceso a memoria y, al primer error, para el programa y te dice <em>qué</em> pasó y en qué
+línea. Funciona en Linux, macOS y WSL. Basta con compilar así:</p>
+
+<pre><code>g++ -std=c++17 -g -fsanitize=address copia.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Salida real del programa de arriba (recortada; las direcciones cambian en cada
+ejecución):</p>
+
+<pre><code>==167407==ERROR: AddressSanitizer: heap-use-after-free on address 0x6d38fafe0038
+READ of size 8 at 0x6d38fafe0038 thread T0
+    #0 in ListaEnlazada::~ListaEnlazada() copia.cpp:23
+    #1 in main copia.cpp:36
+
+freed by thread T0 here:
+    #0 in operator delete(void*, unsigned long)
+    #1 in ListaEnlazada::~ListaEnlazada() copia.cpp:24
+    #2 in main copia.cpp:36
+
+previously allocated by thread T0 here:
+    #0 in operator new(unsigned long)
+    #1 in ListaEnlazada::insertarAlInicio(int) copia.cpp:16
+    #2 in main copia.cpp:33
+
+SUMMARY: AddressSanitizer: heap-use-after-free copia.cpp:23 in ListaEnlazada::~ListaEnlazada()</code></pre>
+
+<p>Léelo de arriba abajo, son tres bloques:</p>
+<ul>
+<li><strong>Qué pasó y dónde:</strong> <em>heap-use-after-free</em> («usar memoria
+dinámica ya liberada») en la línea 23, <code>Nodo* sig = actual-&gt;siguiente;</code>,
+dentro del destructor. Es el destructor de <code>a</code> leyendo un nodo muerto.</li>
+<li><strong>Quién lo liberó:</strong> la línea 24, <code>delete actual;</code>… del
+<em>otro</em> destructor, el de <code>b</code>.</li>
+<li><strong>Quién lo creó:</strong> <code>insertarAlInicio</code>, línea 16.</li>
+</ul>
+<p>ASan lo detecta en la lectura de la línea 23, un instante <em>antes</em> del segundo
+<code>delete</code>. Sin ASan, el programa seguía y moría en el <em>double free</em>.
+Moraleja: compila tus listas con <code>-fsanitize=address</code> mientras practicas;
+convierte un fallo misterioso en una línea concreta.</p>
+
+<h2>4. La solución: copia profunda</h2>
+
+<p>Una <strong>copia profunda</strong> crea nodos <em>nuevos</em>, uno por cada nodo del
+original, con los mismos datos y en el mismo orden. Cada lista es dueña de los suyos
+(<a href="https://www.learncpp.com/cpp-tutorial/shallow-vs-deep-copying/">LearnCpp, Shallow vs. deep copying</a>):</p>
+
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 520 150" width="520" height="150" role="img" aria-label="Copia profunda: a.cabeza apunta a 3, 7; b.cabeza apunta a OTROS nodos 3, 7 nuevos. Cada lista tiene los suyos" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="200" y="10" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="231.0" y="36" text-anchor="middle" font-size="16" fill="currentColor">3</text><line x1="262" y1="10" x2="262" y2="50" stroke="currentColor" stroke-width="1.6"/><rect x="350" y="10" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="381.0" y="36" text-anchor="middle" font-size="16" fill="currentColor">7</text><line x1="412" y1="10" x2="412" y2="50" stroke="currentColor" stroke-width="1.6"/><line x1="417" y1="45" x2="445" y2="15" stroke="currentColor" stroke-width="1.6"/><circle cx="281" cy="30" r="3.5" fill="currentColor"/><line x1="281" y1="30" x2="350" y2="30" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="12" y="35" text-anchor="start" font-size="14" font-weight="700" fill="currentColor">a.cabeza</text><line x1="96" y1="30" x2="198" y2="30" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="200" y="95" width="100" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="231.0" y="121" text-anchor="middle" font-size="16" style="fill:var(--acento)">3</text><line x1="262" y1="95" x2="262" y2="135" style="stroke:var(--acento)" stroke-width="2.2"/><rect x="350" y="95" width="100" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="381.0" y="121" text-anchor="middle" font-size="16" style="fill:var(--acento)">7</text><line x1="412" y1="95" x2="412" y2="135" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="417" y1="130" x2="445" y2="100" style="stroke:var(--acento)" stroke-width="2.2"/><circle cx="281" cy="115" r="3.5" style="fill:var(--acento)"/><line x1="281" y1="115" x2="350" y2="115" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/><text x="12" y="120" text-anchor="start" font-size="14" font-weight="700" style="fill:var(--acento)">b.cabeza</text><line x1="96" y1="115" x2="198" y2="115" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/></svg></div>
+
+<p>Ahora destruir <code>b</code> libera <em>sus</em> nodos y <code>a</code> conserva los
+suyos. Cambiar una no toca la otra. Para conseguirlo tienes que escribir tú dos funciones
+que C++ usa para copiar: el constructor de copia y el operador de asignación.</p>
+
+<h2>5. El constructor de copia</h2>
+
+<p>Se ejecuta cuando un objeto <strong>nace</strong> como copia de otro. Se llama como la
+clase y recibe la otra lista por <strong>referencia constante</strong> (lección 2.1):</p>
+
+<pre><code>ListaEnlazada(const ListaEnlazada&amp; otra) : cabeza(nullptr) {   <span class="c">// nace vacía</span>
+    for (Nodo* actual = otra.cabeza; actual != nullptr; actual = actual-&gt;siguiente) {
+        insertarAlFinal(actual-&gt;dato);   <span class="c">// un nodo NUEVO por cada nodo de otra</span>
+    }
+}</code></pre>
+
+<p>Dos detalles. Usamos <code>insertarAlFinal</code> para conservar el orden
+(<code>insertarAlInicio</code> dejaría la copia al revés). Y podemos leer
+<code>otra.cabeza</code> aunque sea <code>private</code>: dentro de la clase, lo privado
+de <em>cualquier</em> <code>ListaEnlazada</code> es accesible.</p>
+
+<p>¿Cuándo se llama? Más veces de las que parece:</p>
+<pre><code>ListaEnlazada b = a;        <span class="c">// b nace como copia de a</span>
+ListaEnlazada c(a);         <span class="c">// lo mismo, otra forma de escribirlo</span>
+void f(ListaEnlazada x);    <span class="c">// pasar POR VALOR: x es una copia de lo que le pasas</span></code></pre>
+
+<div class="ojo">
+<p><strong>Error típico: olvidar el <code>&amp;</code> del parámetro.</strong>
+Si escribes <code>ListaEnlazada(ListaEnlazada otra)</code>, pasar <code>otra</code> por
+valor ya sería una copia… que llamaría al constructor de copia… que haría otra copia, sin
+fin. El compilador no lo permite y te da la pista:</p>
+<pre><code>error: invalid constructor; you probably meant ‘ListaEnlazada (const ListaEnlazada&amp;)’</code></pre>
+<p>Y al revés, en tus funciones: pasar una lista por valor (<code>void f(ListaEnlazada x)</code>)
+la copia entera cada vez. Si la función solo necesita leerla, usa
+<code>const ListaEnlazada&amp;</code>.</p>
+</div>
+
+<h2>6. El operador de asignación <code>operator=</code></h2>
+
+<p>Se ejecuta en <code>b = a;</code> cuando <code>b</code> <strong>ya existía</strong>.
+Esa es la diferencia con el constructor de copia: <code>b</code> puede tener nodos
+propios, y hay que liberarlos antes de copiar, o se pierden (fuga de memoria). Se
+escribe como cualquier operador sobrecargado (lección 2.7): <code>operator=</code>.</p>
+
+<p><strong>Antes</strong> de <code>b = a;</code>:</p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 560 150" width="560" height="150" role="img" aria-label="Antes de b = a: a tiene 7, 8; b ya existe y tiene sus propios nodos 1, 2, 3" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="130" y="10" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="161.0" y="36" text-anchor="middle" font-size="16" fill="currentColor">7</text><line x1="192" y1="10" x2="192" y2="50" stroke="currentColor" stroke-width="1.6"/><rect x="260" y="10" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="291.0" y="36" text-anchor="middle" font-size="16" fill="currentColor">8</text><line x1="322" y1="10" x2="322" y2="50" stroke="currentColor" stroke-width="1.6"/><line x1="327" y1="45" x2="355" y2="15" stroke="currentColor" stroke-width="1.6"/><circle cx="211" cy="30" r="3.5" fill="currentColor"/><line x1="211" y1="30" x2="260" y2="30" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="12" y="35" text-anchor="start" font-size="14" font-weight="700" fill="currentColor">a</text><line x1="30" y1="30" x2="128" y2="30" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="12" y="120" text-anchor="start" font-size="14" font-weight="700" fill="currentColor">b</text><rect x="130" y="95" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="161.0" y="121" text-anchor="middle" font-size="16" fill="currentColor">1</text><line x1="192" y1="95" x2="192" y2="135" stroke="currentColor" stroke-width="1.6"/><rect x="260" y="95" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="291.0" y="121" text-anchor="middle" font-size="16" fill="currentColor">2</text><line x1="322" y1="95" x2="322" y2="135" stroke="currentColor" stroke-width="1.6"/><rect x="390" y="95" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="421.0" y="121" text-anchor="middle" font-size="16" fill="currentColor">3</text><line x1="452" y1="95" x2="452" y2="135" stroke="currentColor" stroke-width="1.6"/><line x1="457" y1="130" x2="485" y2="100" stroke="currentColor" stroke-width="1.6"/><circle cx="211" cy="115" r="3.5" fill="currentColor"/><line x1="211" y1="115" x2="260" y2="115" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="341" cy="115" r="3.5" fill="currentColor"/><line x1="341" y1="115" x2="390" y2="115" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="30" y1="115" x2="128" y2="115" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/></svg></div>
+<p><strong>Después:</strong></p>
+<div style="margin:.6rem 0 1.2rem;overflow-x:auto"><svg viewBox="0 0 560 150" width="560" height="150" role="img" aria-label="Después de b = a: b tiene nodos nuevos 7, 8, copia de los de a; sus viejos 1, 2, 3 se liberaron" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="130" y="10" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="161.0" y="36" text-anchor="middle" font-size="16" fill="currentColor">7</text><line x1="192" y1="10" x2="192" y2="50" stroke="currentColor" stroke-width="1.6"/><rect x="260" y="10" width="100" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="291.0" y="36" text-anchor="middle" font-size="16" fill="currentColor">8</text><line x1="322" y1="10" x2="322" y2="50" stroke="currentColor" stroke-width="1.6"/><line x1="327" y1="45" x2="355" y2="15" stroke="currentColor" stroke-width="1.6"/><circle cx="211" cy="30" r="3.5" fill="currentColor"/><line x1="211" y1="30" x2="260" y2="30" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="12" y="35" text-anchor="start" font-size="14" font-weight="700" fill="currentColor">a</text><line x1="30" y1="30" x2="128" y2="30" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="12" y="120" text-anchor="start" font-size="14" font-weight="700" style="fill:var(--acento)">b</text><rect x="130" y="95" width="100" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="161.0" y="121" text-anchor="middle" font-size="16" style="fill:var(--acento)">7</text><line x1="192" y1="95" x2="192" y2="135" style="stroke:var(--acento)" stroke-width="2.2"/><rect x="260" y="95" width="100" height="40" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="291.0" y="121" text-anchor="middle" font-size="16" style="fill:var(--acento)">8</text><line x1="322" y1="95" x2="322" y2="135" style="stroke:var(--acento)" stroke-width="2.2"/><line x1="327" y1="130" x2="355" y2="100" style="stroke:var(--acento)" stroke-width="2.2"/><circle cx="211" cy="115" r="3.5" style="fill:var(--acento)"/><line x1="211" y1="115" x2="260" y2="115" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/><line x1="30" y1="115" x2="128" y2="115" style="stroke:var(--acento)" stroke-width="2.2" marker-end="url(#fla)"/><text x="410" y="120" text-anchor="start" font-size="13" style="fill:var(--suave)">1, 2, 3: liberados</text></svg></div>
+
+<pre><code>ListaEnlazada&amp; operator=(const ListaEnlazada&amp; otra) {
+    if (this == &amp;otra) return *this;     <span class="c">// a) autoasignación: a = a</span>
+    vaciar();                            <span class="c">// b) liberar MIS nodos viejos</span>
+    for (Nodo* actual = otra.cabeza; actual != nullptr; actual = actual-&gt;siguiente) {
+        insertarAlFinal(actual-&gt;dato);   <span class="c">// c) copiar los de otra</span>
+    }
+    return *this;                        <span class="c">// d) devolverme, para a = b = c</span>
+}</code></pre>
+
+<p><code>vaciar()</code> es el cuerpo del destructor (guardar el siguiente, borrar,
+avanzar) más <code>cabeza = nullptr;</code> al final. Así el destructor y el
+<code>operator=</code> lo comparten: <code>~ListaEnlazada() { vaciar(); }</code>.</p>
+
+<p><strong>¿Y la línea a)?</strong> Nadie escribe <code>a = a</code> a propósito, pero
+pasa sin querer: <code>lista[i] = lista[j]</code> con <code>i == j</code>, o dos
+referencias a la misma lista. Sin esa línea, <code>vaciar()</code> borra los nodos de
+<code>a</code>… que eran los de <code>otra</code>. Cuando el bucle quiere copiarlos, ya
+no hay nada: <code>a</code> se queda vacía sin aviso (y con otras formas de escribirlo,
+lee nodos liberados). <code>this</code> es la dirección de este objeto y
+<code>&amp;otra</code> la del otro; si son iguales, es el mismo objeto
+(<a href="https://www.learncpp.com/cpp-tutorial/overloading-the-assignment-operator/">LearnCpp, Overloading the assignment operator</a>).</p>
+
+<div class="ojo">
+<p><strong>Error típico: escribir el constructor de copia y olvidar <code>operator=</code>.</strong>
+Entonces <code>ListaEnlazada b = a;</code> funciona, pero <code>b = a;</code> sigue
+usando la copia superficial de fábrica: el doble <code>delete</code> vuelve, y además los
+nodos viejos de <code>b</code> se pierden. Son dos funciones distintas y hacen falta las
+dos.</p>
+</div>
+
+<h2>7. La regla de tres</h2>
+
+<p>Lo que acabas de vivir tiene nombre. La <strong>regla de tres</strong> dice: si tu
+clase necesita escribir <em>una</em> de estas tres funciones, casi seguro necesita las
+<em>tres</em>
+(<a href="https://en.cppreference.com/w/cpp/language/rule_of_three">cppreference, The rule of three/five/zero</a>):</p>
+
+<table>
+<tr><th>Función</th><th>Se ejecuta</th><th>En la lista</th></tr>
+<tr><td>destructor <code>~ListaEnlazada()</code></td><td>al morir</td><td>libera todos los nodos</td></tr>
+<tr><td>constructor de copia <code>ListaEnlazada(const ListaEnlazada&amp;)</code></td><td>al nacer como copia</td><td>crea nodos nuevos iguales</td></tr>
+<tr><td><code>operator=(const ListaEnlazada&amp;)</code></td><td>al asignar a uno que ya existe</td><td>autoasignación, liberar los viejos, copiar</td></tr>
+</table>
+
+<p>La señal para saberlo: <strong>¿tu clase hace <code>new</code> y guarda el
+apuntador?</strong> Entonces su destructor hace <code>delete</code>, y las copias de
+fábrica son peligrosas. <code>Pila</code> y <code>Cola</code> (lecciones 3.6 y 3.7)
+cumplen esa señal igual que la lista.</p>
+
+<p>Si una clase no debe copiarse nunca, también vale prohibirlo; así cualquier intento
+de copia da un error de compilación en vez de un fallo en ejecución:</p>
+<pre><code>ListaEnlazada(const ListaEnlazada&amp;) = delete;              <span class="c">// prohibido copiar</span>
+ListaEnlazada&amp; operator=(const ListaEnlazada&amp;) = delete;   <span class="c">// prohibido asignar</span></code></pre>
+
+<p><strong>Lo que viene.</strong> Desde C++11 existe también la <strong>regla de cinco</strong>:
+a las tres se suman el constructor y la asignación <em>de movimiento</em>, que en vez de
+copiar los nodos se los «roban» a un objeto que va a morir. Lo verás en la
+<a href="../nivel-4-intermedio-avanzado/07-semantica-de-movimiento.html">lección 4.7</a>.
+Y en la <a href="../nivel-4-intermedio-avanzado/05-punteros-inteligentes-y-raii.html">lección 4.5</a>
+verás la regla de cero: usar apuntadores inteligentes para no escribir ninguna de las tres.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Por zonas: <code>a</code> y <code>b</code> viven en el marco de <code>main</code>, en la memoria
+automática (la <em>pila de llamadas</em> o <em>stack</em>), y cada una ocupa solo un apuntador. Los
+nodos viven en el montón (<em>heap</em>). La copia de fábrica copia lo que hay en la memoria
+automática —la dirección de <code>cabeza</code>— y nada del montón: dos dueños para una sola
+cadena. La copia profunda hace un <code>new</code> por nodo: copiar una lista de n nodos crea
+n cajas nuevas.</p>
+<p>Dos cosas más. Los objetos automáticos se destruyen en orden inverso al de creación: por eso
+<code>b</code> muere antes que <code>a</code>. Y pasar por valor (<code>void f(ListaEnlazada x)</code>)
+pone <code>x</code> en el marco de <code>f</code>: con copia profunda, cada llamada crea todos los
+nodos y, al volver, el destructor de <code>x</code> los borra. Con
+<code>const ListaEnlazada&amp;</code> no se crea ni uno. Imprime <code>nodosVivos</code> antes, dentro
+y después de la llamada y lo verás.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#monton">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+
+<table>
+<tr><th>Idea</th><th>En una línea</th></tr>
+<tr><td>copia superficial</td><td>copia la dirección de <code>cabeza</code>; dos listas comparten nodos</td></tr>
+<tr><td>su consecuencia</td><td>el segundo destructor usa nodos liberados: <em>double free</em> / <em>heap-use-after-free</em></td></tr>
+<tr><td>copia profunda</td><td>un nodo nuevo por cada nodo, mismos datos, mismo orden</td></tr>
+<tr><td>constructor de copia</td><td><code>ListaEnlazada b = a;</code>, <code>b(a)</code> y paso por valor</td></tr>
+<tr><td><code>operator=</code></td><td><code>b = a;</code> con <code>b</code> ya existente: <code>this == &amp;otra</code>, vaciar, copiar, <code>return *this</code></td></tr>
+<tr><td>regla de tres</td><td>destructor, constructor de copia y <code>operator=</code>: o ninguno o los tres</td></tr>
+<tr><td>diagnóstico</td><td><code>g++ -g -fsanitize=address</code> señala la línea exacta</td></tr>
+</table>
+
+<p>La plantilla completa de las tres funciones está en la
+<a href="../reference/listas-dobles-y-copia.html">hoja de referencia de listas dobles y copia</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+
+<p>Responde <em>sin volver a mirar arriba</em>. Esforzarte en recordar es lo que
+hace que se te quede.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="3" data-explica="Sin constructor de copia propio, <code>b</code> copia solo la dirección de <code>a.cabeza</code>. Imprime «listo» normalmente; luego, al final de <code>main</code>, muere <code>b</code> y libera los nodos, y el destructor de <code>a</code> vuelve a usarlos y a liberarlos: doble delete.">
+<pre><code><span class="c">// ListaEnlazada con destructor que libera los nodos,</span>
+<span class="c">// SIN constructor de copia ni operator=</span>
+ListaEnlazada a;
+a.insertarAlInicio(5);
+ListaEnlazada b = a;
+cout &lt;&lt; "listo\n";</code></pre>
+<p>¿Qué pasa?</p>
+<div class="opciones"><button>No compila por la copia</button><button>Funciona bien sin ningún problema</button><button>Se cae antes de imprimir</button><button>Imprime y luego se cae</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="<code>b</code> ya existía cuando se escribe <code>b = a;</code>, así que es una asignación: se llama a <code>operator=</code>. El constructor de copia solo se usa cuando el objeto nace como copia, como en <code>ListaEnlazada b = a;</code>.">
+<pre><code>ListaEnlazada a, b;
+a.insertarAlInicio(1);
+b = a;</code></pre>
+<p>¿Qué se ejecuta en la última línea?</p>
+<div class="opciones"><button>El constructor de copia de b</button><button>El operador de asignación de b</button><button>El constructor por defecto de b</button><button>El destructor de la lista a</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Con copia profunda, <code>b</code> tiene sus propios nodos. Meter un 0 en <code>b</code> no cambia los de <code>a</code>, que sigue siendo 1,2.">
+<pre><code><span class="c">// ListaEnlazada con regla de tres bien hecha</span>
+ListaEnlazada a;
+a.insertarAlFinal(1);
+a.insertarAlFinal(2);
+ListaEnlazada b = a;
+b.insertarAlInicio(0);
+cout &lt;&lt; a.texto();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 1,2</button><button>Muestra 0,1,2</button><button>Muestra 2,1</button><button>Muestra 0</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Sin la comprobación <code>this == &amp;otra</code>, <code>vaciar()</code> borra los nodos de <code>a</code>, que son también los de <code>otra</code>. Cuando el bucle quiere copiarlos, <code>otra.cabeza</code> ya es <code>nullptr</code>: la lista queda vacía.">
+<pre><code>ListaEnlazada&amp; operator=(const ListaEnlazada&amp; otra) {
+    vaciar();   <span class="c">// borra mis nodos y deja cabeza = nullptr</span>
+    for (Nodo* p = otra.cabeza; p != nullptr; p = p-&gt;siguiente)
+        insertarAlFinal(p-&gt;dato);
+    return *this;
+}
+<span class="c">// a contiene 7,8</span>
+ListaEnlazada&amp; mismo = a;
+a = mismo;
+cout &lt;&lt; a.texto();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra «7,8» intacto</button><button>Muestra «7,8,7,8» duplicado</button><button>No muestra nada</button><button>Muestra «8» solamente</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="<code>a</code> tiene 3 nodos; <code>b</code> es una copia profunda: 3 más (6). <code>c</code> tenía 2 (8). Con <code>c = a</code>, <code>operator=</code> libera esos 2 (6) y crea 3 nuevos (9).">
+<pre><code><span class="c">// regla de tres bien hecha; nodosVivos cuenta los nodos</span>
+ListaEnlazada a;   <span class="c">// con 3 nodos</span>
+ListaEnlazada b = a;
+ListaEnlazada c;   <span class="c">// con 2 nodos</span>
+c = a;
+cout &lt;&lt; nodosVivos;</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 3</button><button>Muestra 5</button><button>Muestra 11</button><button>Muestra 9</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Es la regla de tres: si el destructor libera memoria, las copias de fábrica (superficiales) llevan al doble delete. Hacen falta también el constructor de copia y el <code>operator=</code> (o prohibirlos con <code>= delete</code>).">
+<p>Tu clase hace <code>new</code> y su destructor hace <code>delete</code>. ¿Qué más debe definir?</p>
+<div class="opciones"><button>Constructor de copia y operator=</button><button>Solo un constructor por defecto</button><button>Nada más, con eso basta</button><button>Un operator== y un operator&lt;&lt;</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 3.5 · Una lista que se copia bien</h2>
+
+<p>Abre <a href="ejercicios/05-copiar-estructuras.cpp"><code>ejercicios/05-copiar-estructuras.cpp</code></a>.
+La <code>ListaEnlazada</code> ya trae destructor, <code>vaciar()</code>,
+<code>insertarAlFinal</code> y <code>texto()</code>. Te faltan las otras dos piezas de la
+regla de tres:</p>
+
+<ol>
+<li>El <strong>constructor de copia</strong> <code>ListaEnlazada(const ListaEnlazada&amp; otra)</code>
+— nodos nuevos, mismo orden (sección 5).</li>
+<li>El <strong>operador de asignación</strong> <code>operator=(const ListaEnlazada&amp; otra)</code>
+— autoasignación, vaciar, copiar, <code>return *this</code> (sección 6).</li>
+</ol>
+
+<p>Las pruebas comprueban que la copia tiene los mismos datos, que <em>no comparte</em>
+nodos con el original, que pasar por valor no toca la lista, que <code>a = a</code> no la
+rompe, que <code>a = b = c</code> funciona y, con el contador <code>nodosVivos</code>,
+que no sobra ni falta ningún nodo: ni fugas ni nodos liberados de más.</p>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 05-copiar-estructuras.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás varias ✗ (los métodos vienen con un relleno que no copia nada,
+para que no se caiga). Terminaste cuando salgan todas en ✓. Si estás en Linux, macOS o
+WSL, haz una última pasada con ASan; no debe decir nada:</p>
+<pre><code>g++ -std=c++17 -Wall -g -fsanitize=address 05-copiar-estructuras.cpp -o prog &amp;&amp; ./prog</code></pre>
+<p>Unos 15–20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> el constructor de copia y el bucle del
+<code>operator=</code> son el mismo recorrido: <code>otra.cabeza</code> hasta
+<code>nullptr</code>, y por cada nodo <code>insertarAlFinal(actual-&gt;dato)</code>. Lo
+único que añade <code>operator=</code> es lo de antes (comprobar
+<code>this == &amp;otra</code> y llamar a <code>vaciar()</code>) y lo de después
+(<code>return *this;</code>). Si borras los métodos en vez de completarlos, vuelve la
+copia superficial y verás el <em>double free</em> de la sección 1.</p>
+<p>La solución está en
+<a href="soluciones/05-copiar-estructuras.cpp"><code>soluciones/05-copiar-estructuras.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://www.learncpp.com/cpp-tutorial/shallow-vs-deep-copying/">LearnCpp — 21.13 Shallow vs. deep copying</a>
+(en inglés). Lee la página entera: es el mismo problema con una clase de texto en vez de
+una lista, y al final menciona la regla de tres. Unos 15 minutos.</p>
+<p>Luego, de
+<a href="https://www.learncpp.com/cpp-tutorial/overloading-the-assignment-operator/">LearnCpp — 21.12 Overloading the assignment operator</a>,
+lee la parte de <em>self-assignment</em> (autoasignación). Y para la regla de tres, cinco
+y cero en una sola página:
+<a href="https://en.cppreference.com/w/cpp/language/rule_of_three">cppreference — The rule of three/five/zero</a>
+(solo la sección «Rule of three»).</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación, un mensaje de ASan que no sabes leer
+o «explícamelo de otra forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="04-lista-doble-y-circular.html">← Lección anterior</a> ·
+<a href="06-pila.html">Siguiente: Lección 3.6 · Pila →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

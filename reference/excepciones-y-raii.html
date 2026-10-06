@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Excepciones y RAII</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Excepciones y RAII</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones
+<a href="../nivel-4-intermedio-avanzado/04-excepciones.html">4.4</a> y
+<a href="../nivel-4-intermedio-avanzado/05-punteros-inteligentes-y-raii.html">4.5</a>.</p>
+
+<h2>Excepciones: sintaxis</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>#include &lt;stdexcept&gt;</code></td><td>trae <code>out_of_range</code>, <code>invalid_argument</code>, <code>runtime_error</code>...</td></tr>
+<tr><td><code>throw out_of_range("msg");</code></td><td>lanza el error; la función se corta ahí</td></tr>
+<tr><td><code>try { ... }</code></td><td>código vigilado</td></tr>
+<tr><td><code>catch (const out_of_range&amp; e) { ... }</code></td><td>atrapa ese tipo y sus hijos; siempre por <code>const &amp;</code></td></tr>
+<tr><td><code>e.what()</code></td><td>el mensaje del error</td></tr>
+<tr><td><code>catch (const exception&amp; e)</code></td><td>cualquier excepción estándar</td></tr>
+<tr><td><code>catch (...)</code></td><td>cualquier cosa; va el último</td></tr>
+</table>
+
+<h2>¿Qué tipo lanzo?</h2>
+<table>
+<tr><th>Tipo</th><th>Cuándo</th><th>Ejemplo</th></tr>
+<tr><td><code>out_of_range</code></td><td>algo fuera de rango</td><td><code>pop()</code> de pila vacía; <code>vector::at</code> lo lanza</td></tr>
+<tr><td><code>invalid_argument</code></td><td>argumento sin sentido</td><td>dividir entre 0</td></tr>
+<tr><td><code>runtime_error</code></td><td>falla al ejecutar</td><td>un archivo que no abre</td></tr>
+</table>
+<p><code>out_of_range</code> e <code>invalid_argument</code> son hijos de <code>logic_error</code>;
+todos descienden de <code>exception</code>.</p>
+
+<h2>El patrón de la Pila que avisa</h2>
+<pre><code>void pop() {
+    if (vacia()) throw out_of_range("pop: pila vacía");   <span class="c">// comprobar ANTES de tocar nada</span>
+    Nodo* viejo = tope;
+    tope = tope-&gt;siguiente;
+    delete viejo;
+}
+
+try { p.pop(); }
+catch (const out_of_range&amp; e) { cout &lt;&lt; e.what(); }</code></pre>
+
+<h2>¿Excepción o valor de retorno?</h2>
+<table>
+<tr><th>Situación</th><th>Usa</th></tr>
+<tr><td>no se puede seguir con sentido (pila vacía, división entre 0)</td><td>excepción</td></tr>
+<tr><td>un resultado normal (buscar y no encontrar)</td><td><code>bool</code> / <code>-1</code></td></tr>
+<tr><td>flujo normal (salir de un bucle)</td><td><code>break</code>, nunca excepciones</td></tr>
+</table>
+
+<h2>RAII en una línea</h2>
+<p>Un objeto toma el recurso en el constructor y lo suelta en el destructor. El destructor
+se llama siempre al salir del bloque (<code>return</code>, <code>}</code> o excepción), así
+que el recurso se libera siempre. Ejemplos: <code>vector</code>, <code>string</code>,
+<code>ifstream</code>, <code>unique_ptr</code>, <code>shared_ptr</code>.</p>
+
+<h2>Apuntadores inteligentes (<code>#include &lt;memory&gt;</code>)</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>auto p = make_unique&lt;Nodo&gt;(4);</code></td><td>crea con dueño único (C++14)</td></tr>
+<tr><td><code>p-&gt;dato</code>, <code>*p</code>, <code>if (p)</code></td><td>como un apuntador normal</td></tr>
+<tr><td><code>p.get()</code></td><td><code>Nodo*</code> que solo mira; nunca le hagas <code>delete</code></td></tr>
+<tr><td><code>q = move(p);</code></td><td>pasa la propiedad; <code>p</code> queda en <code>nullptr</code></td></tr>
+<tr><td><code>auto q = p;</code></td><td>no compila: <code>unique_ptr</code> no se copia</td></tr>
+<tr><td><code>auto s = make_shared&lt;int&gt;(3);</code></td><td>varios dueños; <code>s.use_count()</code> los cuenta</td></tr>
+<tr><td><code>weak_ptr</code></td><td>mira un <code>shared_ptr</code> sin ser dueño; rompe ciclos</td></tr>
+</table>
+
+<h2>Lista enlazada con <code>unique_ptr</code></h2>
+<pre><code>struct Nodo {
+    int dato;
+    unique_ptr&lt;Nodo&gt; siguiente;
+    Nodo(int d) : dato(d), siguiente(nullptr) {}
+};
+
+<span class="c">// insertar al inicio</span>
+auto nuevo = make_unique&lt;Nodo&gt;(valor);
+nuevo-&gt;siguiente = move(cabeza);
+cabeza = move(nuevo);
+
+<span class="c">// recorrer</span>
+for (Nodo* p = cabeza.get(); p != nullptr; p = p-&gt;siguiente.get()) { ... }
+
+<span class="c">// eliminar el primero (se libera solo)</span>
+cabeza = move(cabeza-&gt;siguiente);
+
+<span class="c">// destructor iterativo: solo para listas MUY largas (evita desbordar la pila)</span>
+~ListaEnlazada() { while (cabeza) cabeza = move(cabeza-&gt;siguiente); }</code></pre>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>throw</code> sin ningún <code>catch</code></td><td><code>std::terminate()</code>: el programa se corta</td><td>atrapar donde se pueda decidir; un <code>catch</code> en <code>main</code></td></tr>
+<tr><td><code>catch (exception&amp;)</code> antes de <code>catch (out_of_range&amp;)</code></td><td>el segundo nunca se usa (g++ avisa)</td><td>del más concreto al más general</td></tr>
+<tr><td><code>catch (exception e)</code> sin <code>&amp;</code></td><td>copia el error y pierde el tipo hijo</td><td><code>catch (const exception&amp; e)</code></td></tr>
+<tr><td><code>new</code> y luego algo que lanza</td><td>el <code>delete</code> no se ejecuta: fuga</td><td><code>make_unique</code> en vez de <code>new</code></td></tr>
+<tr><td>usar un <code>unique_ptr</code> tras moverlo</td><td>es <code>nullptr</code>: se cae</td><td>tras <code>move(p)</code>, no vuelvas a usar <code>p</code></td></tr>
+<tr><td>dos <code>unique_ptr</code> del mismo apuntador normal</td><td>doble <code>delete</code></td><td>crear siempre con <code>make_unique</code></td></tr>
+<tr><td>destruir en cadena una lista enorme</td><td>desborda la pila (con 100&nbsp;000 nodos ya pasa sin optimizar)</td><td>destructor con bucle <code>while</code></td></tr>
+<tr><td>ciclo de <code>shared_ptr</code></td><td>nadie se libera: fuga</td><td>un lado con <code>weak_ptr</code> o <code>Nodo*</code></td></tr>
+</table>
+
+<p class="cita">Fuentes:
+<a href="https://www.learncpp.com/cpp-tutorial/basic-exception-handling/">LearnCpp 27.2 — Basic exception handling</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/uncaught-exceptions-catch-all-handlers/">27.4 — Uncaught exceptions</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/stdunique_ptr/">22.5 — std::unique_ptr</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/stdshared_ptr/">22.6 — std::shared_ptr</a> ·
+<a href="https://en.cppreference.com/w/cpp/error/exception">cppreference — std::exception</a> ·
+<a href="https://en.cppreference.com/w/cpp/memory/unique_ptr">std::unique_ptr</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/raii">RAII</a></p>
+
+</main>
+</body>
+</html>

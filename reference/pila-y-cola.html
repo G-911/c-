@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Pila y cola</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Pila y cola</h1>
+<p class="subtitulo">Hoja de consulta rápida. Lecciones <a href="../nivel-3-estructuras-de-datos/06-pila.html">6</a> y <a href="../nivel-3-estructuras-de-datos/07-cola.html">7</a>.</p>
+
+<p>Las dos usan el mismo nodo que la lista enlazada:</p>
+<pre><code>struct Nodo {
+    int dato;
+    Nodo* siguiente;
+    Nodo(int d) : dato(d), siguiente(nullptr) {}
+};</code></pre>
+
+<h2>Pila (LIFO: el último que entra sale primero)</h2>
+<p>Una lista donde solo se toca la cabeza, que aquí se llama <code>tope</code>.
+Ejemplos: pila de platos, deshacer, botón «atrás».</p>
+
+<table>
+<tr><th>Método</th><th>Qué hace</th></tr>
+<tr><td><code>push(x)</code> (apilar)</td><td>pone <code>x</code> arriba</td></tr>
+<tr><td><code>pop()</code> (desapilar)</td><td>quita y libera el de arriba; vacía → no hace nada</td></tr>
+<tr><td><code>top()</code></td><td>devuelve el de arriba; comprobar <code>vacia()</code> antes</td></tr>
+<tr><td><code>vacia()</code></td><td><code>tope == nullptr</code></td></tr>
+<tr><td><code>tamano()</code></td><td>recorre contando</td></tr>
+</table>
+
+<pre><code>void Pila::push(int valor) {
+    Nodo* nuevo = new Nodo(valor);
+    nuevo-&gt;siguiente = tope;
+    tope = nuevo;
+}
+
+void Pila::pop() {
+    if (vacia()) return;
+    Nodo* viejo = tope;          <span class="c">// 1. guardar</span>
+    tope = tope-&gt;siguiente;      <span class="c">// 2. mover</span>
+    delete viejo;                <span class="c">// 3. borrar</span>
+}
+
+int Pila::top() const { return tope-&gt;dato; }   <span class="c">// solo si !vacia()</span></code></pre>
+
+<h3>Paréntesis balanceados</h3>
+<p>Abre → <code>push</code>. Cierra → si la pila está vacía o el <code>top</code>
+no es su pareja: <strong>false</strong>; si lo es, <code>pop</code>. Al final:
+balanceado solo si la pila quedó vacía.</p>
+
+<h2>Cola (FIFO: el primero que entra sale primero)</h2>
+<p>Una lista con un apuntador extra al final. Se entra por <code>final</code> y
+se sale por <code>frente</code>. Ejemplos: fila del banco, impresora.</p>
+
+<p><strong>Regla que siempre se cumple:</strong> <code>frente</code> y
+<code>final</code> son <code>nullptr</code> a la vez, o ninguno lo es.</p>
+
+<table>
+<tr><th>Método</th><th>Qué hace</th></tr>
+<tr><td><code>encolar(x)</code></td><td>añade <code>x</code> por el final</td></tr>
+<tr><td><code>desencolar()</code></td><td>quita y libera el del frente; vacía → no hace nada</td></tr>
+<tr><td><code>verFrente()</code></td><td>devuelve el del frente; comprobar <code>vacia()</code> antes</td></tr>
+<tr><td><code>vacia()</code></td><td><code>frente == nullptr</code></td></tr>
+<tr><td><code>tamano()</code></td><td>recorre contando</td></tr>
+</table>
+
+<pre><code>void Cola::encolar(int valor) {
+    Nodo* nuevo = new Nodo(valor);
+    if (vacia()) {
+        frente = nuevo;
+        final = nuevo;
+    } else {
+        final-&gt;siguiente = nuevo;   <span class="c">// primero enlazar...</span>
+        final = nuevo;              <span class="c">// ...después mover final</span>
+    }
+}
+
+void Cola::desencolar() {
+    if (vacia()) return;
+    Nodo* viejo = frente;
+    frente = frente-&gt;siguiente;
+    if (frente == nullptr) final = nullptr;   <span class="c">// ¡salió el último!</span>
+    delete viejo;
+}</code></pre>
+
+<h2>Pila vs cola vs lista</h2>
+<table>
+<tr><th></th><th>Lista enlazada</th><th>Pila</th><th>Cola</th></tr>
+<tr><td>Orden de salida</td><td>el que tú elijas</td><td>LIFO: el último que entró</td><td>FIFO: el primero que entró</td></tr>
+<tr><td>Apuntadores en la clase</td><td><code>cabeza</code></td><td><code>tope</code></td><td><code>frente</code> y <code>final</code></td></tr>
+<tr><td>Por dónde entra</td><td>inicio, final o donde quieras</td><td>arriba (<code>tope</code>)</td><td>por <code>final</code></td></tr>
+<tr><td>Por dónde sale</td><td>cualquier nodo (<code>eliminar</code>)</td><td>arriba (<code>tope</code>)</td><td>por <code>frente</code></td></tr>
+<tr><td>Meter</td><td><code>insertarAlInicio</code> / <code>insertarAlFinal</code></td><td><code>push</code></td><td><code>encolar</code></td></tr>
+<tr><td>Sacar</td><td><code>eliminar(valor)</code></td><td><code>pop</code></td><td><code>desencolar</code></td></tr>
+<tr><td>Mirar sin sacar</td><td><code>buscar</code>, <code>imprimir</code></td><td><code>top</code></td><td><code>verFrente</code></td></tr>
+<tr><td>¿Hay que recorrer para meter o sacar?</td><td>a veces (al final, en medio)</td><td>nunca</td><td>nunca, gracias a <code>final</code></td></tr>
+<tr><td>Ejemplo real</td><td>agenda, lista de tareas</td><td>platos, deshacer</td><td>fila del banco, impresora</td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>delete tope;</code> y luego <code>tope = tope-&gt;siguiente;</code></td><td>lee un nodo ya borrado (apuntador colgante)</td><td>guardar en <code>viejo</code>, mover, borrar</td></tr>
+<tr><td><code>top()</code> o <code>verFrente()</code> con la estructura vacía</td><td>desreferencia <code>nullptr</code>; normalmente se cae</td><td>preguntar <code>vacia()</code> antes</td></tr>
+<tr><td>desencolar el último sin <code>final = nullptr</code></td><td><code>final</code> queda colgante; la cola está rota</td><td><code>if (frente == nullptr) final = nullptr;</code></td></tr>
+<tr><td>en <code>encolar</code>, <code>final = nuevo</code> antes de enlazar</td><td>el último de antes no queda unido al nuevo</td><td>primero <code>final-&gt;siguiente = nuevo</code></td></tr>
+<tr><td>encolar en cola vacía sin caso especial</td><td><code>final-&gt;siguiente</code> con <code>final == nullptr</code>: se cae</td><td><code>if (vacia())</code>: <code>frente = final = nuevo</code></td></tr>
+<tr><td>no escribir destructor</td><td>fuga de memoria: los nodos nunca se liberan</td><td>recorrer y hacer <code>delete</code> de cada nodo</td></tr>
+</table>
+
+<p class="cita">Fuentes: <a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/linked-lists1">Stanford CS106B — Linked Lists 1</a> · <a href="https://en.cppreference.com/w/cpp/container/stack">cppreference, std::stack</a> · <a href="https://en.cppreference.com/w/cpp/container/queue">cppreference, std::queue</a></p>
+
+</main>
+</body>
+</html>

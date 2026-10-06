@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Herencia y polimorfismo</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Herencia y polimorfismo</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones
+<a href="../nivel-2-memoria-y-poo/05-herencia.html">2.5</a> y
+<a href="../nivel-2-memoria-y-poo/06-polimorfismo.html">2.6</a>.</p>
+
+<h2>Herencia: sintaxis</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>class Hija : public Base { ... };</code></td><td>Hija hereda todo lo de Base y añade lo suyo («una Hija <em>es una</em> Base»)</td></tr>
+<tr><td><code>protected:</code></td><td>lo ven la clase y sus hijas; desde fuera, no</td></tr>
+<tr><td><code>Hija(int x) : Base(x), at(x) {}</code></td><td>la hija construye su parte Base en la lista de inicialización, primero</td></tr>
+<tr><td>al nacer / al morir</td><td>Base → Hija / Hija → Base</td></tr>
+<tr><td>mismo método en la hija</td><td>lo redefine; en un objeto Hija gana el de la hija</td></tr>
+</table>
+
+<h2>¿Quién ve qué?</h2>
+<table>
+<tr><th>Miembro</th><th>La propia clase</th><th>Una hija</th><th>Desde fuera (<code>main</code>)</th></tr>
+<tr><td><code>public</code></td><td>sí</td><td>sí</td><td>sí</td></tr>
+<tr><td><code>protected</code></td><td>sí</td><td>sí</td><td>no</td></tr>
+<tr><td><code>private</code></td><td>sí</td><td>no</td><td>no</td></tr>
+</table>
+
+<h2>Polimorfismo: sintaxis</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>Base* p = new Hija();</code></td><td>un apuntador a la base puede apuntar a una hija</td></tr>
+<tr><td><code>virtual void m();</code> (base)</td><td><code>p-&gt;m()</code> llama a la versión del objeto real, no a la del apuntador</td></tr>
+<tr><td><code>void m() override;</code> (hija)</td><td>«reemplazo un virtual»; si el nombre o los parámetros no cuadran, no compila</td></tr>
+<tr><td><code>virtual double area() = 0;</code></td><td>virtual puro: la clase es <strong>abstracta</strong>; no hay objetos de ella, solo apuntadores</td></tr>
+<tr><td><code>virtual ~Base() {}</code></td><td><code>delete p</code> con <code>Base* p</code> ejecuta también el destructor de la hija</td></tr>
+</table>
+
+<h2>Plantilla completa</h2>
+<pre><code>class Figura {                              <span class="c">// base abstracta</span>
+protected:
+    string nombre;                          <span class="c">// las hijas lo ven</span>
+public:
+    Figura(string n) : nombre(n) {}
+    virtual ~Figura() {}                    <span class="c">// SIEMPRE virtual si hay virtuales</span>
+    string getNombre() { return nombre; }
+    virtual double area() = 0;              <span class="c">// cada hija pone la suya</span>
+};
+
+class Circulo : public Figura {
+private:
+    double radio;
+public:
+    Circulo(double r) : Figura("circulo"), radio(r) {}   <span class="c">// base primero</span>
+    double area() override { return 3.14159 * radio * radio; }
+};
+
+class Rectangulo : public Figura {
+private:
+    double ancho, alto;
+public:
+    Rectangulo(double an, double al) : Figura("rectangulo"), ancho(an), alto(al) {}
+    double area() override { return ancho * alto; }
+};
+
+int main() {
+    vector&lt;Figura*&gt; plano = { new Circulo(1), new Rectangulo(3, 4) };
+    for (Figura* f : plano) {
+        cout &lt;&lt; f-&gt;getNombre() &lt;&lt; ": " &lt;&lt; f-&gt;area() &lt;&lt; "\n";   <span class="c">// polimorfismo</span>
+    }
+    for (Figura* f : plano) delete f;       <span class="c">// cada new, su delete</span>
+    plano.clear();
+}</code></pre>
+
+<h2>¿Qué versión se llama?</h2>
+<table>
+<tr><th>Llamada</th><th>Método normal en la base</th><th>Método <code>virtual</code> en la base</th></tr>
+<tr><td><code>c.m()</code> con <code>Circulo c</code></td><td>la de Circulo</td><td>la de Circulo</td></tr>
+<tr><td><code>p-&gt;m()</code> con <code>Figura* p = new Circulo(..)</code></td><td>la de <strong>Figura</strong></td><td>la de <strong>Circulo</strong></td></tr>
+<tr><td><code>delete p</code> con <code>Figura* p</code></td><td>solo <code>~Figura</code> (¡mal!)</td><td><code>~Circulo</code> y luego <code>~Figura</code></td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>no llamar al constructor de la base</td><td><code>no matching function for call to 'Figura::Figura()'</code></td><td>empezar la lista con <code>: Figura(...)</code></td></tr>
+<tr><td>usar en la hija un atributo <code>private</code> de la base</td><td>no compila</td><td>ponerlo <code>protected</code> o usar un getter público</td></tr>
+<tr><td>olvidar <code>virtual</code> en la base</td><td><code>p-&gt;m()</code> llama siempre a la versión de la base</td><td><code>virtual</code> en la base, <code>override</code> en la hija</td></tr>
+<tr><td>nombre o parámetros distintos en la hija</td><td>sin <code>override</code>: método nuevo que nadie llama, sin aviso</td><td>escribir siempre <code>override</code></td></tr>
+<tr><td>destructor de la base sin <code>virtual</code></td><td>el destructor de la hija no corre: comportamiento indefinido, fugas</td><td><code>virtual ~Base() {}</code>; <code>-Wall</code> lo avisa</td></tr>
+<tr><td>crear un objeto de la clase abstracta</td><td>no compila</td><td>crear hijas; usar <code>Base*</code></td></tr>
+<tr><td><code>vector&lt;Figura&gt;</code> en vez de <code>vector&lt;Figura*&gt;</code></td><td>no compila (abstracta) o se «rebana» la parte de la hija</td><td>polimorfismo solo con apuntadores o referencias</td></tr>
+<tr><td>heredar cuando es «tiene un»</td><td>diseño raro (un Coche no es un Motor)</td><td>usar un atributo</td></tr>
+</table>
+
+<p class="cita">Fuentes: <a href="https://www.learncpp.com/cpp-tutorial/basic-inheritance-in-c/">LearnCpp — 24.2 Basic inheritance</a> · <a href="https://www.learncpp.com/cpp-tutorial/constructors-and-initialization-of-derived-classes/">24.4 Constructors of derived classes</a> · <a href="https://www.learncpp.com/cpp-tutorial/inheritance-and-access-specifiers/">24.5 Access specifiers</a> · <a href="https://www.learncpp.com/cpp-tutorial/virtual-functions/">25.2 Virtual functions</a> · <a href="https://www.learncpp.com/cpp-tutorial/the-override-and-final-specifiers-and-covariant-return-types/">25.3 override</a> · <a href="https://www.learncpp.com/cpp-tutorial/virtual-destructors-virtual-assignment-and-overriding-virtualization/">25.4 Virtual destructors</a> · <a href="https://www.learncpp.com/cpp-tutorial/pure-virtual-functions-abstract-base-classes-and-interface-classes/">25.7 Abstract classes</a> · <a href="https://www.learncpp.com/cpp-tutorial/object-slicing/">25.9 Object slicing</a></p>
+
+</main>
+</body>
+</html>
