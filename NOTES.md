@@ -25,3 +25,6 @@
   (el UB lo hace entrar en bucle; está documentado a propósito).
 - Herramientas en esta máquina: g++ 15.2, cmake, gdb, gprof. NO: valgrind, clang-tidy, perf (sin permisos).
 - Sigue sin haber evidencia de lo aprendido: cuando haga ejercicios o pregunte, escribir learning-records.
+- Primer intento propio (2026-10-06, proyectos-practica/01_iniciar/hola.cpp): `#include` sin
+  `<iostream>` y `cout >> "..."` en vez de `<<`. Son los dos errores de la lección 1.1: reforzar
+  «<< empuja hacia cout» y leer el error del compilador. Aún no hay evidencia de que lo corrigiera.
