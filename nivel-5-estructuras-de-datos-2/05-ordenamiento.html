@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 5.5 · Ordenamiento</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 5 · Estructuras de datos II › Lección 5 de 7</div>
+<h1>Ordenamiento</h1>
+<p class="subtitulo">Cinco formas de ordenar, contando cuánto trabaja cada una. ~40 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> escribir inserción, mergesort y quicksort, decir el coste de
+cada uno (y el peor caso de quicksort), explicar qué es un ordenamiento <em>estable</em> y elegir entre
+<code>std::sort</code> y <code>std::stable_sort</code>.</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la
+<a href="04-monticulos-y-colas-de-prioridad.html">lección 5.4 (montículos y colas de prioridad)</a>.
+Recordar lo de ayer es lo que hace que se quede.</p>
+</div>
+
+<p><strong>Por qué.</strong> En la práctica ordenas con una línea: <code>sort(v.begin(), v.end())</code>
+(<a href="../nivel-4-intermedio-avanzado/03-algoritmos-y-lambdas.html">lección 4.3</a>). Pero los
+algoritmos de ordenamiento son <em>el</em> tema clásico de los exámenes, y enseñan las dos grandes
+ideas de la algoritmia: hacer un poco cada vez (los O(n²)) y <strong>dividir para vencer</strong>
+(los O(n log n)). Además, la búsqueda binaria de la
+<a href="../nivel-3-estructuras-de-datos/08-complejidad.html">lección 3.8</a> solo funciona si antes
+ordenaste.</p>
+
+<h2>1. Cómo vamos a medir: contar comparaciones</h2>
+
+<p>Medir el tiempo engaña: cambia con la máquina, con lo que haya abierto, con cada ejecución. Lo que
+no cambia es <strong>cuántas veces compara dos elementos</strong> el algoritmo. Eso contaremos.</p>
+
+<p>En todas las trazas usamos el mismo arreglo pequeño:</p>
+<pre><code>vector&lt;int&gt; v = {5, 2, 4, 1, 3};</code></pre>
+
+<h2>2. Burbuja: los grandes flotan al final</h2>
+
+<p>Recorre el vector comparando <strong>vecinos</strong>; si están al revés, los cambia. Tras cada
+pasada, el mayor que quedaba ha «flotado» hasta el final, como una burbuja.</p>
+
+<pre><code>void burbuja(vector&lt;int&gt;&amp; v) {
+    int n = v.size();
+    for (int pasada = 0; pasada &lt; n - 1; pasada++) {
+        bool huboCambio = false;
+        for (int j = 0; j &lt; n - 1 - pasada; j++) {   <span class="c">// el final ya está listo</span>
+            if (v[j] &gt; v[j + 1]) {
+                swap(v[j], v[j + 1]);
+                huboCambio = true;
+            }
+        }
+        if (!huboCambio) break;                       <span class="c">// nada cambió: ya está ordenado</span>
+    }
+}</code></pre>
+
+<table>
+<tr><th>Pasada</th><th>Qué pasa</th><th>Comparaciones</th><th><code>v</code> al terminar</th></tr>
+<tr><td>1</td><td>5↔2, 5↔4, 5↔1, 5↔3: el 5 llega al final</td><td>4</td><td><code>2 4 1 3 <strong>5</strong></code></td></tr>
+<tr><td>2</td><td>2 y 4 bien; 4↔1, 4↔3</td><td>3</td><td><code>2 1 3 <strong>4 5</strong></code></td></tr>
+<tr><td>3</td><td>2↔1; 2 y 3 bien</td><td>2</td><td><code>1 2 <strong>3 4 5</strong></code></td></tr>
+<tr><td>4</td><td>1 y 2 bien: nada cambió</td><td>1</td><td><code>1 2 3 4 5</code></td></tr>
+</table>
+<p>Total: 4 + 3 + 2 + 1 = <strong>10 comparaciones</strong>. En general,
+n(n−1)/2: <strong>O(n²)</strong>. Si el vector ya venía ordenado, la bandera
+<code>huboCambio</code> corta tras la primera pasada: O(n).</p>
+
+<h2>3. Selección: busca el menor y ponlo delante</h2>
+
+<p>En cada vuelta busca el <strong>menor</strong> de la parte sin ordenar y lo intercambia con el primero
+de esa parte. (Es el que explica <a href="https://www.learncpp.com/cpp-tutorial/sorting-an-array-using-selection-sort/">LearnCpp 18.1</a>.)</p>
+
+<pre><code>void seleccion(vector&lt;int&gt;&amp; v) {
+    int n = v.size();
+    for (int i = 0; i &lt; n - 1; i++) {
+        int menor = i;
+        for (int j = i + 1; j &lt; n; j++)
+            if (v[j] &lt; v[menor]) menor = j;
+        swap(v[i], v[menor]);                 <span class="c">// un solo intercambio por vuelta</span>
+    }
+}</code></pre>
+
+<table>
+<tr><th><code>i</code></th><th>Menor de la parte sin ordenar</th><th>Comparaciones</th><th><code>v</code> al terminar</th></tr>
+<tr><td>0</td><td>1 (índice 3): 5↔1</td><td>4</td><td><code><strong>1</strong> 2 4 5 3</code></td></tr>
+<tr><td>1</td><td>2 (ya en su sitio)</td><td>3</td><td><code><strong>1 2</strong> 4 5 3</code></td></tr>
+<tr><td>2</td><td>3 (índice 4): 4↔3</td><td>2</td><td><code><strong>1 2 3</strong> 5 4</code></td></tr>
+<tr><td>3</td><td>4 (índice 4): 5↔4</td><td>1</td><td><code><strong>1 2 3 4 5</strong></code></td></tr>
+</table>
+<p>Total: <strong>10 comparaciones</strong>, y siempre las mismas aunque el vector ya esté ordenado:
+O(n²) en todos los casos. Su ventaja: pocos intercambios (n − 1 como mucho).</p>
+
+<h2>4. Inserción: como ordenar cartas en la mano</h2>
+
+<p>La parte izquierda ya está ordenada. Toma el siguiente (<code>x</code>), corre a la derecha los
+mayores que él y déjalo en el hueco.</p>
+
+<pre><code>void insercion(vector&lt;int&gt;&amp; v) {
+    for (int i = 1; i &lt; (int)v.size(); i++) {
+        int x = v[i];                          <span class="c">// la carta que colocamos</span>
+        int j = i - 1;
+        while (j &gt;= 0 &amp;&amp; v[j] &gt; x) {
+            v[j + 1] = v[j];                   <span class="c">// el mayor se corre a la derecha</span>
+            j--;
+        }
+        v[j + 1] = x;                          <span class="c">// x cae en el hueco</span>
+    }
+}</code></pre>
+
+<table>
+<tr><th><code>i</code></th><th><code>x</code></th><th>Qué pasa</th><th>Comparaciones</th><th><code>v</code> al terminar</th></tr>
+<tr><td>1</td><td>2</td><td>5 &gt; 2: se corre; llega al principio</td><td>1</td><td><code><strong>2 5</strong> 4 1 3</code></td></tr>
+<tr><td>2</td><td>4</td><td>5 se corre; 2 &lt; 4: para</td><td>2</td><td><code><strong>2 4 5</strong> 1 3</code></td></tr>
+<tr><td>3</td><td>1</td><td>5, 4 y 2 se corren; llega al principio</td><td>3</td><td><code><strong>1 2 4 5</strong> 3</code></td></tr>
+<tr><td>4</td><td>3</td><td>5 y 4 se corren; 2 &lt; 3: para</td><td>3</td><td><code><strong>1 2 3 4 5</strong></code></td></tr>
+</table>
+<p>Total: <strong>9 comparaciones</strong>. El peor caso (al revés) es O(n²). Pero si ya está casi
+ordenado, cada <code>x</code> se para enseguida: con un vector ordenado hace solo n − 1 comparaciones,
+<strong>O(n)</strong>. Por eso se usa en la práctica para trozos pequeños o casi ordenados.</p>
+
+<div class="ojo">
+<p><strong>Error típico: el orden de la condición del <code>while</code>.</strong></p>
+<pre><code>while (v[j] &gt; x &amp;&amp; j &gt;= 0)   <span class="c">// MAL: con j = -1 lee v[-1] antes de comprobar</span>
+while (j &gt;= 0 &amp;&amp; v[j] &gt; x)   <span class="c">// BIEN: el &amp;&amp; corta si j &lt; 0</span></code></pre>
+<p>Leer <code>v[-1]</code> es comportamiento indefinido: puede «funcionar» en tu prueba y fallar en el
+examen. El mismo cuidado vale para <code>j &lt; n - 1 - pasada</code> en burbuja: con
+<code>j &lt; n</code> leerías <code>v[n]</code>.</p>
+</div>
+
+<h2>5. Mergesort: partir, ordenar las mitades y mezclar</h2>
+
+<p>Idea recursiva (<a href="../nivel-3-estructuras-de-datos/01-recursion.html">lección 3.1</a>):
+un vector de 0 o 1 elementos ya está ordenado (caso base). Si no, pártelo en dos mitades, ordena cada
+una con mergesort y <strong>mezcla</strong> las dos mitades ordenadas.</p>
+
+<div class="diagrama"><svg viewBox="0 0 560 410" width="560" height="410" role="img" aria-label="Mergesort sobre 5 2 4 1 3: se divide hasta trozos de uno y se mezcla de vuelta hasta 1 2 3 4 5" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="150" y="10" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="163" y="30" text-anchor="middle" font-size="14" fill="currentColor">5</text><rect x="176" y="10" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="189" y="30" text-anchor="middle" font-size="14" fill="currentColor">2</text><rect x="202" y="10" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="215" y="30" text-anchor="middle" font-size="14" fill="currentColor">4</text><rect x="228" y="10" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="241" y="30" text-anchor="middle" font-size="14" fill="currentColor">1</text><rect x="254" y="10" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="267" y="30" text-anchor="middle" font-size="14" fill="currentColor">3</text><rect x="84" y="70" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="97" y="90" text-anchor="middle" font-size="14" fill="currentColor">5</text><rect x="110" y="70" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="123" y="90" text-anchor="middle" font-size="14" fill="currentColor">2</text><rect x="281" y="70" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="294" y="90" text-anchor="middle" font-size="14" fill="currentColor">4</text><rect x="307" y="70" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="320" y="90" text-anchor="middle" font-size="14" fill="currentColor">1</text><rect x="333" y="70" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="346" y="90" text-anchor="middle" font-size="14" fill="currentColor">3</text><rect x="57" y="130" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="70" y="150" text-anchor="middle" font-size="14" fill="currentColor">5</text><rect x="137" y="130" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="150" y="150" text-anchor="middle" font-size="14" fill="currentColor">2</text><rect x="257" y="130" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="270" y="150" text-anchor="middle" font-size="14" fill="currentColor">4</text><rect x="334" y="130" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="347" y="150" text-anchor="middle" font-size="14" fill="currentColor">1</text><rect x="360" y="130" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="373" y="150" text-anchor="middle" font-size="14" fill="currentColor">3</text><rect x="327" y="190" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="340" y="210" text-anchor="middle" font-size="14" fill="currentColor">1</text><rect x="387" y="190" width="26" height="30" fill="none" stroke="currentColor" stroke-width="1.5"/><text x="400" y="210" text-anchor="middle" font-size="14" fill="currentColor">3</text><rect x="334" y="250" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="347" y="270" text-anchor="middle" font-size="14" fill="currentColor">1</text><rect x="360" y="250" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="373" y="270" text-anchor="middle" font-size="14" fill="currentColor">3</text><rect x="84" y="310" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="97" y="330" text-anchor="middle" font-size="14" fill="currentColor">2</text><rect x="110" y="310" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="123" y="330" text-anchor="middle" font-size="14" fill="currentColor">5</text><rect x="281" y="310" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="294" y="330" text-anchor="middle" font-size="14" fill="currentColor">1</text><rect x="307" y="310" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="320" y="330" text-anchor="middle" font-size="14" fill="currentColor">3</text><rect x="333" y="310" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="346" y="330" text-anchor="middle" font-size="14" fill="currentColor">4</text><rect x="150" y="370" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="163" y="390" text-anchor="middle" font-size="14" fill="currentColor">1</text><rect x="176" y="370" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="189" y="390" text-anchor="middle" font-size="14" fill="currentColor">2</text><rect x="202" y="370" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="215" y="390" text-anchor="middle" font-size="14" fill="currentColor">3</text><rect x="228" y="370" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="241" y="390" text-anchor="middle" font-size="14" fill="currentColor">4</text><rect x="254" y="370" width="26" height="30" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="267" y="390" text-anchor="middle" font-size="14" fill="currentColor">5</text><line x1="215" y1="40" x2="110" y2="70" stroke="currentColor" stroke-width="1.2" opacity=".7"/><line x1="215" y1="40" x2="320" y2="70" stroke="currentColor" stroke-width="1.2" opacity=".7"/><line x1="110" y1="100" x2="70" y2="130" stroke="currentColor" stroke-width="1.2" opacity=".7"/><line x1="110" y1="100" x2="150" y2="130" stroke="currentColor" stroke-width="1.2" opacity=".7"/><line x1="320" y1="100" x2="270" y2="130" stroke="currentColor" stroke-width="1.2" opacity=".7"/><line x1="320" y1="100" x2="360" y2="130" stroke="currentColor" stroke-width="1.2" opacity=".7"/><line x1="360" y1="160" x2="340" y2="190" stroke="currentColor" stroke-width="1.2" opacity=".7"/><line x1="360" y1="160" x2="400" y2="190" stroke="currentColor" stroke-width="1.2" opacity=".7"/><line x1="340" y1="220" x2="360" y2="250" style="stroke:var(--acento)" stroke-width="1.8" opacity=".7"/><line x1="400" y1="220" x2="360" y2="250" style="stroke:var(--acento)" stroke-width="1.8" opacity=".7"/><line x1="70" y1="160" x2="110" y2="310" style="stroke:var(--acento)" stroke-width="1.8" opacity=".7"/><line x1="150" y1="160" x2="110" y2="310" style="stroke:var(--acento)" stroke-width="1.8" opacity=".7"/><line x1="270" y1="160" x2="320" y2="310" style="stroke:var(--acento)" stroke-width="1.8" opacity=".7"/><line x1="360" y1="280" x2="320" y2="310" style="stroke:var(--acento)" stroke-width="1.8" opacity=".7"/><line x1="110" y1="340" x2="215" y2="370" style="stroke:var(--acento)" stroke-width="1.8" opacity=".7"/><line x1="320" y1="340" x2="215" y2="370" style="stroke:var(--acento)" stroke-width="1.8" opacity=".7"/><text x="470" y="100" font-size="13" fill="currentColor" font-weight="700">dividir ↓</text><text x="470" y="330" font-size="13" style="fill:var(--acento)" font-weight="700">mezclar ↓</text></svg></div>
+
+<p>Mezclar dos listas ordenadas es fácil: mira el primero de cada una y saca el menor; repite.</p>
+
+<pre><code>void mezclar(vector&lt;int&gt;&amp; v, int ini, int medio, int fin) {   <span class="c">// [ini,medio) y [medio,fin)</span>
+    vector&lt;int&gt; temp;                          <span class="c">// memoria EXTRA</span>
+    int i = ini, j = medio;
+    while (i &lt; medio &amp;&amp; j &lt; fin) {
+        if (v[j] &lt; v[i]) temp.push_back(v[j++]);   <span class="c">// la derecha solo si es MENOR</span>
+        else             temp.push_back(v[i++]);   <span class="c">// empate: gana la izquierda</span>
+    }
+    while (i &lt; medio) temp.push_back(v[i++]);  <span class="c">// lo que sobre, sin comparar</span>
+    while (j &lt; fin)   temp.push_back(v[j++]);
+    for (int k = 0; k &lt; (int)temp.size(); k++) v[ini + k] = temp[k];
+}
+
+void mergesort(vector&lt;int&gt;&amp; v, int ini, int fin) {
+    if (fin - ini &lt;= 1) return;                 <span class="c">// caso base</span>
+    int medio = ini + (fin - ini) / 2;
+    mergesort(v, ini, medio);
+    mergesort(v, medio, fin);
+    mezclar(v, ini, medio, fin);
+}</code></pre>
+
+<table>
+<tr><th>Mezcla</th><th>Comparaciones</th><th>Resultado</th></tr>
+<tr><td><code>[5]</code> con <code>[2]</code></td><td>1</td><td><code>2 5</code></td></tr>
+<tr><td><code>[1]</code> con <code>[3]</code></td><td>1</td><td><code>1 3</code></td></tr>
+<tr><td><code>[4]</code> con <code>[1 3]</code></td><td>2 (4 vs 1, 4 vs 3; el 4 sobra)</td><td><code>1 3 4</code></td></tr>
+<tr><td><code>[2 5]</code> con <code>[1 3 4]</code></td><td>4</td><td><code>1 2 3 4 5</code></td></tr>
+</table>
+<p>Total: <strong>8 comparaciones</strong>. Hay unos log<sub>2</sub> n niveles de cortes y en cada nivel
+se mezclan n elementos: <strong>O(n log n) siempre</strong>, en el mejor y en el peor caso. El precio:
+el vector <code>temp</code>, memoria extra O(n).</p>
+
+<h2>6. Quicksort: elegir un pivote y partir</h2>
+
+<p>Otra forma de dividir: elige un <strong>pivote</strong> y <strong>particiona</strong>: los
+<code>&lt;=</code> que él a la izquierda, los mayores a la derecha. El pivote queda en su sitio
+definitivo. Luego ordena cada lado igual. Aquí el pivote es el <strong>último</strong> (esquema de
+Lomuto):</p>
+
+<pre><code>int particionar(vector&lt;int&gt;&amp; v, int ini, int fin) {   <span class="c">// fin incluido</span>
+    int pivote = v[fin];
+    int i = ini;                              <span class="c">// aquí va el siguiente «pequeño»</span>
+    for (int j = ini; j &lt; fin; j++) {
+        if (v[j] &lt;= pivote) {
+            swap(v[i], v[j]);
+            i++;
+        }
+    }
+    swap(v[i], v[fin]);                       <span class="c">// el pivote, a su sitio</span>
+    return i;
+}
+
+void quicksort(vector&lt;int&gt;&amp; v, int ini, int fin) {
+    if (ini &gt;= fin) return;
+    int p = particionar(v, ini, fin);
+    quicksort(v, ini, p - 1);
+    quicksort(v, p + 1, fin);
+}</code></pre>
+
+<p><strong>Traza de la primera partición</strong> (pivote = 3):</p>
+<table>
+<tr><th><code>j</code></th><th><code>v[j]</code></th><th>¿<code>&lt;=</code> 3?</th><th>Qué hace</th><th><code>v</code></th></tr>
+<tr><td>0</td><td>5</td><td>no</td><td>nada</td><td><code>5 2 4 1 3</code></td></tr>
+<tr><td>1</td><td>2</td><td>sí</td><td>v[0]↔v[1], i = 1</td><td><code>2 5 4 1 3</code></td></tr>
+<tr><td>2</td><td>4</td><td>no</td><td>nada</td><td><code>2 5 4 1 3</code></td></tr>
+<tr><td>3</td><td>1</td><td>sí</td><td>v[1]↔v[3], i = 2</td><td><code>2 1 4 5 3</code></td></tr>
+<tr><td>fin</td><td></td><td></td><td>pivote a su sitio: v[2]↔v[4]</td><td><code>2 1 <strong>3</strong> 5 4</code></td></tr>
+</table>
+<p>Luego: <code>[2 1]</code> con pivote 1 da <code>1 2</code>; <code>[5 4]</code> con pivote 4 da
+<code>4 5</code>. Total: 4 + 1 + 1 = <strong>6 comparaciones</strong> y el vector queda
+<code>1 2 3 4 5</code>. No necesita vector extra: ordena <em>en el sitio</em>.</p>
+
+<h3>El peor caso de quicksort</h3>
+<p>Si el pivote parte en dos mitades parecidas, son unos log<sub>2</sub> n niveles: O(n log n) en
+promedio. Pero si el pivote es siempre el mayor o el menor, un lado queda <strong>vacío</strong> y el otro
+con n − 1: n niveles y <strong>O(n²)</strong>. Con «pivote = último» eso pasa justo con un vector
+<strong>ya ordenado</strong>. En el miniproyecto lo vas a medir: 100 elementos ordenados cuestan 4950
+comparaciones, las mismas que el peor caso de inserción.</p>
+
+<div class="ojo">
+<p><strong>Quicksort no es «siempre O(n log n)».</strong> Es O(n log n) en promedio y O(n²) en el peor
+caso. Las versiones reales eligen mejor el pivote (el del medio, la mediana de tres, uno al azar) y
+<code>std::sort</code> va más allá: desde C++11 debe hacer O(n log n) comparaciones también en el peor
+caso, y por eso suele implementarse como <em>introsort</em>, que cambia a heapsort si la recursión se
+hunde demasiado (<a href="https://en.cppreference.com/w/cpp/algorithm/sort">cppreference, notas de
+std::sort</a>).</p>
+</div>
+
+<h2>7. Estabilidad: qué pasa con los empates</h2>
+
+<p>Un ordenamiento es <strong>estable</strong> si los elementos <em>iguales</em> conservan el orden en que
+venían. Con números sueltos da igual. Importa cuando ordenas registros por un campo:</p>
+
+<pre><code>struct Alumno { string nombre; int nota; };
+vector&lt;Alumno&gt; a = {{"Ana", 8}, {"Beto", 6}, {"Caro", 8}, {"Dani", 6}};
+<span class="c">// ordenar por nota, de menor a mayor:</span>
+<span class="c">// estable:     Beto Dani Ana Caro   (Beto antes que Dani, Ana antes que Caro: como venían)</span>
+<span class="c">// no estable:  también podría salir Dani Beto Caro Ana</span></code></pre>
+
+<p>Por qué la selección no es estable, en un ejemplo de tres: <code>4a 4b 1</code>. En la primera
+vuelta el menor es el 1 y se intercambia con <code>4a</code>, que salta por encima de <code>4b</code>:
+queda <code>1 4b 4a</code>. Los dos 4 cambiaron de orden.</p>
+
+<table>
+<tr><th>Algoritmo</th><th>¿Estable?</th><th>Por qué</th></tr>
+<tr><td>burbuja</td><td>sí</td><td>solo cambia vecinos que están estrictamente al revés</td></tr>
+<tr><td>inserción</td><td>sí</td><td>se para ante un igual (<code>v[j] &gt; x</code>, no <code>&gt;=</code>)</td></tr>
+<tr><td>mergesort</td><td>sí</td><td>en un empate gana la izquierda</td></tr>
+<tr><td>selección</td><td>no</td><td>el intercambio lejano salta por encima de iguales</td></tr>
+<tr><td>quicksort</td><td>no</td><td>la partición mueve elementos a saltos</td></tr>
+<tr><td>heapsort (5.4)</td><td>no</td><td>subir y hundir desordenan los iguales</td></tr>
+</table>
+
+<h2>8. En la práctica: <code>std::sort</code> y <code>std::stable_sort</code></h2>
+
+<pre><code>#include &lt;algorithm&gt;
+
+vector&lt;int&gt; v = {3, 1, 2};
+sort(v.begin(), v.end());                                  <span class="c">// 1 2 3</span>
+sort(v.begin(), v.end(), [](int x, int y) { return x &gt; y; });  <span class="c">// 3 2 1 (al revés)</span>
+
+stable_sort(a.begin(), a.end(),
+            [](const Alumno&amp; x, const Alumno&amp; y) { return x.nota &lt; y.nota; });
+<span class="c">// Beto Dani Ana Caro: los empates quedan como venían</span></code></pre>
+
+<ul>
+<li><code>std::sort</code>: O(n log n), <strong>no garantiza</strong> estabilidad. Tu primera opción.</li>
+<li><code>std::stable_sort</code>: <strong>garantiza</strong> que los iguales conservan su orden
+(<a href="https://en.cppreference.com/w/cpp/algorithm/stable_sort">cppreference</a>). O(n log n) si hay
+memoria extra disponible (suele ser un mergesort). Úsalo cuando ordenas registros y el orden previo
+importa.</li>
+<li>La lambda responde «¿x va <em>antes</em> que y?». Debe usar <code>&lt;</code> o <code>&gt;</code>,
+nunca <code>&lt;=</code>: un elemento no puede ir antes que sí mismo.</li>
+</ul>
+
+<h2>9. Tabla comparativa</h2>
+
+<table>
+<tr><th>Algoritmo</th><th>Mejor</th><th>Promedio</th><th>Peor</th><th>Memoria extra</th><th>Estable</th></tr>
+<tr><td>burbuja (con bandera)</td><td>O(n)</td><td>O(n²)</td><td>O(n²)</td><td>O(1)</td><td>sí</td></tr>
+<tr><td>selección</td><td>O(n²)</td><td>O(n²)</td><td>O(n²)</td><td>O(1)</td><td>no</td></tr>
+<tr><td>inserción</td><td>O(n)</td><td>O(n²)</td><td>O(n²)</td><td>O(1)</td><td>sí</td></tr>
+<tr><td>mergesort</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n)</td><td>sí</td></tr>
+<tr><td>quicksort</td><td>O(n log n)</td><td>O(n log n)</td><td><strong>O(n²)</strong></td><td>O(log n) de recursión (O(n) en el peor)</td><td>no</td></tr>
+<tr><td>heapsort</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n log n)</td><td>O(1)</td><td>no</td></tr>
+</table>
+
+<p>Para sentir la diferencia: en el miniproyecto, con 1024 números al azar, inserción hace unas
+<strong>264.000</strong> comparaciones y mergesort unas <strong>9.000</strong>. Con el arreglo de
+5 de las trazas casi no se nota (10, 10, 9, 8 y 6); con miles, sí.</p>
+
+<p><strong>Para verlo moverse:</strong> <a href="https://visualgo.net/es/sorting">VisuAlgo — Sorting</a>
+anima burbuja, selección, inserción, mergesort y quicksort paso a paso; puedes escribir tu propio
+arreglo (por ejemplo <code>5,2,4,1,3</code>) y comparar con las trazas de arriba.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Burbuja, selección e inserción ordenan <strong>en el sitio</strong>: solo usan unas pocas variables
+(<code>i</code>, <code>j</code>, <code>x</code>) en su <strong>marco</strong> de la memoria automática (la
+<em>pila de llamadas</em> o <em>stack</em>), O(1) extra. Mergesort no: cada <code>mezclar</code> crea un
+<code>vector temp</code> cuyo contenido va al montón (<em>heap</em>) y se libera solo al salir de la
+función; en total, O(n) extra.</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">marcos de quicksort (n = 1000)</div>al azar: ~log₂ n de alto<div class="dir">ya ordenado: hasta 1000 marcos apilados</div></div>
+  <div class="caja"><div class="nombre">marco de mezclar</div>temp → [1 2 3 4 5]<div class="dir">datos en el montón; temp es su dueño</div></div>
+</div>
+<p>Quicksort tampoco usa vector extra, pero la recursión apila un marco por nivel. En su peor caso son
+n niveles: con millones de datos ordenados, la pila de llamadas se puede desbordar.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#automatica">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+<table>
+<tr><th>Idea</th><th>En una línea</th></tr>
+<tr><td>burbuja</td><td>cambia vecinos; el mayor flota al final en cada pasada</td></tr>
+<tr><td>selección</td><td>busca el menor y lo pone delante; siempre O(n²)</td></tr>
+<tr><td>inserción</td><td>corre los mayores y deja <code>x</code> en el hueco; O(n) si está casi ordenado</td></tr>
+<tr><td>mergesort</td><td>parte, ordena mitades, mezcla; O(n log n) siempre; O(n) memoria extra; estable</td></tr>
+<tr><td>quicksort</td><td>pivote y partición; O(n log n) en promedio, <strong>O(n²) en el peor</strong></td></tr>
+<tr><td>estable</td><td>los iguales conservan su orden de llegada</td></tr>
+<tr><td><code>sort</code> / <code>stable_sort</code></td><td>el de uso diario / cuando el orden de los empates importa</td></tr>
+</table>
+
+<p>Todo esto, y lo de la lección 5.4, está en la
+<a href="../reference/monticulos-y-ordenamiento.html">hoja de referencia de montículos y ordenamiento</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="2" data-explica="Una pasada de burbuja compara vecinos de izquierda a derecha: 4↔3, 4↔2, 4↔1. El 4 flota hasta el final y el resto todavía no está ordenado: <code>3 2 1 4</code>.">
+<pre><code>vector&lt;int&gt; v = {4, 3, 2, 1};
+for (int j = 0; j &lt; 3; j++)
+    if (v[j] &gt; v[j + 1]) swap(v[j], v[j + 1]);
+for (int x : v) cout &lt;&lt; x &lt;&lt; " ";</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 1 2 3 4</button><button>Muestra 3 4 2 1</button><button>Muestra 3 2 1 4</button><button>Muestra 1 4 3 2</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Con el vector ya ordenado, cada <code>x</code> compara una vez con su vecino de la izquierda, ve que es menor y se queda. Son n − 1 = 999 comparaciones: el mejor caso de inserción es O(n).">
+<p>Inserción sobre un vector de 1000 elementos <em>ya ordenado</em>. ¿Cuántas comparaciones hace?</p>
+<div class="opciones"><button>Unas 999, una por elemento</button><button>Unas 500.000, todas contra todas</button><button>Unas 10.000, n log n</button><button>Ninguna: lo detecta de antemano</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Con el pivote en el último y el vector ya ordenado, el pivote es siempre el mayor: un lado queda vacío y el otro con n − 1. Son n niveles de recursión y unas n²/2 comparaciones: el peor caso, O(n²). El resultado sí sale bien ordenado.">
+<pre><code>vector&lt;int&gt; v;
+for (int i = 0; i &lt; 10000; i++) v.push_back(i);   <span class="c">// ya ordenado</span>
+quicksort(v, 0, v.size() - 1);                       <span class="c">// pivote = el último</span></code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>Lo deja todo mal ordenado</button><button>La llamada no compila nunca</button><button>Lo ordena en tiempo O(n)</button><button>Entra en su peor caso</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="<code>stable_sort</code> garantiza que los iguales conservan su orden. Por nota: los dos 6 (Beto, Dani) en el orden en que venían, luego los dos 8 (Ana, Caro).">
+<pre><code>vector&lt;Alumno&gt; a = {{"Ana", 8}, {"Beto", 6}, {"Caro", 8}, {"Dani", 6}};
+stable_sort(a.begin(), a.end(),
+    [](const Alumno&amp; x, const Alumno&amp; y) { return x.nota &lt; y.nota; });
+for (auto&amp; al : a) cout &lt;&lt; al.nombre &lt;&lt; " ";</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Dani Beto Caro Ana</button><button>Beto Dani Ana Caro</button><button>Ana Caro Beto Dani</button><button>Beto Dani Caro Ana</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="La lambda responde «¿x va antes que y?». Con <code>x &gt; y</code>, los mayores van antes: orden descendente, <code>3 2 1</code>.">
+<pre><code>vector&lt;int&gt; v = {3, 1, 2};
+sort(v.begin(), v.end(), [](int x, int y) { return x &gt; y; });
+for (int x : v) cout &lt;&lt; x &lt;&lt; " ";</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 1 2 3</button><button>Muestra 3 1 2</button><button>Muestra 3 2 1</button><button>Muestra 2 1 3</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Mezclar dos mitades necesita un vector temporal del tamaño del trozo: O(n) de memoria extra. Inserción, burbuja y selección ordenan en el sitio con O(1) extra.">
+<p>¿Cuál de estos necesita O(n) de memoria <em>extra</em>?</p>
+<div class="opciones"><button>Mergesort, por su vector temporal</button><button>Inserción, por correr los mayores</button><button>Burbuja, por su bandera huboCambio</button><button>Selección, por buscar el menor</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 5.5 · Tres algoritmos que cuentan</h2>
+
+<p>Abre <a href="ejercicios/05-ordenamiento.cpp"><code>ejercicios/05-ordenamiento.cpp</code></a>.
+Toda comparación entre elementos se hace con <code>menor(a, b)</code>, que suma 1 a
+<code>comparaciones</code>. Las funciones recursivas <code>mergesort</code> y <code>quicksort</code> ya
+están. Completa:</p>
+
+<ol>
+<li><code>insercion(v)</code>.</li>
+<li><code>mezclar(v, ini, medio, fin)</code>: estable (en un empate, gana la izquierda).</li>
+<li><code>particionar(v, ini, fin)</code>: Lomuto con el pivote en <code>v[fin]</code>, como en la sección 6.</li>
+<li><code>ordenarPorNota(alumnos)</code>: con <code>stable_sort</code> y una lambda.</li>
+</ol>
+
+<p>Las pruebas comprueban que ordenas bien y que haces las comparaciones que toca: 99 para inserción
+con 100 ordenados, 4950 para su peor caso y para el peor caso de quicksort. No miden tiempos.</p>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 05-ordenamiento.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás varias ✗. Terminaste cuando salgan todas en ✓. Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> copia el código de las secciones 4, 5 y 6 y cambia cada
+comparación entre elementos por <code>menor</code>: <code>v[j] &gt; x</code> es
+<code>menor(x, v[j])</code>, y <code>v[j] &lt;= pivote</code> es <code>!menor(pivote, v[j])</code>.
+Si te sale 4950 en un sitio donde esperabas otra cosa, revisa que no compares de más.
+La solución está en <a href="soluciones/05-ordenamiento.cpp"><code>soluciones/05-ordenamiento.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://www.learncpp.com/cpp-tutorial/sorting-an-array-using-selection-sort/">LearnCpp — 18.1 Sorting an array using selection sort</a>
+(en inglés). Lee la explicación de selección y haz las preguntas 3 y 4 del quiz final: son burbuja y su
+versión con bandera. Unos 20 minutos.
+Para mergesort y quicksort, abre
+<a href="https://visualgo.net/es/sorting">VisuAlgo — Sorting</a> y mira cada uno con el arreglo
+<code>5,2,4,1,3</code>. La referencia de la biblioteca:
+<a href="https://en.cppreference.com/w/cpp/algorithm/sort">std::sort</a> y
+<a href="https://en.cppreference.com/w/cpp/algorithm/stable_sort">std::stable_sort</a> en cppreference.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="04-monticulos-y-colas-de-prioridad.html">← Lección anterior</a> ·
+<a href="06-tablas-hash.html">Siguiente: Lección 5.6 · Tablas hash →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

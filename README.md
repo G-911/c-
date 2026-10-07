@@ -1,6 +1,6 @@
-# Curso de C++: desde cero hasta intermedio-avanzado
+# Curso de C++: desde cero hasta avanzado
 
-32 lecciones cortas, en español, organizadas en 4 niveles. Cada lección trae:
+48 lecciones cortas, en español, organizadas en 6 niveles. Cada lección trae:
 
 - teoría breve con ejemplos y diagramas,
 - una sección **«¿Qué pasa en la memoria?»** que enlaza al [mapa de la memoria](reference/memoria.html),
@@ -29,6 +29,8 @@ Terminaste cuando todas las pruebas salen con ✓. Si te atascas, la solución e
 | `nivel-2-memoria-y-poo/` | referencias, apuntadores, memoria dinámica, clases, herencia, polimorfismo, operadores |
 | `nivel-3-estructuras-de-datos/` | recursión, listas enlazadas (simple, doble, circular), copia, pila, cola, complejidad, STL |
 | `nivel-4-intermedio-avanzado/` | plantillas, contenedores, algoritmos y lambdas, excepciones, apuntadores inteligentes, archivos y proyectos, movimiento, panorama |
+| `nivel-5-estructuras-de-datos-2/` | árboles binarios, BST, AVL, montículos, ordenamiento, tablas hash, grafos |
+| `nivel-6-avanzado/` | hilos y mutex, atómicos y async, reenvío perfecto, plantillas avanzadas y concepts, biblioteca moderna, garantías ante errores, diseño, UB y rendimiento, herramientas |
 | `reference/` | hojas de consulta rápida |
 | `assets/` | estilo y quiz compartidos |
 
@@ -38,7 +40,7 @@ Cada nivel tiene `NN-tema.html` (la lección), `ejercicios/` y `soluciones/`.
 
 ## Requisitos
 
-Un compilador de C++17: `g++` en Linux (`sudo apt install g++`). En Windows, MSYS2 o WSL
+Un compilador de C++17 (C++23 para el Nivel 6): `g++` reciente en Linux (`sudo apt install g++`; el curso está probado con g++ 15). En Windows, MSYS2 o WSL
 (se explica en la lección 1.1).
 
 ## Fuentes

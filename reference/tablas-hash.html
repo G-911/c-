@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Tablas hash</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Tablas hash</h1>
+<p class="subtitulo">Hoja de consulta rápida. Lección <a href="../nivel-5-estructuras-de-datos-2/06-tablas-hash.html">5.6</a>.</p>
+
+<h2>Las piezas</h2>
+<table>
+<tr><th>Pieza</th><th>Qué es</th></tr>
+<tr><td>cubetas (<em>buckets</em>)</td><td>un <code>vector</code> de <code>m</code> casilleros</td></tr>
+<tr><td>función hash</td><td>clave → número. Determinista, rápida y que reparta bien</td></tr>
+<tr><td>índice</td><td><code>hash(clave) % m</code></td></tr>
+<tr><td>colisión</td><td>dos claves con el mismo índice. Normal, no es un error</td></tr>
+<tr><td>encadenamiento</td><td>cada cubeta es una lista; las claves que chocan comparten lista</td></tr>
+<tr><td>factor de carga</td><td>α = n / m (pares por cubeta)</td></tr>
+<tr><td>rehash</td><td>si α pasa del límite: más cubetas (el doble) y <strong>recalcular el índice de cada par</strong></td></tr>
+</table>
+
+<h2>Costes</h2>
+<table>
+<tr><th>Operación</th><th>Promedio</th><th>Peor caso</th></tr>
+<tr><td>insertar / buscar / eliminar</td><td>O(1)</td><td>O(n) (todo en una cubeta)</td></tr>
+<tr><td>rehash</td><td colspan="2">O(n), pero raro: repartido, insertar sigue siendo O(1) en promedio</td></tr>
+</table>
+
+<h2>Código completo (la versión del curso)</h2>
+<pre><code>size_t hashCadena(const string&amp; clave) {
+    size_t h = 0;                                   <span class="c">// size_t: sin signo, nunca negativo</span>
+    for (char c : clave) h = h * 31 + (unsigned char)c;
+    return h;
+}
+
+class TablaHash {
+private:
+    vector&lt;list&lt;pair&lt;string, int&gt;&gt;&gt; cubetas;
+    size_t cantidad;
+    size_t indiceDe(const string&amp; clave) const { return hashCadena(clave) % cubetas.size(); }
+public:
+    TablaHash(size_t m = 8) : cubetas(m == 0 ? 1 : m), cantidad(0) {}
+
+    double factorDeCarga() const { return (double)cantidad / cubetas.size(); }
+
+    void insertar(const string&amp; clave, int valor) {
+        auto&amp; cubeta = cubetas[indiceDe(clave)];
+        for (auto&amp; par : cubeta)
+            if (par.first == clave) { par.second = valor; return; }   <span class="c">// actualizar</span>
+        cubeta.push_back({clave, valor});
+        cantidad++;
+        if (factorDeCarga() &gt; 1.0) rehash(cubetas.size() * 2);
+    }
+
+    bool buscar(const string&amp; clave, int&amp; valor) const {
+        for (const auto&amp; par : cubetas[indiceDe(clave)])
+            if (par.first == clave) { valor = par.second; return true; }
+        return false;
+    }
+
+    bool eliminar(const string&amp; clave) {
+        auto&amp; cubeta = cubetas[indiceDe(clave)];
+        for (auto it = cubeta.begin(); it != cubeta.end(); ++it)
+            if (it-&gt;first == clave) { cubeta.erase(it); cantidad--; return true; }
+        return false;
+    }
+
+    void rehash(size_t nuevas) {
+        vector&lt;list&lt;pair&lt;string, int&gt;&gt;&gt; viejas(nuevas == 0 ? 1 : nuevas);
+        viejas.swap(cubetas);
+        for (auto&amp; cubeta : viejas)
+            for (auto&amp; par : cubeta)
+                cubetas[indiceDe(par.first)].push_back(par);   <span class="c">// índice con el m NUEVO</span>
+    }
+};</code></pre>
+
+<h2><code>std::unordered_map</code></h2>
+<table>
+<tr><th>Escribes</th><th>Hace</th></tr>
+<tr><td><code>m[clave]</code></td><td>acceso; si no existe, la crea con valor por defecto (0)</td></tr>
+<tr><td><code>m.find(clave) != m.end()</code></td><td>¿existe? (sin crearla)</td></tr>
+<tr><td><code>m.count(clave)</code></td><td>0 o 1</td></tr>
+<tr><td><code>m.erase(clave)</code></td><td>la quita</td></tr>
+<tr><td><code>m.bucket_count()</code></td><td>número de cubetas</td></tr>
+<tr><td><code>m.load_factor()</code></td><td><code>size() / bucket_count()</code></td></tr>
+<tr><td><code>m.max_load_factor()</code></td><td>límite antes del rehash automático (1.0 al empezar)</td></tr>
+<tr><td><code>m.rehash(k)</code> / <code>m.reserve(n)</code></td><td>al menos <code>k</code> cubetas / sitio para <code>n</code> elementos sin rehash</td></tr>
+<tr><td><code>hash&lt;string&gt;{}(s)</code></td><td>la función hash estándar (el número depende del compilador)</td></tr>
+</table>
+<p>Un rehash invalida los iteradores, pero <strong>no</strong> las referencias ni los apuntadores a
+los elementos. El orden de recorrido no está garantizado. Fuente:
+<a href="https://en.cppreference.com/w/cpp/container/unordered_map">cppreference — std::unordered_map</a>.</p>
+
+<h2><code>map</code> o <code>unordered_map</code></h2>
+<table>
+<tr><th></th><th><code>map</code></th><th><code>unordered_map</code></th></tr>
+<tr><td>por dentro</td><td>árbol balanceado</td><td>tabla hash</td></tr>
+<tr><td>buscar</td><td>O(log n)</td><td>O(1) promedio, O(n) peor</td></tr>
+<tr><td>recorrido</td><td>ordenado por clave</td><td>sin orden</td></tr>
+<tr><td>la clave necesita</td><td><code>&lt;</code></td><td><code>std::hash</code> y <code>==</code></td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<ul>
+<li>Hash en <code>int</code>: se desborda y sale negativo → índice negativo. Usa <code>size_t</code>.</li>
+<li>Rehash que copia <code>cubetas[i]</code> a <code>nuevas[i]</code>: las claves quedan donde <code>buscar</code> no mira.</li>
+<li>Olvidar la división real: <code>cantidad / cubetas.size()</code> sin <code>(double)</code> da 0 o 1.</li>
+<li>Contar con el orden de recorrido de un <code>unordered_map</code>.</li>
+<li>Usar <code>m[clave]</code> solo para preguntar si existe: la crea. Usa <code>find</code> o <code>count</code>.</li>
+</ul>
+
+<p class="cita">Memoria: las cubetas, en un bloque contiguo del montón; los pares, en nodos sueltos.
+Ver el <a href="memoria.html#estructuras">mapa de la memoria</a>.</p>
+
+</main>
+</body>
+</html>

@@ -140,3 +140,9 @@ footer { margin-top: 4rem; padding-top: 1rem; border-top: 1px solid var(--linea)
 
 /* Contenedor de diagramas SVG anchos */
 .diagrama { margin: 1.2rem 0; overflow-x: auto; }
+
+/* En pantallas estrechas, las tablas anchas se desplazan en horizontal
+   en vez de ensanchar la página. */
+@media (max-width: 600px) {
+  table { display: block; overflow-x: auto; }
+}

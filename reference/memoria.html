@@ -29,6 +29,8 @@
 <li><a href="#estructuras">Estructuras de datos en memoria</a></li>
 <li><a href="#raii">RAII y apuntadores inteligentes</a></li>
 <li><a href="#movimiento">Mover en vez de copiar</a></li>
+<li><a href="#hilos">Hilos: qué se comparte y qué no</a></li>
+<li><a href="#cache">La caché: por qué lo contiguo es rápido</a></li>
 <li><a href="#herramientas">Herramientas para ver los errores</a></li>
 </ol>
 
@@ -214,7 +216,38 @@ Animal a = p;   <span class="c">// slicing: se copia solo la parte Animal; la ra
 <p class="cita">Fuente: <a href="https://en.cppreference.com/w/cpp/utility/move">cppreference — std::move</a> · <a href="https://www.learncpp.com/cpp-tutorial/move-constructors-and-move-assignment/">LearnCpp — Move constructors and move assignment</a></p>
 
 <!-- ============================================================ -->
-<h2 id="herramientas">12. Herramientas para ver los errores</h2>
+<h2 id="hilos">12. Hilos: qué se comparte y qué no</h2>
+<p>Cada hilo ejecuta sus propias funciones, así que en la práctica cada uno tiene <strong>su propia memoria automática</strong> (su propia pila de llamadas, con sus marcos y sus variables locales). Lo demás se <strong>comparte</strong>: el montón, la memoria estática (globales y <code>static</code>) y la zona de código. Por eso dos hilos pueden ver el mismo objeto a la vez.</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">hilo 1</div>sus locales<div class="dir">memoria automática propia</div></div>
+  <div class="caja"><div class="nombre">hilo 2</div>sus locales<div class="dir">memoria automática propia</div></div>
+  <div class="caja"><div class="nombre">compartido</div>montón · estática · código<div class="dir">lo ven todos los hilos</div></div>
+</div>
+<p>Si un hilo escribe en un dato mientras otro lo lee o lo escribe, sin <code>mutex</code> ni <code>atomic</code>, hay una <strong>carrera de datos</strong>, y eso es comportamiento indefinido. Las variables <code>thread_local</code> son la excepción: cada hilo tiene su propia copia.</p>
+<pre><code>int contador = 0;                    <span class="c">// estática: compartida por todos los hilos</span>
+std::mutex m;
+void sumar() {
+    int local = 0;                   <span class="c">// automática: cada hilo tiene la suya</span>
+    std::lock_guard&lt;std::mutex&gt; g(m);
+    ++contador;                      <span class="c">// compartido: protegido por el mutex</span>
+}</code></pre>
+<p class="ver-mas">Se ve en: <a href="../nivel-6-avanzado/01-hilos-y-mutex.html">Lección 6.1</a> · <a href="../nivel-6-avanzado/02-atomicos-y-async.html">Lección 6.2</a></p>
+<p class="cita">Fuente: <a href="https://en.cppreference.com/w/cpp/language/multithread">cppreference — Multi-threaded executions and data races</a> («If a data race occurs, the behavior of the program is undefined») · <a href="https://en.cppreference.com/w/cpp/language/storage_duration">cppreference — Storage duration</a> (<code>thread_local</code>)</p>
+
+<!-- ============================================================ -->
+<h2 id="cache">13. La caché: por qué lo contiguo es rápido</h2>
+<p>El procesador no lee la memoria byte a byte: trae <strong>bloques</strong> (normalmente de 64 bytes) a una memoria pequeña y muy rápida, la <strong>caché</strong>. Si lo siguiente que usas está justo al lado, ya está en la caché y sale casi gratis. Si está lejos, hay que ir a buscarlo, y eso es mucho más lento.</p>
+<p>De ahí la regla práctica: <strong>lo contiguo es rápido</strong>. Un <code>vector</code> guarda sus elementos uno tras otro; una lista enlazada tiene cada nodo en un sitio distinto del montón. Recorrer los dos es O(n), pero el vector suele ganar con mucha diferencia. Igual con una matriz: recorrerla en el orden en que está guardada (por filas) es más rápido que saltar por columnas.</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">vector</div>[1][2][3][4]…<div class="dir">contiguo: un bloque trae varios</div></div>
+  <div class="caja"><div class="nombre">lista</div>[1]→ … [2]→ … [3]<div class="dir">disperso: un viaje por nodo</div></div>
+</div>
+<p>La complejidad O grande no ve la caché: para saber cuál es más rápido de verdad, <strong>mide</strong>.</p>
+<p class="ver-mas">Se ve en: <a href="../nivel-6-avanzado/08-comportamiento-indefinido-y-rendimiento.html">Lección 6.8</a> · <a href="../nivel-3-estructuras-de-datos/08-complejidad.html">Lección 3.8</a></p>
+<p class="cita">Fuente: Ulrich Drepper, <a href="https://lwn.net/Articles/250967/">«What every programmer should know about memory»</a> (LWN, parte 1; <a href="https://www.akkadia.org/drepper/cpumemory.pdf">PDF completo</a>). El tamaño de 64 bytes es el habitual en procesadores actuales, no una regla del lenguaje.</p>
+
+<!-- ============================================================ -->
+<h2 id="herramientas">14. Herramientas para ver los errores</h2>
 <p>Los errores de memoria a menudo no fallan al momento: el programa «parece» funcionar. Estas herramientas los hacen visibles. C++ te da el control de la memoria; la ventaja es velocidad, el precio es que el cuidado es tuyo.</p>
 <table>
 <tr><th>Herramienta</th><th>Qué detecta</th></tr>

@@ -1,0 +1,433 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 5.4 · Montículos y colas de prioridad</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 5 · Estructuras de datos II › Lección 4 de 7</div>
+<h1>Montículos y colas de prioridad</h1>
+<p class="subtitulo">Sacar siempre «el más urgente» sin ordenar todo. ~35 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> escribir una clase <code>Monticulo</code> sobre un
+<code>vector</code> con <code>insertar</code> y <code>extraerMax</code> en O(log n), usar
+<code>std::priority_queue</code> (de máximos y de mínimos) y explicar cómo ordena el heapsort.</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la
+<a href="03-arboles-balanceados.html">lección 5.3 (árboles balanceados)</a>.
+Recordar lo de ayer es lo que hace que se quede.</p>
+</div>
+
+<p><strong>Por qué.</strong> La <a href="../nivel-3-estructuras-de-datos/07-cola.html">Cola de la
+lección 3.7</a> atiende por orden de llegada. Pero muchas veces importa la <em>urgencia</em>: la
+sala de emergencias, las tareas de un sistema operativo, el camino más corto de un mapa
+(Dijkstra, <a href="07-grafos.html">lección 5.7</a>). Para eso existe la <strong>cola de
+prioridad</strong>, y su forma clásica es el <strong>montículo</strong>. Sale en casi todos los
+exámenes de estructuras de datos.</p>
+
+<h2>1. El problema: siempre el más urgente</h2>
+
+<p>Queremos dos operaciones: <strong>meter</strong> un dato y <strong>sacar el mayor</strong>.
+Con lo que ya sabes hay dos formas, y las dos cojean:</p>
+
+<table>
+<tr><th>Cómo lo guardas</th><th>Meter</th><th>Sacar el mayor</th></tr>
+<tr><td><code>vector</code> sin ordenar</td><td>O(1): <code>push_back</code></td><td>O(n): hay que buscarlo</td></tr>
+<tr><td><code>vector</code> ordenado</td><td>O(n): hay que correr los demás</td><td>O(1): está al final</td></tr>
+<tr><td><strong>montículo</strong></td><td><strong>O(log n)</strong></td><td><strong>O(log n)</strong></td></tr>
+</table>
+
+<p>El montículo no ordena todo: solo garantiza que <strong>el mayor está arriba</strong>. Ese
+«orden a medias» es más barato de mantener.</p>
+
+<h2>2. Qué es un montículo</h2>
+
+<p>Un <strong>montículo de máximos</strong> (<em>max-heap</em>) es un árbol binario con dos reglas:</p>
+<ol>
+<li><strong>Forma:</strong> es <em>completo</em>. Se llena por niveles, de izquierda a derecha,
+sin huecos. Solo el último nivel puede estar a medias.</li>
+<li><strong>Orden:</strong> cada padre es <code>&gt;=</code> que sus hijos. Por eso el máximo
+está en la raíz.</li>
+</ol>
+
+<p>Fíjate en lo que <em>no</em> pide: entre hermanos no hay orden, y el hijo izquierdo puede ser
+mayor o menor que el derecho. No es un árbol de búsqueda
+(<a href="02-arbol-binario-de-busqueda.html">lección 5.2</a>): no sirve para buscar un valor cualquiera.</p>
+
+<p>Un <strong>montículo de mínimos</strong> es igual, con la regla al revés: cada padre
+<code>&lt;=</code> que sus hijos, y el menor arriba.</p>
+
+<div class="ojo">
+<p><strong>«Montículo» no es «montón».</strong> En inglés las dos cosas se llaman <em>heap</em>,
+y por eso se confunden:</p>
+<ul>
+<li>el <strong>montículo</strong> (<em>heap</em>, la estructura de datos) es esta forma de
+ordenar a medias que ves aquí;</li>
+<li>el <strong>montón</strong> (<em>heap</em>, la memoria) es la zona donde viven las cosas
+creadas con <code>new</code> (<a href="../nivel-2-memoria-y-poo/03-memoria-dinamica.html">lección 2.3</a>).</li>
+</ul>
+<p>No tienen nada que ver. En este curso siempre usamos la palabra justa.</p>
+</div>
+
+<h2>3. El truco: el árbol cabe en un vector</h2>
+
+<p>Como el árbol es completo, no hacen falta nodos ni apuntadores. Se guarda por niveles en un
+<code>vector&lt;int&gt; datos</code>: la raíz en el 0, sus hijos en el 1 y el 2, los nietos del
+3 al 6, y así.</p>
+
+<div class="diagrama"><svg viewBox="-50 0 540 286" width="540" height="286" role="img" aria-label="Montículo 30 20 25 5 10 12 dibujado como árbol y guardado en un vector con índices 0 a 5" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="240" y1="54" x2="120" y2="86" stroke="currentColor" stroke-width="1.6"/><line x1="240" y1="54" x2="360" y2="86" stroke="currentColor" stroke-width="1.6"/><line x1="120" y1="126" x2="60" y2="158" stroke="currentColor" stroke-width="1.6"/><line x1="120" y1="126" x2="180" y2="158" stroke="currentColor" stroke-width="1.6"/><line x1="360" y1="126" x2="300" y2="158" stroke="currentColor" stroke-width="1.6"/><circle cx="240" cy="34" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="240" y="39" text-anchor="middle" font-size="15" fill="currentColor">30</text><text x="264" y="20" font-size="11" style="fill:var(--suave)">[0]</text><circle cx="120" cy="106" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="120" y="111" text-anchor="middle" font-size="15" fill="currentColor">20</text><text x="144" y="92" font-size="11" style="fill:var(--suave)">[1]</text><circle cx="360" cy="106" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="360" y="111" text-anchor="middle" font-size="15" fill="currentColor">25</text><text x="384" y="92" font-size="11" style="fill:var(--suave)">[2]</text><circle cx="60" cy="178" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="60" y="183" text-anchor="middle" font-size="15" fill="currentColor">5</text><text x="84" y="164" font-size="11" style="fill:var(--suave)">[3]</text><circle cx="180" cy="178" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="180" y="183" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="204" y="164" font-size="11" style="fill:var(--suave)">[4]</text><circle cx="300" cy="178" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="300" y="183" text-anchor="middle" font-size="15" fill="currentColor">12</text><text x="324" y="164" font-size="11" style="fill:var(--suave)">[5]</text><text x="88" y="248" text-anchor="end" font-size="13" font-weight="700" fill="currentColor">datos</text><rect x="96" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="120" y="247" text-anchor="middle" font-size="15" fill="currentColor">30</text><text x="120" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">0</text><rect x="144" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="168" y="247" text-anchor="middle" font-size="15" fill="currentColor">20</text><text x="168" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">1</text><rect x="192" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="216" y="247" text-anchor="middle" font-size="15" fill="currentColor">25</text><text x="216" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">2</text><rect x="240" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="264" y="247" text-anchor="middle" font-size="15" fill="currentColor">5</text><text x="264" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">3</text><rect x="288" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="312" y="247" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="312" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">4</text><rect x="336" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="360" y="247" text-anchor="middle" font-size="15" fill="currentColor">12</text><text x="360" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">5</text></svg></div>
+
+<p>Las flechas del árbol se <strong>calculan</strong> con aritmética. Para la posición
+<code>i</code>:</p>
+
+<table>
+<tr><th>Quién</th><th>Índice</th><th>En el dibujo, para <code>i = 1</code> (el 20)</th></tr>
+<tr><td>padre</td><td><code>(i - 1) / 2</code></td><td><code>(1-1)/2 = 0</code> → el 30</td></tr>
+<tr><td>hijo izquierdo</td><td><code>2*i + 1</code></td><td><code>3</code> → el 5</td></tr>
+<tr><td>hijo derecho</td><td><code>2*i + 2</code></td><td><code>4</code> → el 10</td></tr>
+</table>
+
+<p>La división es entera (lección 1.3): para <code>i = 2</code>, el padre es
+<code>(2-1)/2 = 0</code>. Un hijo existe solo si su índice es <code>&lt; datos.size()</code>.</p>
+
+<pre><code>class Monticulo {
+private:
+    vector&lt;int&gt; datos;            <span class="c">// el árbol, por niveles</span>
+    void subir(int i);             <span class="c">// sección 4</span>
+    void hundir(int i);            <span class="c">// sección 5</span>
+public:
+    void insertar(int valor);
+    int  extraerMax();
+    int  verMax() const { return datos[0]; }   <span class="c">// O(1): está en la raíz</span>
+    bool vacia() const { return datos.empty(); }
+    int  tamano() const { return (int)datos.size(); }
+};</code></pre>
+
+<h2>4. Insertar: entrar por abajo y <em>subir</em></h2>
+
+<p>El nuevo entra al <strong>final</strong> del vector (así el árbol sigue completo). Luego
+<strong>sube</strong>: mientras sea mayor que su padre, se intercambian.</p>
+
+<pre><code>void insertar(int valor) {
+    datos.push_back(valor);
+    subir(tamano() - 1);
+}
+
+void subir(int i) {
+    while (i &gt; 0) {
+        int padre = (i - 1) / 2;
+        if (datos[i] &lt;= datos[padre]) break;   <span class="c">// ya está en su sitio</span>
+        swap(datos[i], datos[padre]);
+        i = padre;                              <span class="c">// sigue desde arriba</span>
+    }
+}</code></pre>
+
+<p><strong>Traza:</strong> insertamos 28 en el montículo del dibujo.</p>
+
+<table>
+<tr><th>Paso</th><th><code>i</code></th><th>Padre</th><th>¿Mayor que el padre?</th><th><code>datos</code></th></tr>
+<tr><td>inicio: push_back(28)</td><td>6</td><td>—</td><td>—</td><td><code>30 20 25 5 10 12 <strong>28</strong></code></td></tr>
+<tr><td>1</td><td>6</td><td>índice 2 → 25</td><td>28 &gt; 25: sí, intercambia</td><td><code>30 20 <strong>28</strong> 5 10 12 25</code></td></tr>
+<tr><td>2</td><td>2</td><td>índice 0 → 30</td><td>28 &gt; 30: no, para</td><td><code>30 20 28 5 10 12 25</code></td></tr>
+</table>
+
+<div class="diagrama"><svg viewBox="-50 0 540 286" width="540" height="286" role="img" aria-label="Después de insertar 28: subió del índice 6 al 2; el 25 bajó al 6" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="240" y1="54" x2="120" y2="86" stroke="currentColor" stroke-width="1.6"/><line x1="240" y1="54" x2="360" y2="86" stroke="currentColor" stroke-width="1.6"/><line x1="120" y1="126" x2="60" y2="158" stroke="currentColor" stroke-width="1.6"/><line x1="120" y1="126" x2="180" y2="158" stroke="currentColor" stroke-width="1.6"/><line x1="360" y1="126" x2="300" y2="158" stroke="currentColor" stroke-width="1.6"/><line x1="360" y1="126" x2="420" y2="158" style="stroke:var(--acento)" stroke-width="2.4"/><circle cx="240" cy="34" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="240" y="39" text-anchor="middle" font-size="15" fill="currentColor">30</text><text x="264" y="20" font-size="11" style="fill:var(--suave)">[0]</text><circle cx="120" cy="106" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="120" y="111" text-anchor="middle" font-size="15" fill="currentColor">20</text><text x="144" y="92" font-size="11" style="fill:var(--suave)">[1]</text><circle cx="360" cy="106" r="20" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="360" y="111" text-anchor="middle" font-size="15" style="fill:var(--acento)" font-weight="700">28</text><text x="384" y="92" font-size="11" style="fill:var(--suave)">[2]</text><circle cx="60" cy="178" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="60" y="183" text-anchor="middle" font-size="15" fill="currentColor">5</text><text x="84" y="164" font-size="11" style="fill:var(--suave)">[3]</text><circle cx="180" cy="178" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="180" y="183" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="204" y="164" font-size="11" style="fill:var(--suave)">[4]</text><circle cx="300" cy="178" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="300" y="183" text-anchor="middle" font-size="15" fill="currentColor">12</text><text x="324" y="164" font-size="11" style="fill:var(--suave)">[5]</text><circle cx="420" cy="178" r="20" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="420" y="183" text-anchor="middle" font-size="15" style="fill:var(--acento)" font-weight="700">25</text><text x="444" y="164" font-size="11" style="fill:var(--suave)">[6]</text><text x="64" y="248" text-anchor="end" font-size="13" font-weight="700" fill="currentColor">datos</text><rect x="72" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="96" y="247" text-anchor="middle" font-size="15" fill="currentColor">30</text><text x="96" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">0</text><rect x="120" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="144" y="247" text-anchor="middle" font-size="15" fill="currentColor">20</text><text x="144" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">1</text><rect x="168" y="222" width="48" height="38" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="192" y="247" text-anchor="middle" font-size="15" style="fill:var(--acento)" font-weight="700">28</text><text x="192" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">2</text><rect x="216" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="240" y="247" text-anchor="middle" font-size="15" fill="currentColor">5</text><text x="240" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">3</text><rect x="264" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="288" y="247" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="288" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">4</text><rect x="312" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="336" y="247" text-anchor="middle" font-size="15" fill="currentColor">12</text><text x="336" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">5</text><rect x="360" y="222" width="48" height="38" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="384" y="247" text-anchor="middle" font-size="15" style="fill:var(--acento)" font-weight="700">25</text><text x="384" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">6</text></svg></div>
+
+<h2>5. Extraer el máximo: el último a la raíz y <em>hundir</em></h2>
+
+<p>El máximo está en <code>datos[0]</code>. Para quitarlo sin dejar un hueco:</p>
+<ol>
+<li>guarda <code>datos[0]</code> para devolverlo;</li>
+<li>pon el <strong>último</strong> en la raíz y haz <code>pop_back()</code> (el árbol sigue completo);</li>
+<li>ese elemento suele ser pequeño: <strong>húndelo</strong>. Mientras algún hijo sea mayor, cámbialo
+con el <strong>mayor</strong> de sus hijos.</li>
+</ol>
+
+<pre><code>int extraerMax() {
+    if (vacia()) throw out_of_range("montículo vacío");   <span class="c">// lección 4.4</span>
+    int maximo = datos[0];
+    datos[0] = datos.back();
+    datos.pop_back();
+    if (!vacia()) hundir(0);
+    return maximo;
+}
+
+void hundir(int i) {
+    int n = tamano();
+    while (true) {
+        int izq = 2 * i + 1, der = 2 * i + 2, mayor = i;
+        if (izq &lt; n &amp;&amp; datos[izq] &gt; datos[mayor]) mayor = izq;
+        if (der &lt; n &amp;&amp; datos[der] &gt; datos[mayor]) mayor = der;
+        if (mayor == i) break;                  <span class="c">// ningún hijo es mayor</span>
+        swap(datos[i], datos[mayor]);
+        i = mayor;                              <span class="c">// sigue desde abajo</span>
+    }
+}</code></pre>
+
+<p><strong>Traza:</strong> extraemos del montículo <code>30 20 28 5 10 12 25</code>.</p>
+
+<table>
+<tr><th>Paso</th><th><code>i</code></th><th>Hijos</th><th>Qué hace</th><th><code>datos</code></th></tr>
+<tr><td>inicio</td><td>0</td><td>—</td><td>guarda 30; el último (25) a la raíz; pop_back</td><td><code><strong>25</strong> 20 28 5 10 12</code></td></tr>
+<tr><td>1</td><td>0</td><td>20 y 28</td><td>el mayor es 28 &gt; 25: intercambia</td><td><code><strong>28</strong> 20 <strong>25</strong> 5 10 12</code></td></tr>
+<tr><td>2</td><td>2</td><td>índice 5 → 12 (el 6 ya no existe)</td><td>12 &lt; 25: para</td><td><code>28 20 25 5 10 12</code></td></tr>
+</table>
+
+<div class="diagrama"><svg viewBox="-50 0 540 286" width="540" height="286" role="img" aria-label="Después de extraer el 30: el 25 se hundió de la raíz al índice 2 y el 28 subió a la raíz" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="240" y1="54" x2="120" y2="86" stroke="currentColor" stroke-width="1.6"/><line x1="240" y1="54" x2="360" y2="86" style="stroke:var(--acento)" stroke-width="2.4"/><line x1="120" y1="126" x2="60" y2="158" stroke="currentColor" stroke-width="1.6"/><line x1="120" y1="126" x2="180" y2="158" stroke="currentColor" stroke-width="1.6"/><line x1="360" y1="126" x2="300" y2="158" stroke="currentColor" stroke-width="1.6"/><circle cx="240" cy="34" r="20" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="240" y="39" text-anchor="middle" font-size="15" style="fill:var(--acento)" font-weight="700">28</text><text x="264" y="20" font-size="11" style="fill:var(--suave)">[0]</text><circle cx="120" cy="106" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="120" y="111" text-anchor="middle" font-size="15" fill="currentColor">20</text><text x="144" y="92" font-size="11" style="fill:var(--suave)">[1]</text><circle cx="360" cy="106" r="20" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="360" y="111" text-anchor="middle" font-size="15" style="fill:var(--acento)" font-weight="700">25</text><text x="384" y="92" font-size="11" style="fill:var(--suave)">[2]</text><circle cx="60" cy="178" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="60" y="183" text-anchor="middle" font-size="15" fill="currentColor">5</text><text x="84" y="164" font-size="11" style="fill:var(--suave)">[3]</text><circle cx="180" cy="178" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="180" y="183" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="204" y="164" font-size="11" style="fill:var(--suave)">[4]</text><circle cx="300" cy="178" r="20" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="300" y="183" text-anchor="middle" font-size="15" fill="currentColor">12</text><text x="324" y="164" font-size="11" style="fill:var(--suave)">[5]</text><text x="88" y="248" text-anchor="end" font-size="13" font-weight="700" fill="currentColor">datos</text><rect x="96" y="222" width="48" height="38" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="120" y="247" text-anchor="middle" font-size="15" style="fill:var(--acento)" font-weight="700">28</text><text x="120" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">0</text><rect x="144" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="168" y="247" text-anchor="middle" font-size="15" fill="currentColor">20</text><text x="168" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">1</text><rect x="192" y="222" width="48" height="38" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="216" y="247" text-anchor="middle" font-size="15" style="fill:var(--acento)" font-weight="700">25</text><text x="216" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">2</text><rect x="240" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="264" y="247" text-anchor="middle" font-size="15" fill="currentColor">5</text><text x="264" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">3</text><rect x="288" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="312" y="247" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="312" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">4</text><rect x="336" y="222" width="48" height="38" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="360" y="247" text-anchor="middle" font-size="15" fill="currentColor">12</text><text x="360" y="276" text-anchor="middle" font-size="11" style="fill:var(--suave)">5</text></svg></div>
+
+<div class="ojo">
+<p><strong>Error típico al hundir: cambiar con el primer hijo mayor, no con el MAYOR.</strong>
+Con <code>25</code> arriba e hijos <code>20</code> y <code>28</code>, si comparas solo con el
+izquierdo no cambias nada y el 28 queda debajo del 25: el montículo se rompe. Y el otro clásico:
+no comprobar <code>izq &lt; n</code> antes de leer <code>datos[izq]</code> (fuera de rango,
+comportamiento indefinido).</p>
+</div>
+
+<h2>6. ¿Por qué O(log n)?</h2>
+
+<p>Subir y hundir recorren <strong>un camino</strong> de la raíz a una hoja, nunca el árbol entero.
+Y como el árbol es completo, su altura es más o menos log<sub>2</sub>(n):</p>
+
+<table>
+<tr><th>Elementos</th><th>Niveles (como mucho)</th></tr>
+<tr><td>7</td><td>3</td></tr>
+<tr><td>1.000</td><td>10</td></tr>
+<tr><td>1.000.000</td><td>20</td></tr>
+</table>
+
+<p>Con un millón de datos, insertar o extraer son unos 20 intercambios como mucho. Buscar el
+máximo en un vector sin ordenar serían un millón de comparaciones.</p>
+
+<h2>7. <code>std::priority_queue</code>: el montículo ya hecho</h2>
+
+<p>En la práctica no escribes tu montículo: usas <code>std::priority_queue</code> de
+<code>&lt;queue&gt;</code>. Por dentro es un montículo sobre un <code>vector</code>, y
+<strong>por defecto arriba está el mayor</strong>
+(<a href="https://en.cppreference.com/w/cpp/container/priority_queue">cppreference</a>).</p>
+
+<pre><code>#include &lt;queue&gt;
+
+priority_queue&lt;int&gt; pq;           <span class="c">// de máximos</span>
+pq.push(3); pq.push(9); pq.push(1); pq.push(7);
+while (!pq.empty()) {
+    cout &lt;&lt; pq.top() &lt;&lt; " ";      <span class="c">// mira el de arriba</span>
+    pq.pop();                      <span class="c">// lo quita</span>
+}
+<span class="c">// Muestra: 9 7 3 1</span></code></pre>
+
+<p>Para un montículo de <strong>mínimos</strong>, se pasa <code>greater&lt;int&gt;</code>
+(de <code>&lt;functional&gt;</code>). La línea es larga; cópiala tal cual:</p>
+
+<pre><code>priority_queue&lt;int, vector&lt;int&gt;, greater&lt;int&gt;&gt; pq;   <span class="c">// de mínimos</span>
+<span class="c">// con los mismos push, muestra: 1 3 7 9</span></code></pre>
+
+<table>
+<tr><th>Tu <code>Monticulo</code></th><th><code>priority_queue</code></th><th>Coste</th></tr>
+<tr><td><code>insertar(x)</code></td><td><code>push(x)</code></td><td>O(log n)</td></tr>
+<tr><td><code>verMax()</code></td><td><code>top()</code></td><td>O(1)</td></tr>
+<tr><td><code>extraerMax()</code></td><td><code>top()</code> y luego <code>pop()</code></td><td>O(log n)</td></tr>
+<tr><td><code>vacia()</code>, <code>tamano()</code></td><td><code>empty()</code>, <code>size()</code></td><td>O(1)</td></tr>
+</table>
+
+<div class="ojo">
+<p><strong><code>pop()</code> no devuelve nada.</strong> Igual que en <code>std::stack</code>
+y <code>std::queue</code> (lección 3.9):</p>
+<pre><code>int x = pq.pop();   <span class="c">// NO compila: «void value not ignored»</span>
+int x = pq.top();   <span class="c">// bien: primero mira...</span>
+pq.pop();           <span class="c">// ...y luego quita</span></code></pre>
+<p>Y <code>top()</code> o <code>pop()</code> sobre una cola vacía es comportamiento indefinido:
+pregunta antes <code>empty()</code>.</p>
+</div>
+
+<h3>Un uso típico: los k mayores</h3>
+<p>Para quedarte con los 3 mayores de un millón de datos no hace falta ordenar el millón. Usa una
+cola de <strong>mínimos</strong> con como mucho 3 elementos: mete cada dato y, si pasa de 3, saca
+el más pequeño. Al final quedan los 3 mayores. Cuesta O(n log k). Lo harás en el miniproyecto.</p>
+
+<h2>8. Heapsort: ordenar con un montículo</h2>
+
+<p>Si metes todo en un montículo y sacas el máximo una y otra vez, salen de mayor a menor. Ya es un
+algoritmo de ordenamiento, O(n log n):</p>
+
+<pre><code>Monticulo m;
+for (int x : v) m.insertar(x);
+for (int i = (int)v.size() - 1; i &gt;= 0; i--)
+    v[i] = m.extraerMax();         <span class="c">// el mayor al final, el siguiente antes...</span></code></pre>
+
+<p>El <strong>heapsort</strong> de verdad hace lo mismo <em>sin vector extra</em>, dentro del propio
+<code>v</code>:</p>
+<ol>
+<li>convierte <code>v</code> en montículo: hunde cada posición desde la mitad hacia atrás;</li>
+<li>repite: cambia la raíz (el mayor) con el último de la zona «viva», encoge la zona en uno y hunde
+la raíz.</li>
+</ol>
+
+<p><strong>Traza</strong> con <code>v = 4 10 3 5 1</code>. La barra <code>|</code> separa la zona viva
+(izquierda) de lo ya ordenado (derecha).</p>
+
+<table>
+<tr><th>Fase</th><th>Qué pasa</th><th><code>v</code></th></tr>
+<tr><td>1. montar</td><td>hundir(1): el 10 ya es mayor que 5 y 1</td><td><code>4 10 3 5 1</code></td></tr>
+<tr><td>1. montar</td><td>hundir(0): 4 ↔ 10, luego 4 ↔ 5</td><td><code>10 5 3 4 1</code></td></tr>
+<tr><td>2. sacar</td><td>10 ↔ 1 al final; hundir: 1 ↔ 5, 1 ↔ 4</td><td><code>5 4 3 1 | 10</code></td></tr>
+<tr><td>2. sacar</td><td>5 ↔ 1; hundir: 1 ↔ 4</td><td><code>4 1 3 | 5 10</code></td></tr>
+<tr><td>2. sacar</td><td>4 ↔ 3; hundir: 3 ya es mayor que 1</td><td><code>3 1 | 4 5 10</code></td></tr>
+<tr><td>2. sacar</td><td>3 ↔ 1; queda uno: fin</td><td><code>1 | 3 4 5 10</code></td></tr>
+</table>
+
+<p>La biblioteca estándar trae las dos fases hechas, en <code>&lt;algorithm&gt;</code>:</p>
+
+<pre><code>vector&lt;int&gt; v = {4, 10, 3, 5, 1};
+make_heap(v.begin(), v.end());   <span class="c">// fase 1: ahora v es un montículo (el 10 delante)</span>
+sort_heap(v.begin(), v.end());   <span class="c">// fase 2: v = 1 3 4 5 10</span></code></pre>
+
+<p>Heapsort es O(n log n) <strong>siempre</strong>, incluso en el peor caso, y no usa memoria extra.
+A cambio no es <em>estable</em>: lo verás en la <a href="05-ordenamiento.html">lección 5.5</a>,
+junto a los demás algoritmos de ordenamiento.</p>
+
+<p><strong>Para verlo moverse:</strong> <a href="https://visualgo.net/es/heap">VisuAlgo — Binary Heap</a>
+anima <em>insert</em>, <em>extract max</em> y el heapsort paso a paso, con el árbol y el vector a la
+vez (interfaz parcialmente en español).</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Un <code>Monticulo</code> no tiene nodos ni apuntadores: es un único <code>vector&lt;int&gt;</code>.
+Si declaras <code>Monticulo m;</code> en <code>main</code>, el objeto pequeño del vector vive en el
+<strong>marco</strong> de <code>main</code>, en la memoria automática (la <em>pila de llamadas</em> o
+<em>stack</em>). Sus números van <strong>seguidos</strong> en el montón (<em>heap</em>). Sí: el montículo guarda sus datos en
+el montón, pero son dos ideas distintas que comparten nombre en inglés.</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">marco de main</div>m.datos: tamaño 7, apuntador →<div class="dir">el objeto vector</div></div>
+  <div class="caja"><div class="nombre">en el montón (seguidos)</div>30 20 28 5 10 12 25<div class="dir">«padre» e «hijo» = cuentas con índices</div></div>
+</div>
+<p>Ir al padre o a un hijo es una cuenta, no seguir una flecha. Y <code>push_back</code> puede mudar los
+datos a un bloque más grande cuando se llena la capacidad: el vector es su <strong>dueño</strong> y lo
+libera solo. <code>priority_queue</code> hace lo mismo con su <code>vector</code> interno.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#estructuras">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+<table>
+<tr><th>Idea</th><th>En una línea</th></tr>
+<tr><td>montículo de máximos</td><td>árbol completo; cada padre <code>&gt;=</code> sus hijos; el mayor en la raíz</td></tr>
+<tr><td>en un vector</td><td>padre <code>(i-1)/2</code>; hijos <code>2i+1</code> y <code>2i+2</code></td></tr>
+<tr><td><code>insertar</code></td><td><code>push_back</code> + <code>subir</code>: O(log n)</td></tr>
+<tr><td><code>extraerMax</code></td><td>último a la raíz + <code>pop_back</code> + <code>hundir</code> (con el hijo MAYOR): O(log n)</td></tr>
+<tr><td><code>priority_queue&lt;int&gt;</code></td><td>de máximos; <code>push</code>, <code>top</code>, <code>pop</code> (no devuelve)</td></tr>
+<tr><td><code>..., greater&lt;int&gt;&gt;</code></td><td>de mínimos</td></tr>
+<tr><td>heapsort</td><td>montar + sacar el máximo n veces; O(n log n) siempre, sin memoria extra, no estable</td></tr>
+<tr><td>montículo ≠ montón</td><td>estructura de datos ≠ zona de memoria</td></tr>
+</table>
+
+<p>Todo esto, y lo de la lección 5.5, está en la
+<a href="../reference/monticulos-y-ordenamiento.html">hoja de referencia de montículos y ordenamiento</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="1" data-explica="El padre de <code>i</code> es <code>(i - 1) / 2</code>. Para <code>i = 4</code>: <code>3 / 2 = 1</code> (división entera), y en el índice 1 está el 30.">
+<pre><code>vector&lt;int&gt; datos = {50, 30, 40, 10, 20};   <span class="c">// un montículo</span></code></pre>
+<p>¿Cuál es el padre del 20 (índice 4)?</p>
+<div class="opciones"><button>Es el 50</button><button>Es el 30</button><button>Es el 40</button><button>Es el 10</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Para que sea montículo de máximos, cada padre debe ser <code>&gt;=</code> que sus hijos. El 6 está en el índice 3; su padre es el índice <code>(3-1)/2 = 1</code>, el 5. Como 6 &gt; 5, la regla se rompe.">
+<pre><code>vector&lt;int&gt; v = {9, 5, 8, 6, 1};</code></pre>
+<p>¿Es un montículo de máximos?</p>
+<div class="opciones"><button>Sí, el 9 es el mayor</button><button>Sí, el 1 es la hoja</button><button>No, el 8 supera al 5</button><button>No, el 6 supera al 5</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="<code>priority_queue&lt;int&gt;</code> es de máximos por defecto: <code>top()</code> devuelve el mayor de los que hay, el 9. No respeta el orden de llegada como una cola normal.">
+<pre><code>priority_queue&lt;int&gt; pq;
+pq.push(3); pq.push(9); pq.push(1);
+cout &lt;&lt; pq.top();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 9</button><button>Muestra 3</button><button>Muestra 1</button><button>Muestra 13</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Con <code>greater&lt;int&gt;</code> es de mínimos: arriba está el 1. <code>pop()</code> quita el 1 y queda arriba el siguiente menor, el 3.">
+<pre><code>priority_queue&lt;int, vector&lt;int&gt;, greater&lt;int&gt;&gt; pq;
+pq.push(3); pq.push(9); pq.push(1);
+pq.pop();
+cout &lt;&lt; pq.top();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 1</button><button>Muestra 9</button><button>Muestra 3</button><button>Muestra 13</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="<code>pop()</code> devuelve <code>void</code>: quita el de arriba pero no lo entrega. El compilador da «void value not ignored». Se hace en dos pasos: <code>top()</code> y luego <code>pop()</code>.">
+<pre><code>priority_queue&lt;int&gt; pq;
+pq.push(4);
+int x = pq.pop();</code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>Falta llamar antes a empty</button><button>pop no devuelve ningún valor</button><button>push necesita dos argumentos siempre</button><button>Nada, x vale cuatro ahora</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Extraer cambia la raíz y la hunde por un solo camino, de la raíz a una hoja. Un árbol completo de un millón de elementos tiene unos 20 niveles: unos 20 intercambios como mucho, O(log n).">
+<p>En un montículo de 1.000.000 de elementos, ¿cuántos intercambios hace <code>extraerMax</code> como mucho?</p>
+<div class="opciones"><button>Un millón, recorre todos</button><button>Medio millón, recorre media</button><button>Exactamente uno, siempre igual</button><button>Unos veinte, un camino</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 5.4 · Un montículo de máximos y los k mayores</h2>
+
+<p>Abre <a href="ejercicios/04-monticulos-y-colas-de-prioridad.cpp"><code>ejercicios/04-monticulos-y-colas-de-prioridad.cpp</code></a>.
+<code>insertar</code>, <code>verMax</code>, <code>vacia</code> y <code>tamano</code> ya están. Completa:</p>
+
+<ol>
+<li><code>subir(i)</code>: intercambia con el padre mientras sea mayor.</li>
+<li><code>hundir(i)</code>: intercambia con el hijo <em>mayor</em> mientras alguno lo supere.</li>
+<li><code>extraerMax()</code>: lanza <code>out_of_range</code> si está vacío; si no, el último a la raíz, <code>pop_back</code> y hundir.</li>
+<li><code>esMonticulo(v)</code>: comprueba que ningún hijo supera a su padre.</li>
+<li><code>kMayores(v, k)</code>: los k mayores, de mayor a menor, con una <code>priority_queue</code> de mínimos.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 04-monticulos-y-colas-de-prioridad.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás varias ✗. Terminaste cuando salgan todas en ✓. Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> copia <code>subir</code> y <code>hundir</code> de las secciones 4 y 5,
+y haz a mano la traza del 28 para comprobar que tu código hace lo mismo. En <code>hundir</code>, el
+<code>mayor</code> empieza siendo <code>i</code> y solo cambia si un hijo <em>existe</em> y es mayor.
+La solución está en <a href="soluciones/04-monticulos-y-colas-de-prioridad.cpp"><code>soluciones/04-monticulos-y-colas-de-prioridad.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://visualgo.net/es/heap">VisuAlgo — Binary Heap (Priority Queue)</a>. Lee la
+explicación de <em>Insert</em> (ShiftUp) y <em>ExtractMax</em> (ShiftDown) y pulsa los botones para
+ver cada intercambio en el árbol y en el vector. Unos 15 minutos.
+Para la versión de la biblioteca:
+<a href="https://en.cppreference.com/w/cpp/container/priority_queue">cppreference — std::priority_queue</a>
+(en inglés; mira el ejemplo con <code>greater</code>) y
+<a href="https://en.cppreference.com/w/cpp/algorithm/make_heap">std::make_heap</a>.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="03-arboles-balanceados.html">← Lección anterior</a> ·
+<a href="05-ordenamiento.html">Siguiente: Lección 5.5 · Ordenamiento →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

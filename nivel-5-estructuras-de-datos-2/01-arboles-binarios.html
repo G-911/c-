@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 5.1 · Árboles binarios</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+<marker id="fla" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--acento)"/></marker>
+<marker id="flx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--suave)"/></marker>
+</defs>
+</svg>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 5 · Estructuras de datos II › Lección 1 de 7</div>
+<h1>Árboles binarios</h1>
+<p class="subtitulo">Nodos con dos flechas: recorrer, contar y medir con recursión. ~35 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> construir un árbol con <code>NodoArbol</code>,
+recorrerlo en preorden, inorden y postorden, contar sus nodos y sus hojas, medir su
+altura y liberarlo entero sin fugas de memoria.</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la
+<a href="../nivel-4-intermedio-avanzado/08-panorama.html">lección 4.8 (panorama)</a>.
+Recordar lo de hace unos días es lo que lo fija.</p>
+</div>
+
+<p><strong>Por qué.</strong> En la lista enlazada (<a href="../nivel-3-estructuras-de-datos/02-lista-enlazada-1.html">lección 3.2</a>)
+cada nodo tenía <em>un</em> siguiente. Si le das <em>dos</em>, sale un árbol, y con él
+llegan las estructuras rápidas de verdad: el árbol de búsqueda (5.2), el AVL (5.3) y el
+<code>std::map</code> que ya usaste en la <a href="../nivel-4-intermedio-avanzado/02-stl-contenedores.html">lección 4.2</a>.
+Además, es donde la recursión de la <a href="../nivel-3-estructuras-de-datos/01-recursion.html">lección 3.1</a>
+deja de ser un ejercicio y se vuelve la herramienta natural.</p>
+
+<h2>1. De la lista al árbol</h2>
+
+<p>Un <strong>árbol binario</strong> es un montón de nodos donde cada uno apunta, como
+mucho, a <strong>dos</strong> hijos: uno a la izquierda y otro a la derecha. «Binario»
+quiere decir solo eso: dos hijos como máximo.</p>
+
+<pre><code>struct NodoArbol {
+    int dato;
+    NodoArbol* izq;      <span class="c">// hijo izquierdo (o nullptr)</span>
+    NodoArbol* der;      <span class="c">// hijo derecho  (o nullptr)</span>
+
+    NodoArbol(int d) : dato(d), izq(nullptr), der(nullptr) {}   <span class="c">// nace sin hijos</span>
+};</code></pre>
+
+<p>Es el <code>Nodo</code> de la lista con una flecha más. Así se dibuja un nodo con sus dos hijos:</p>
+
+<div class="diagrama"><svg viewBox="0 0 450 222" width="450" height="222" role="img" aria-label="Un NodoArbol con dato 8: su apuntador izq lleva a un nodo con dato 3 y su apuntador der a un nodo con dato 10; los hijos de esos dos son nullptr" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><rect x="150" y="40" width="150" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="200" y1="40" x2="200" y2="80" stroke="currentColor" stroke-width="1.6"/><line x1="250" y1="40" x2="250" y2="80" stroke="currentColor" stroke-width="1.6"/><text x="175" y="66" text-anchor="middle" font-size="16" fill="currentColor">8</text><text x="200" y="32" text-anchor="middle" font-size="12" style="fill:var(--suave)">izq</text><text x="250" y="32" text-anchor="middle" font-size="12" style="fill:var(--suave)">der</text><text x="175" y="32" text-anchor="middle" font-size="12" style="fill:var(--suave)">dato</text><rect x="30" y="150" width="150" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="80" y1="150" x2="80" y2="190" stroke="currentColor" stroke-width="1.6"/><line x1="130" y1="150" x2="130" y2="190" stroke="currentColor" stroke-width="1.6"/><text x="55" y="176" text-anchor="middle" font-size="16" fill="currentColor">3</text><rect x="270" y="150" width="150" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><line x1="320" y1="150" x2="320" y2="190" stroke="currentColor" stroke-width="1.6"/><line x1="370" y1="150" x2="370" y2="190" stroke="currentColor" stroke-width="1.6"/><text x="295" y="176" text-anchor="middle" font-size="16" fill="currentColor">10</text><circle cx="200" cy="60" r="3.5" fill="currentColor"/><line x1="200" y1="60" x2="110" y2="148" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="250" cy="60" r="3.5" fill="currentColor"/><line x1="250" y1="60" x2="340" y2="148" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="105" y1="170" x2="91" y2="200" stroke="currentColor" stroke-width="1.4" marker-end="url(#fl)"/><text x="91" y="214" text-anchor="middle" font-size="11" style="fill:var(--suave)">nullptr</text><line x1="155" y1="170" x2="169" y2="200" stroke="currentColor" stroke-width="1.4" marker-end="url(#fl)"/><text x="169" y="214" text-anchor="middle" font-size="11" style="fill:var(--suave)">nullptr</text><line x1="345" y1="170" x2="331" y2="200" stroke="currentColor" stroke-width="1.4" marker-end="url(#fl)"/><text x="331" y="214" text-anchor="middle" font-size="11" style="fill:var(--suave)">nullptr</text><line x1="395" y1="170" x2="409" y2="200" stroke="currentColor" stroke-width="1.4" marker-end="url(#fl)"/><text x="409" y="214" text-anchor="middle" font-size="11" style="fill:var(--suave)">nullptr</text></svg></div>
+
+<h2>2. El vocabulario</h2>
+
+<p>Los árboles de informática se dibujan <em>al revés</em>: la raíz arriba y las hojas abajo.</p>
+
+<div class="diagrama"><svg viewBox="0 0 296 237" width="296" height="237" role="img" aria-label="Árbol con raíz 8; hijos 3 y 10; 3 tiene hijos 1 y 6; 10 tiene hijo derecho 14. Las hojas son 1, 6 y 14. En color, el subárbol izquierdo de 8." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="156.1" y1="51.8" x2="97.5" y2="93.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="117.9" x2="49.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="117.9" x2="115.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="55.9" x2="203.0" y2="88.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="223.8" y1="117.9" x2="247.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="166" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="38" y="171" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">1</text><text x="38" y="198" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">hoja</text><circle cx="82" cy="104" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="82" y="109" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">3</text><circle cx="126" cy="166" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="126" y="171" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">6</text><text x="126" y="198" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">hoja</text><circle cx="170" cy="42" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="47" text-anchor="middle" font-size="15" fill="currentColor">8</text><text x="170" y="19" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">raíz</text><circle cx="214" cy="104" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="109" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="258" cy="166" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="171" text-anchor="middle" font-size="15" fill="currentColor">14</text><text x="258" y="198" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">hoja</text><text x="148" y="227" text-anchor="middle" font-size="12" style="fill:var(--suave)">en color: el subárbol izquierdo de 8</text></svg></div>
+
+<table>
+<tr><th>Palabra</th><th>Qué es</th><th>En el dibujo</th></tr>
+<tr><td><strong>raíz</strong></td><td>el nodo de arriba; el único al que no apunta nadie</td><td>8</td></tr>
+<tr><td><strong>hijo / padre</strong></td><td>si A apunta a B, B es hijo de A y A es padre de B</td><td>3 y 10 son hijos de 8</td></tr>
+<tr><td><strong>hoja</strong></td><td>un nodo sin hijos (sus dos flechas son <code>nullptr</code>)</td><td>1, 6 y 14</td></tr>
+<tr><td><strong>subárbol</strong></td><td>un nodo con todo lo que cuelga de él</td><td>3, 1 y 6 (en color)</td></tr>
+<tr><td><strong>altura</strong></td><td>cuántos niveles tiene el camino más largo de la raíz a una hoja</td><td>3</td></tr>
+</table>
+
+<div class="ojo">
+<p><strong>Dos formas de contar la altura.</strong> En este curso contamos
+<strong>nodos</strong>: árbol vacío = 0, un solo nodo = 1. Algunos libros cuentan
+<em>flechas</em> y les sale uno menos (vacío = −1, un nodo = 0). Las dos valen; lo que
+no vale es mezclarlas. Si en un examen te piden la altura, mira qué definición usan.</p>
+</div>
+
+<h2>3. Construir un árbol a mano</h2>
+
+<p>Igual que encadenabas nodos en la lista, aquí enganchas hijos:</p>
+
+<pre><code>NodoArbol* raiz = new NodoArbol(8);
+raiz-&gt;izq = new NodoArbol(3);
+raiz-&gt;der = new NodoArbol(10);
+raiz-&gt;izq-&gt;izq = new NodoArbol(1);      <span class="c">// el hijo izquierdo del 3</span>
+raiz-&gt;izq-&gt;der = new NodoArbol(6);      <span class="c">// el hijo derecho del 3</span>
+raiz-&gt;der-&gt;der = new NodoArbol(14);     <span class="c">// el 10 no tiene hijo izquierdo</span></code></pre>
+
+<p>Es el árbol de los dibujos. Lo vamos a usar en toda la lección.</p>
+
+<h2>4. Un árbol es una definición recursiva</h2>
+
+<p>Esta es la idea que lo hace todo fácil. Un árbol es una de dos cosas:</p>
+<ul>
+<li>o está <strong>vacío</strong> (<code>nullptr</code>),</li>
+<li>o es <strong>un nodo</strong> con un árbol a su izquierda y otro árbol a su derecha.</li>
+</ul>
+<p>Cada hijo es, él mismo, un árbol más pequeño. Por eso casi todas las funciones de
+árboles tienen la misma forma (<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/trees/">Stanford CS106B, Trees</a>):</p>
+
+<pre><code>tipo funcion(NodoArbol* n) {
+    if (n == nullptr) return ...;     <span class="c">// caso base: árbol vacío</span>
+    ... funcion(n-&gt;izq) ...           <span class="c">// resolver la izquierda</span>
+    ... funcion(n-&gt;der) ...           <span class="c">// resolver la derecha</span>
+    ... combinar con n-&gt;dato ...
+}</code></pre>
+
+<p>Con una lista podías elegir entre un <code>while</code> y la recursión. Con un árbol
+el <code>while</code> no basta: en cada nodo hay <em>dos</em> caminos y hay que recorrer los dos.</p>
+
+<h2>5. Los tres recorridos</h2>
+
+<p>Recorrer = visitar todos los nodos una vez. Solo cambia <strong>cuándo</strong> se
+visita la raíz respecto de sus dos subárboles. Guardamos lo visitado en un
+<code>vector&lt;int&gt;</code> (pasado por referencia, lección 2.1):</p>
+
+<h3>Preorden: raíz, izquierda, derecha</h3>
+<pre><code>void preorden(NodoArbol* n, vector&lt;int&gt;&amp; salida) {
+    if (n == nullptr) return;
+    salida.push_back(n-&gt;dato);      <span class="c">// 1.º la raíz</span>
+    preorden(n-&gt;izq, salida);       <span class="c">// 2.º todo el lado izquierdo</span>
+    preorden(n-&gt;der, salida);       <span class="c">// 3.º todo el lado derecho</span>
+}</code></pre>
+<div class="diagrama"><svg viewBox="0 0 318 211" width="318" height="211" role="img" aria-label="Preorden: 8, 3, 1, 6, 10, 14" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="156.1" y1="39.8" x2="97.5" y2="81.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="105.9" x2="49.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="105.9" x2="115.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="43.9" x2="203.0" y2="76.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="223.8" y1="105.9" x2="247.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="159" text-anchor="middle" font-size="15" fill="currentColor">1</text><text x="58" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">3º</text><circle cx="82" cy="92" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="97" text-anchor="middle" font-size="15" fill="currentColor">3</text><text x="102" y="96" font-size="12" style="fill:var(--acento)" font-weight="700">2º</text><circle cx="126" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="159" text-anchor="middle" font-size="15" fill="currentColor">6</text><text x="146" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">4º</text><circle cx="170" cy="30" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="35" text-anchor="middle" font-size="15" fill="currentColor">8</text><text x="190" y="34" font-size="12" style="fill:var(--acento)" font-weight="700">1º</text><circle cx="214" cy="92" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="97" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="234" y="96" font-size="12" style="fill:var(--acento)" font-weight="700">5º</text><circle cx="258" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="159" text-anchor="middle" font-size="15" fill="currentColor">14</text><text x="278" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">6º</text><text x="159" y="201" text-anchor="middle" font-size="12" style="fill:var(--suave)">preorden: 8 3 1 6 10 14</text></svg></div>
+
+<h3>Inorden: izquierda, raíz, derecha</h3>
+<pre><code>void inorden(NodoArbol* n, vector&lt;int&gt;&amp; salida) {
+    if (n == nullptr) return;
+    inorden(n-&gt;izq, salida);
+    salida.push_back(n-&gt;dato);      <span class="c">// la raíz, en medio</span>
+    inorden(n-&gt;der, salida);
+}</code></pre>
+<div class="diagrama"><svg viewBox="0 0 318 211" width="318" height="211" role="img" aria-label="Inorden: 1, 3, 6, 8, 10, 14" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="156.1" y1="39.8" x2="97.5" y2="81.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="105.9" x2="49.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="105.9" x2="115.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="43.9" x2="203.0" y2="76.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="223.8" y1="105.9" x2="247.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="159" text-anchor="middle" font-size="15" fill="currentColor">1</text><text x="58" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">1º</text><circle cx="82" cy="92" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="97" text-anchor="middle" font-size="15" fill="currentColor">3</text><text x="102" y="96" font-size="12" style="fill:var(--acento)" font-weight="700">2º</text><circle cx="126" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="159" text-anchor="middle" font-size="15" fill="currentColor">6</text><text x="146" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">3º</text><circle cx="170" cy="30" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="35" text-anchor="middle" font-size="15" fill="currentColor">8</text><text x="190" y="34" font-size="12" style="fill:var(--acento)" font-weight="700">4º</text><circle cx="214" cy="92" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="97" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="234" y="96" font-size="12" style="fill:var(--acento)" font-weight="700">5º</text><circle cx="258" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="159" text-anchor="middle" font-size="15" fill="currentColor">14</text><text x="278" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">6º</text><text x="159" y="201" text-anchor="middle" font-size="12" style="fill:var(--suave)">inorden: 1 3 6 8 10 14</text></svg></div>
+<p>¿Te fijas? Salió <strong>ordenado</strong>. No es casualidad: este árbol cumple una regla
+especial (los menores a la izquierda, los mayores a la derecha). Es el
+<em>árbol de búsqueda</em> de la próxima lección.</p>
+
+<h3>Postorden: izquierda, derecha, raíz</h3>
+<pre><code>void postorden(NodoArbol* n, vector&lt;int&gt;&amp; salida) {
+    if (n == nullptr) return;
+    postorden(n-&gt;izq, salida);
+    postorden(n-&gt;der, salida);
+    salida.push_back(n-&gt;dato);      <span class="c">// la raíz, al final</span>
+}</code></pre>
+<div class="diagrama"><svg viewBox="0 0 318 211" width="318" height="211" role="img" aria-label="Postorden: 1, 6, 3, 14, 10, 8" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="156.1" y1="39.8" x2="97.5" y2="81.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="105.9" x2="49.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="105.9" x2="115.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="43.9" x2="203.0" y2="76.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="223.8" y1="105.9" x2="247.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="159" text-anchor="middle" font-size="15" fill="currentColor">1</text><text x="58" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">1º</text><circle cx="82" cy="92" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="97" text-anchor="middle" font-size="15" fill="currentColor">3</text><text x="102" y="96" font-size="12" style="fill:var(--acento)" font-weight="700">3º</text><circle cx="126" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="159" text-anchor="middle" font-size="15" fill="currentColor">6</text><text x="146" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">2º</text><circle cx="170" cy="30" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="35" text-anchor="middle" font-size="15" fill="currentColor">8</text><text x="190" y="34" font-size="12" style="fill:var(--acento)" font-weight="700">6º</text><circle cx="214" cy="92" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="97" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="234" y="96" font-size="12" style="fill:var(--acento)" font-weight="700">5º</text><circle cx="258" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="159" text-anchor="middle" font-size="15" fill="currentColor">14</text><text x="278" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">4º</text><text x="159" y="201" text-anchor="middle" font-size="12" style="fill:var(--suave)">postorden: 1 6 3 14 10 8</text></svg></div>
+
+<p><strong>Truco para no confundirlos:</strong> el nombre dice dónde va la raíz.
+<em>Pre</em> = antes, <em>in</em> = en medio, <em>post</em> = después. Los dos
+subárboles van siempre izquierda primero.</p>
+
+<h2>6. Contar nodos y medir la altura</h2>
+
+<p>La misma plantilla de la sección 4, combinando de otra forma:</p>
+
+<pre><code>int contarNodos(NodoArbol* n) {
+    if (n == nullptr) return 0;                              <span class="c">// vacío: 0 nodos</span>
+    return 1 + contarNodos(n-&gt;izq) + contarNodos(n-&gt;der);   <span class="c">// yo + los de cada lado</span>
+}
+
+int altura(NodoArbol* n) {
+    if (n == nullptr) return 0;                              <span class="c">// vacío: altura 0</span>
+    return 1 + max(altura(n-&gt;izq), altura(n-&gt;der));         <span class="c">// mi nivel + el lado más alto</span>
+}
+<span class="c">// Con el árbol de la lección: contarNodos(raiz) == 6, altura(raiz) == 3</span></code></pre>
+
+<p><code>max</code> viene de <code>&lt;algorithm&gt;</code>. Léelo como una frase: «la
+altura de un árbol es uno más la altura de su subárbol más alto».</p>
+
+<div class="ojo">
+<p><strong>Error típico: olvidar el caso base.</strong></p>
+<pre><code>int contarNodos(NodoArbol* n) {
+    return 1 + contarNodos(n-&gt;izq) + contarNodos(n-&gt;der);   <span class="c">// ¿y si n es nullptr?</span>
+}</code></pre>
+<p>Al llegar debajo de una hoja, <code>n</code> vale <code>nullptr</code> y
+<code>n-&gt;izq</code> lo desreferencia: el programa se cae. Toda función recursiva de árboles
+empieza con <code>if (n == nullptr)</code>.</p>
+</div>
+
+<h2>7. Un árbol también puede ser una lista</h2>
+
+<p>Nada obliga a que el árbol esté «repartido». Si cada nodo solo tiene hijo derecho,
+el árbol es una cadena:</p>
+
+<div class="diagrama"><svg viewBox="0 0 208 299" width="208" height="299" role="img" aria-label="Cadena: 1, 2, 3, 4, cada uno hijo derecho del anterior. Altura 4." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="47.8" y1="55.9" x2="71.0" y2="88.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="117.9" x2="115.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="135.8" y1="179.9" x2="159.0" y2="212.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="42" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="47" text-anchor="middle" font-size="15" fill="currentColor">1</text><text x="38" y="19" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">raíz</text><circle cx="82" cy="104" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="109" text-anchor="middle" font-size="15" fill="currentColor">2</text><circle cx="126" cy="166" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="171" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="170" cy="228" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="233" text-anchor="middle" font-size="15" fill="currentColor">4</text><text x="104" y="289" text-anchor="middle" font-size="12" style="fill:var(--suave)">altura 4, una sola hoja</text></svg></div>
+
+<p>Cuatro nodos, altura 4, una sola hoja. Es una lista enlazada disfrazada. Guarda esta
+imagen: en la lección 5.2 verás cuándo pasa sin querer y por qué es un problema, y en la
+5.3 cómo evitarlo.</p>
+
+<h2>8. Liberar el árbol: en postorden</h2>
+
+<p>Cada nodo se creó con <code>new</code>; cada uno necesita su <code>delete</code>. La
+pregunta es en qué orden. Respuesta: <strong>primero los hijos, el padre al final</strong>.
+Es decir, postorden:</p>
+
+<pre><code>void liberar(NodoArbol* n) {
+    if (n == nullptr) return;
+    liberar(n-&gt;izq);      <span class="c">// 1. todo lo de la izquierda</span>
+    liberar(n-&gt;der);      <span class="c">// 2. todo lo de la derecha</span>
+    delete n;             <span class="c">// 3. ahora sí, este nodo</span>
+}</code></pre>
+<div class="diagrama"><svg viewBox="0 0 318 211" width="318" height="211" role="img" aria-label="Orden de los delete en postorden: 1, 6, 3, 14, 10 y por último 8" style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="156.1" y1="39.8" x2="97.5" y2="81.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="105.9" x2="49.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="105.9" x2="115.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="43.9" x2="203.0" y2="76.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="223.8" y1="105.9" x2="247.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="159" text-anchor="middle" font-size="15" fill="currentColor">1</text><text x="58" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">1º</text><circle cx="82" cy="92" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="97" text-anchor="middle" font-size="15" fill="currentColor">3</text><text x="102" y="96" font-size="12" style="fill:var(--acento)" font-weight="700">3º</text><circle cx="126" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="159" text-anchor="middle" font-size="15" fill="currentColor">6</text><text x="146" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">2º</text><circle cx="170" cy="30" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="35" text-anchor="middle" font-size="15" fill="currentColor">8</text><text x="190" y="34" font-size="12" style="fill:var(--acento)" font-weight="700">6º</text><circle cx="214" cy="92" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="97" text-anchor="middle" font-size="15" fill="currentColor">10</text><text x="234" y="96" font-size="12" style="fill:var(--acento)" font-weight="700">5º</text><circle cx="258" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="159" text-anchor="middle" font-size="15" fill="currentColor">14</text><text x="278" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">4º</text><text x="159" y="201" text-anchor="middle" font-size="12" style="fill:var(--suave)">orden de los delete: la raíz, el último</text></svg></div>
+
+<div class="ojo">
+<p><strong>Error típico: borrar primero el padre.</strong></p>
+<pre><code>delete n;
+liberar(n-&gt;izq);      <span class="c">// ¡n ya no existe!</span>
+liberar(n-&gt;der);</code></pre>
+<p>Las direcciones de los hijos estaban <em>dentro</em> del nodo que acabas de liberar.
+Leer <code>n-&gt;izq</code> después del <code>delete</code> es usar un apuntador colgante
+(lección 2.3): a veces «funciona», a veces se cae. Es el mismo error que en el destructor
+de la lista, y por la misma razón. Con <code>-fsanitize=address</code> lo verías como
+<em>heap-use-after-free</em>.</p>
+</div>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Los seis nodos viven en el <strong>montón</strong> (<em>heap</em>), cada uno donde le tocó:
+cada <code>new NodoArbol</code> pide una caja de <code>sizeof(NodoArbol)</code> bytes (normalmente
+24: un <code>int</code>, dos apuntadores y relleno). En el marco de <code>main</code>, en la
+<strong>memoria automática</strong> (la <em>pila de llamadas</em> o <em>stack</em>; no es la clase
+<code>Pila</code> del Nivel 3), solo está <code>raiz</code>. Cada llamada recursiva apila un
+<strong>marco</strong> con su propia copia de <code>n</code>; cuando hace <code>return</code>, se libera
+sola. Las direcciones son inventadas:</p>
+<div class="diagrama"><svg viewBox="0 0 560 262" width="560" height="262" role="img" aria-label="Mientras altura baja por el camino 8, 3, 1, hay cinco marcos apilados: main con raiz igual a 0x100 y cuatro llamadas a altura, la última con n igual a nullptr. Los nodos están en el montón; los del camino activo, en color." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace">
+<g fill="currentColor">
+<rect x="4" y="4" width="252" height="254" rx="6" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".55"/>
+<text x="14" y="24" font-size="13" font-weight="700">memoria automática</text>
+<rect x="16" y="36" width="228" height="36" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2"/>
+<text x="26" y="59" font-size="13" style="fill:var(--acento)">altura(n = nullptr) → 0</text>
+<rect x="16" y="80" width="228" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<text x="26" y="103" font-size="13">altura(n = 0x300)</text>
+<rect x="16" y="124" width="228" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<text x="26" y="147" font-size="13">altura(n = 0x200)</text>
+<rect x="16" y="168" width="228" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<text x="26" y="191" font-size="13">altura(n = 0x100)</text>
+<rect x="16" y="212" width="228" height="36" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<text x="26" y="235" font-size="13">main: raiz = 0x100</text>
+<rect x="268" y="4" width="288" height="254" rx="6" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".55"/>
+<text x="546" y="24" text-anchor="end" font-size="13" font-weight="700">montón (heap)</text>
+<line x1="401" y1="80" x2="365" y2="124" stroke="currentColor" stroke-width="1.4"/>
+<line x1="425" y1="80" x2="461" y2="124" stroke="currentColor" stroke-width="1.4"/>
+<line x1="341" y1="148" x2="319" y2="184" stroke="currentColor" stroke-width="1.4"/>
+<line x1="359" y1="148" x2="381" y2="184" stroke="currentColor" stroke-width="1.4"/>
+<line x1="479" y1="148" x2="501" y2="184" stroke="currentColor" stroke-width="1.4"/>
+<circle cx="413" cy="66" r="16" fill="none" style="stroke:var(--acento)" stroke-width="2"/><text x="413" y="71" text-anchor="middle" font-size="14" style="fill:var(--acento)">8</text><text x="435" y="58" font-size="11" opacity=".7">0x100</text>
+<circle cx="350" cy="136" r="16" fill="none" style="stroke:var(--acento)" stroke-width="2"/><text x="350" y="141" text-anchor="middle" font-size="14" style="fill:var(--acento)">3</text><text x="290" y="130" font-size="11" opacity=".7">0x200</text>
+<circle cx="473" cy="136" r="16" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="473" y="141" text-anchor="middle" font-size="14">10</text><text x="495" y="130" font-size="11" opacity=".7">0x400</text>
+<circle cx="310" cy="200" r="16" fill="none" style="stroke:var(--acento)" stroke-width="2"/><text x="310" y="205" text-anchor="middle" font-size="14" style="fill:var(--acento)">1</text><text x="292" y="234" font-size="11" opacity=".7">0x300</text>
+<circle cx="390" cy="200" r="16" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="390" y="205" text-anchor="middle" font-size="14">6</text><text x="372" y="234" font-size="11" opacity=".7">0x500</text>
+<circle cx="510" cy="200" r="16" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="510" y="205" text-anchor="middle" font-size="14">14</text><text x="492" y="234" font-size="11" opacity=".7">0x600</text>
+</g></svg></div>
+<p>Fíjate en lo importante: a la vez nunca hay más marcos que <strong>altura + 1</strong> (el +1 es
+la llamada con <code>nullptr</code>), no uno por nodo. En un árbol repartido de un millón de nodos
+eso son una veintena de marcos. En una cadena de un millón, un millón de marcos: la pila de llamadas
+puede desbordarse. Y el <strong>dueño</strong> de los nodos es quien guarda <code>raiz</code>: si ese
+apuntador muere sin <code>liberar</code>, todo el árbol se queda en el montón (fuga de memoria).</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#automatica">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+
+<table>
+<tr><th>Para</th><th>Idea</th><th>Código clave</th></tr>
+<tr><td>caso base</td><td>el árbol vacío</td><td><code>if (n == nullptr) return ...;</code></td></tr>
+<tr><td>preorden</td><td>raíz, izquierda, derecha</td><td><code>push_back</code> antes de las dos llamadas</td></tr>
+<tr><td>inorden</td><td>izquierda, raíz, derecha</td><td><code>push_back</code> entre las dos llamadas</td></tr>
+<tr><td>postorden</td><td>izquierda, derecha, raíz</td><td><code>push_back</code> después de las dos llamadas</td></tr>
+<tr><td>contar nodos</td><td>yo + izquierda + derecha</td><td><code>1 + contar(izq) + contar(der)</code></td></tr>
+<tr><td>altura</td><td>yo + el lado más alto</td><td><code>1 + max(altura(izq), altura(der))</code></td></tr>
+<tr><td>liberar</td><td>en postorden: hijos primero</td><td><code>liberar(izq); liberar(der); delete n;</code></td></tr>
+</table>
+
+<p>Todo esto, con lo de las lecciones 5.2 y 5.3, está en la
+<a href="../reference/arboles.html">hoja de referencia de árboles</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>. Si dudas, dibuja el árbol en un papel.
+Las preguntas 1 a 3 usan este árbol:</p>
+
+<pre><code>NodoArbol* r = new NodoArbol(5);
+r-&gt;izq = new NodoArbol(2);
+r-&gt;der = new NodoArbol(9);
+r-&gt;izq-&gt;der = new NodoArbol(4);</code></pre>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="2" data-explica="Preorden pone la raíz primero (5), luego TODO el subárbol izquierdo en preorden (2 y después su hijo 4) y al final el derecho (9).">
+<p>Con <code>preorden(r, v)</code>, ¿qué queda en <code>v</code>?</p>
+<div class="opciones"><button>2 4 5 9</button><button>4 2 9 5</button><button>5 2 4 9</button><button>5 9 2 4</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Inorden: primero el subárbol izquierdo (2, que no tiene hijo izquierdo, y luego su hijo derecho 4), después la raíz 5 y al final el 9. Sale ordenado porque este árbol cumple la regla de búsqueda.">
+<p>Con <code>inorden(r, v)</code>, ¿qué queda en <code>v</code>?</p>
+<div class="opciones"><button>2 4 5 9</button><button>5 2 4 9</button><button>2 5 4 9</button><button>4 2 5 9</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="El camino más largo es 5 → 2 → 4: tres nodos. Contamos nodos, no flechas, así que la altura es 3.">
+<p>¿Qué devuelve <code>altura(r)</code>?</p>
+<div class="opciones"><button>Devuelve 2</button><button>Devuelve 4</button><button>Devuelve 1</button><button>Devuelve 3</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Falta el caso base. Al bajar de una hoja, <code>n</code> vale <code>nullptr</code> y <code>n-&gt;izq</code> lo desreferencia: el programa se cae (comportamiento indefinido).">
+<pre><code>int contarNodos(NodoArbol* n) {
+    return 1 + contarNodos(n-&gt;izq) + contarNodos(n-&gt;der);
+}</code></pre>
+<p>¿Qué falla aquí?</p>
+<div class="opciones"><button>Cuenta cada nodo dos veces</button><button>Se cae bajo una hoja</button><button>No compila: falta un if</button><button>Devuelve siempre cero sin recorrer</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Tras <code>delete n</code>, leer <code>n-&gt;izq</code> y <code>n-&gt;der</code> es usar memoria liberada (apuntador colgante). Hay que liberar en postorden: los hijos primero y el <code>delete</code> al final.">
+<pre><code>void liberar(NodoArbol* n) {
+    if (n == nullptr) return;
+    delete n;
+    liberar(n-&gt;izq);
+    liberar(n-&gt;der);
+}</code></pre>
+<p>¿Qué falla aquí?</p>
+<div class="opciones"><button>Lee un nodo ya liberado</button><button>No libera la raíz nunca</button><button>Libera cada nodo dos veces</button><button>Nada, el orden da igual</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="La recursión baja por el único camino: una llamada por nodo más la del <code>nullptr</code>, todas a la vez en la memoria automática. En una cadena, altura = número de nodos.">
+<p>Una cadena de 1000 nodos (cada uno solo con hijo derecho). Mientras <code>altura</code>
+está en lo más hondo, ¿cuántos marcos de <code>altura</code> hay a la vez en la memoria automática?</p>
+<div class="opciones"><button>Unos 10 marcos</button><button>Unos 2 marcos</button><button>Unos 1000 marcos</button><button>Unos 500 marcos</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 5.1 · Medir un árbol</h2>
+
+<p>Abre <a href="ejercicios/01-arboles-binarios.cpp"><code>ejercicios/01-arboles-binarios.cpp</code></a>.
+Trae el <code>NodoArbol</code> con un contador de nodos vivos y unas pruebas que construyen
+árboles a mano. Completa las siete funciones marcadas con <code>TODO</code>:</p>
+
+<ol>
+<li><code>preorden</code>, <code>inorden</code> y <code>postorden</code>: las de la sección 5.</li>
+<li><code>contarNodos</code> y <code>altura</code>: las de la sección 6.</li>
+<li><code>contarHojas</code>: nueva. Una hoja es un nodo con <code>izq</code> y <code>der</code> en <code>nullptr</code>.</li>
+<li><code>liberar</code>: en postorden.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 01-arboles-binarios.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás varias ✗. Terminaste cuando salgan todas en ✓, incluida la de
+«no quedan nodos sin liberar». Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> todas empiezan con <code>if (n == nullptr)</code>. Pregúntate
+«¿qué devuelvo con un árbol vacío?» y luego «si ya supiera la respuesta para la izquierda y para
+la derecha, ¿cómo la combino con este nodo?». Para <code>contarHojas</code> hay dos casos base:
+vacío (0) y hoja (1).
+La solución está en <a href="soluciones/01-arboles-binarios.cpp"><code>soluciones/01-arboles-binarios.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/trees/">Stanford CS106B — Trees</a>
+(en inglés). Es una clase universitaria de verdad. Lee desde «Trees» hasta «Post-order traversal»
+(salta la parte de listas dobles del principio). Unos 20 minutos.</p>
+<p>Para ver otra explicación con más dibujos:
+<a href="https://opendsa-server.cs.vt.edu/OpenDSA/Books/CS3/html/BinaryTree.html">OpenDSA — Binary Trees</a>
+(en inglés), de Virginia Tech.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+un recorrido que no te sale igual, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="../nivel-4-intermedio-avanzado/08-panorama.html">← Lección anterior</a> ·
+<a href="02-arbol-binario-de-busqueda.html">Siguiente: Lección 5.2 · Árbol binario de búsqueda →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

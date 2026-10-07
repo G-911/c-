@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Grafos</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Grafos</h1>
+<p class="subtitulo">Hoja de consulta rápida. Lección <a href="../nivel-5-estructuras-de-datos-2/07-grafos.html">5.7</a>.</p>
+
+<h2>Vocabulario</h2>
+<table>
+<tr><th>Término</th><th>Significa</th></tr>
+<tr><td>vértice</td><td>un punto; se numeran <code>0 .. n-1</code></td></tr>
+<tr><td>arista</td><td>une dos vértices (vecinos o adyacentes)</td></tr>
+<tr><td>no dirigido / dirigido</td><td>la arista sirve en los dos sentidos / solo de <code>u</code> a <code>v</code></td></tr>
+<tr><td>ponderado</td><td>cada arista tiene un peso</td></tr>
+<tr><td>ciclo</td><td>camino que vuelve a su inicio; por eso hace falta <code>visitado</code></td></tr>
+<tr><td>componente conexa</td><td>una «isla»: vértices conectados entre sí</td></tr>
+</table>
+
+<h2>Representaciones</h2>
+<table>
+<tr><th></th><th>matriz <code>V × V</code></th><th>lista <code>vector&lt;vector&lt;int&gt;&gt;</code></th></tr>
+<tr><td>memoria</td><td>O(V²)</td><td>O(V + E)</td></tr>
+<tr><td>¿arista u‑v?</td><td>O(1)</td><td>O(vecinos de u)</td></tr>
+<tr><td>vecinos de u</td><td>O(V)</td><td>O(vecinos de u)</td></tr>
+<tr><td>úsala si…</td><td>grafo pequeño o denso</td><td>grafo grande y disperso (lo normal)</td></tr>
+</table>
+
+<h2>Clase <code>Grafo</code> con BFS, DFS y camino más corto</h2>
+<pre><code>class Grafo {
+private:
+    int n;
+    bool dirigido;
+    vector&lt;vector&lt;int&gt;&gt; ady;
+
+    void dfsDesde(int u, vector&lt;bool&gt;&amp; visitado, vector&lt;int&gt;&amp; orden) const {
+        visitado[u] = true;
+        orden.push_back(u);
+        for (int v : ady[u])
+            if (!visitado[v]) dfsDesde(v, visitado, orden);
+    }
+public:
+    Grafo(int vertices, bool esDirigido = false)
+        : n(vertices), dirigido(esDirigido), ady(vertices) {}
+
+    void agregarArista(int u, int v) {
+        ady[u].push_back(v);
+        if (!dirigido) ady[v].push_back(u);
+    }
+
+    vector&lt;int&gt; bfs(int origen) const {                 <span class="c">// por capas, con cola</span>
+        vector&lt;int&gt; orden;
+        vector&lt;bool&gt; visitado(n, false);
+        queue&lt;int&gt; cola;
+        visitado[origen] = true;                       <span class="c">// marcar AL ENCOLAR</span>
+        cola.push(origen);
+        while (!cola.empty()) {
+            int u = cola.front(); cola.pop();
+            orden.push_back(u);
+            for (int v : ady[u])
+                if (!visitado[v]) { visitado[v] = true; cola.push(v); }
+        }
+        return orden;
+    }
+
+    vector&lt;int&gt; dfs(int origen) const {                 <span class="c">// en profundidad, recursivo</span>
+        vector&lt;int&gt; orden;
+        vector&lt;bool&gt; visitado(n, false);
+        dfsDesde(origen, visitado, orden);
+        return orden;
+    }
+
+    vector&lt;int&gt; caminoMasCorto(int origen, int destino) const {   <span class="c">// menos aristas</span>
+        vector&lt;int&gt; padre(n, -1);
+        vector&lt;bool&gt; visitado(n, false);
+        queue&lt;int&gt; cola;
+        visitado[origen] = true;
+        cola.push(origen);
+        while (!cola.empty()) {
+            int u = cola.front(); cola.pop();
+            for (int v : ady[u])
+                if (!visitado[v]) { visitado[v] = true; padre[v] = u; cola.push(v); }
+        }
+        if (!visitado[destino]) return {};
+        vector&lt;int&gt; camino;
+        for (int x = destino; x != -1; x = padre[x]) camino.push_back(x);
+        reverse(camino.begin(), camino.end());
+        return camino;
+    }
+};</code></pre>
+
+<h2>Dijkstra (pesos ≥ 0)</h2>
+<pre><code><span class="c">// ady[u] = pares (vecino, peso)</span>
+vector&lt;int&gt; dijkstra(int origen) const {
+    vector&lt;int&gt; dist(n, INT_MAX);
+    priority_queue&lt;pair&lt;int,int&gt;, vector&lt;pair&lt;int,int&gt;&gt;, greater&lt;pair&lt;int,int&gt;&gt;&gt; pq;   <span class="c">// de mínimos</span>
+    dist[origen] = 0;
+    pq.push({0, origen});                          <span class="c">// (distancia, vértice)</span>
+    while (!pq.empty()) {
+        auto [d, u] = pq.top(); pq.pop();
+        if (d &gt; dist[u]) continue;                 <span class="c">// entrada vieja</span>
+        for (auto [v, peso] : ady[u])
+            if (dist[u] + peso &lt; dist[v]) {        <span class="c">// relajar</span>
+                dist[v] = dist[u] + peso;
+                pq.push({dist[v], v});
+            }
+    }
+    return dist;                                   <span class="c">// INT_MAX = inalcanzable</span>
+}</code></pre>
+
+<h2>¿Qué algoritmo?</h2>
+<table>
+<tr><th>Quiero…</th><th>Uso</th><th>Coste</th></tr>
+<tr><td>visitar todo lo alcanzable</td><td>BFS o DFS</td><td>O(V + E)</td></tr>
+<tr><td>el camino con menos aristas</td><td>BFS + <code>padre[]</code></td><td>O(V + E)</td></tr>
+<tr><td>contar islas</td><td>un DFS por cada vértice sin visitar</td><td>O(V + E)</td></tr>
+<tr><td>distancias con pesos ≥ 0</td><td>Dijkstra</td><td>O((V + E) log V)</td></tr>
+<tr><td>distancias con pesos negativos</td><td>Bellman‑Ford (no visto en el curso)</td><td>O(V · E)</td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<ul>
+<li>Sin <code>visitado</code>: en un grafo con ciclos, el recorrido no termina (DFS desborda la pila de llamadas).</li>
+<li>BFS que marca al sacar en vez de al encolar: vértices repetidos.</li>
+<li>Usar DFS para el camino más corto: encuentra <em>un</em> camino, no el más corto.</li>
+<li><code>priority_queue</code> sin <code>greater</code>: es de máximos y Dijkstra saca el más lejano.</li>
+<li>Dijkstra con pesos negativos: resultado incorrecto.</li>
+<li><code>INT_MAX + peso</code>: desbordamiento. Relaja solo desde vértices alcanzados.</li>
+</ul>
+
+<p class="cita">Memoria: lista O(V + E) frente a matriz O(V²); el DFS recursivo usa un marco por
+vértice del camino actual. Ver el <a href="memoria.html#estructuras">mapa de la memoria</a>.</p>
+
+</main>
+</body>
+</html>

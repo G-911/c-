@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Herramientas profesionales</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Herramientas profesionales</h1>
+<p class="subtitulo">Hoja de consulta rápida de la lección 6.9: pruebas, gdb, análisis estático, corrutinas y módulos.</p>
+
+<h2>Mini marco de pruebas con macros</h2>
+<table>
+<tr><th>Pieza</th><th>Da</th></tr>
+<tr><td><code>#x</code> (dentro de una macro)</td><td>el argumento como texto: <code>"p.top()"</code></td></tr>
+<tr><td><code>__FILE__</code> / <code>__LINE__</code></td><td>archivo (texto) / línea (<code>int</code>) donde se usa la macro</td></tr>
+<tr><td><code>"a" "b"</code></td><td>textos seguidos se pegan: <code>"ab"</code></td></tr>
+<tr><td><code>\</code> al final de línea</td><td>la macro continúa en la línea siguiente</td></tr>
+<tr><td><code>do { ... } while (0)</code></td><td>la macro de varias líneas se comporta como una sola instrucción</td></tr>
+<tr><td><code>std::source_location::current()</code> (C++20)</td><td>archivo y línea de quien llama, sin macro (pero no el texto)</td></tr>
+</table>
+
+<pre><code>void anotar(bool ok, const string&amp; mensaje);   <span class="c">// cuenta y guarda el fallo</span>
+
+#define ESPERAR_VERDAD(cond) \
+    anotar((cond), string(__FILE__) + ":" + to_string(__LINE__) + ": ESPERAR_VERDAD(" #cond ") falló")
+
+#define ESPERAR_IGUAL(a, b) esperarIgual((a), (b), #a, #b, __FILE__, __LINE__)
+
+#define ESPERAR_LANZA(expr, Tipo)                                             \
+    do {                                                                      \
+        bool lanzoBien = false;                                               \
+        try { expr; } catch (const Tipo&amp;) { lanzoBien = true; } catch (...) {} \
+        anotar(lanzoBien, "ESPERAR_LANZA(" #expr ") falló");                  \
+    } while (0)</code></pre>
+
+<p><strong>Reglas de las macros:</strong> cada argumento entre paréntesis, cada argumento
+usado una sola vez, y el trabajo en una función. <code>#define CUADRADO(x) x * x</code>
+hace que <code>CUADRADO(2 + 3)</code> valga 11.</p>
+
+<p><strong>Pruebas que sirven:</strong> una idea por bloque <code>{ Pila p; ... }</code>,
+casos borde (vacía, uno, primero, último) y comparar con un valor esperado, nunca consigo
+misma. Rompe la clase a propósito: alguna prueba debe fallar.</p>
+
+<h2>GoogleTest con CMake (opcional, necesita internet)</h2>
+<pre><code>cmake_minimum_required(VERSION 3.14)
+project(PruebasPila CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+include(FetchContent)
+FetchContent_Declare(googletest
+  URL https://github.com/google/googletest/archive/03597a01ee50ed33e9dfd640b249b4be3799d395.zip)
+FetchContent_MakeAvailable(googletest)
+enable_testing()
+add_executable(pruebas pruebas_pila.cpp)
+target_link_libraries(pruebas GTest::gtest_main)
+include(GoogleTest)
+gtest_discover_tests(pruebas)</code></pre>
+<table>
+<tr><th>GoogleTest</th><th>Tu marco</th></tr>
+<tr><td><code>TEST(Grupo, Nombre) { ... }</code></td><td>un bloque de <code>probarPila()</code></td></tr>
+<tr><td><code>EXPECT_TRUE(c)</code></td><td><code>ESPERAR_VERDAD(c)</code></td></tr>
+<tr><td><code>EXPECT_EQ(a, b)</code></td><td><code>ESPERAR_IGUAL(a, b)</code></td></tr>
+<tr><td><code>EXPECT_THROW(expr, Tipo)</code></td><td><code>ESPERAR_LANZA(expr, Tipo)</code></td></tr>
+</table>
+<p>Uso: <code>cmake -S . -B build &amp;&amp; cmake --build build &amp;&amp; ./build/pruebas</code>
+(o <code>ctest</code> dentro de <code>build</code>).</p>
+
+<h2>gdb</h2>
+<pre><code>g++ -std=c++17 -g -O0 pila.cpp -o prog     <span class="c"># -g: líneas y variables; -O0: nada optimizado</span>
+gdb ./prog</code></pre>
+<table>
+<tr><th>Orden</th><th>Abreviada</th><th>Hace</th></tr>
+<tr><td><code>run</code></td><td><code>r</code></td><td>arranca el programa</td></tr>
+<tr><td><code>break funcion</code> / <code>break 83</code></td><td><code>b</code></td><td>para en la función / en la línea</td></tr>
+<tr><td><code>break funcion if valor == 3</code></td><td></td><td>para solo si se cumple la condición</td></tr>
+<tr><td><code>next</code> / <code>step</code></td><td><code>n</code> / <code>s</code></td><td>una línea; <code>step</code> entra en las funciones</td></tr>
+<tr><td><code>finish</code></td><td><code>fin</code></td><td>termina la función actual y vuelve</td></tr>
+<tr><td><code>continue</code></td><td><code>c</code></td><td>sigue hasta la próxima parada</td></tr>
+<tr><td><code>print x</code> / <code>print *p</code> / <code>print *this</code></td><td><code>p</code></td><td>muestra una variable / lo apuntado / el objeto</td></tr>
+<tr><td><code>bt</code></td><td></td><td>pila de llamadas: un renglón por marco</td></tr>
+<tr><td><code>frame N</code> / <code>up</code> / <code>down</code></td><td></td><td>cambia de marco</td></tr>
+<tr><td><code>info locals</code></td><td></td><td>variables locales del marco</td></tr>
+<tr><td><code>watch x</code></td><td></td><td>para cuando <code>x</code> cambie (valor viejo y nuevo)</td></tr>
+<tr><td><code>info breakpoints</code> / <code>delete</code></td><td><code>d</code></td><td>lista / borra las paradas</td></tr>
+<tr><td><code>quit</code></td><td><code>q</code></td><td>sale</td></tr>
+</table>
+<table>
+<tr><th>Ves</th><th>Significa</th></tr>
+<tr><td><code>Program received signal SIGSEGV</code></td><td>acceso a memoria inválida; escribe <code>bt</code></td></tr>
+<tr><td><code>tope = 0x0</code></td><td>el apuntador vale <code>nullptr</code></td></tr>
+<tr><td><code>No symbol "x" in current context.</code></td><td>compilaste sin <code>-g</code>, o <code>x</code> está en otro marco</td></tr>
+<tr><td><code>&lt;optimized out&gt;</code></td><td>compilaste con <code>-O2</code>: usa <code>-O0</code></td></tr>
+</table>
+
+<h2>Análisis estático y dinámico</h2>
+<table>
+<tr><th>Herramienta</th><th>Tipo</th><th>Comando</th></tr>
+<tr><td>avisos del compilador</td><td>estático</td><td><code>g++ -Wall -Wextra ...</code></td></tr>
+<tr><td>analizador de GCC (pensado para C)</td><td>estático</td><td><code>g++ -fanalyzer -c archivo.cpp</code></td></tr>
+<tr><td>clang-tidy (si lo instalas)</td><td>estático</td><td><code>clang-tidy archivo.cpp -- -std=c++17</code></td></tr>
+<tr><td>Cppcheck (si lo instalas)</td><td>estático</td><td><code>cppcheck --enable=style archivo.cpp</code></td></tr>
+<tr><td>sanitizers</td><td>dinámico</td><td><code>g++ -g -fsanitize=address,undefined ...</code></td></tr>
+</table>
+
+<h2>Corrutinas: <code>std::generator</code> (C++23)</h2>
+<pre><code>#include &lt;generator&gt;
+std::generator&lt;int&gt; contar(int hasta) {
+    for (int i = 1; i &lt;= hasta; i++)
+        co_yield i;                 <span class="c">// entrega i y se pausa</span>
+}
+for (int x : contar(3)) ...         <span class="c">// 1, 2, 3</span></code></pre>
+<p>Compila con <code>g++ -std=c++23</code> (g++ 14 o más nuevo). Perezoso: el cuerpo solo
+corre cuando se pide el siguiente valor, así que puede ser infinito si lo cortas con
+<code>std::views::take(n)</code>. Palabras clave: <code>co_yield</code>,
+<code>co_await</code>, <code>co_return</code>.</p>
+
+<h2>Módulos (C++20)</h2>
+<pre><code>export module saludo;               <span class="c">// saludo.cpp</span>
+export int doble(int x) { return 2 * x; }
+
+import saludo;                      <span class="c">// main.cpp</span>
+import std;                         <span class="c">// C++23</span></code></pre>
+<pre><code>g++ -std=c++23 -fmodules -fsearch-include-path -c bits/std.cc   <span class="c"># una vez, para import std</span>
+g++ -std=c++23 -fmodules -c saludo.cpp                         <span class="c"># primero el módulo</span>
+g++ -std=c++23 -fmodules -c main.cpp                           <span class="c"># después quien importa</span>
+g++ std.o saludo.o main.o -o prog</code></pre>
+<p>Estado (g++ 15.2): funciona con <code>-fmodules</code>; CMake 3.28 o más nuevo. Para
+tareas, sigue con <code>.h</code>/<code>.cpp</code>.</p>
+
+<p>Memoria: ver <a href="memoria.html#herramientas">mapa de la memoria · herramientas</a>.</p>
+<p class="ver-mas">Se ve en: <a href="../nivel-6-avanzado/09-herramientas-y-cpp-moderno.html">Lección 6.9</a></p>
+<p class="cita">Fuentes: <a href="https://www.learncpp.com/cpp-tutorial/introduction-to-testing-your-code/">LearnCpp 9.1</a> ·
+<a href="https://google.github.io/googletest/quickstart-cmake.html">GoogleTest — Quickstart CMake</a> ·
+<a href="https://sourceware.org/gdb/current/onlinedocs/gdb.html/">Debugging with GDB</a> ·
+<a href="https://gcc.gnu.org/onlinedocs/gcc/Static-Analyzer-Options.html">GCC — Static Analyzer Options</a> ·
+<a href="https://en.cppreference.com/w/cpp/coroutine/generator">cppreference — std::generator</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/modules">cppreference — Modules</a></p>
+
+</main>
+</body>
+</html>

@@ -10,7 +10,7 @@
 // Compilar y probar (en la terminal, dentro de esta carpeta):
 //   g++ -std=c++17 -Wall 08-panorama.cpp -o prog && ./prog
 //
-// El archivo de datos se crea en /tmp. Cuando todo salga con ✓, terminaste el curso.
+// El archivo de datos se crea en /tmp. Cuando todo salga con ✓, terminaste el Nivel 4.
 // ---------------------------------------------------------------
 #include <algorithm>   // sort
 #include <cstdio>      // remove
@@ -181,7 +181,7 @@ int main() {
     comprobar(lanzoMal, "una línea mal formada lanza runtime_error");
 
     remove(ruta.c_str());
-    cout << (fallos == 0 ? "\n¡Todo bien! Terminaste el miniproyecto final... y el curso.\n"
+    cout << (fallos == 0 ? "\n¡Todo bien! Terminaste el proyecto del Nivel 4.\n"
                          : "\nAún hay fallos. Revisa las funciones con ✗.\n");
     return fallos == 0 ? 0 : 1;
 }

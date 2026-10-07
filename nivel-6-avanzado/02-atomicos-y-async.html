@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 6.2 · Atómicos, condition_variable y async</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 6 · Avanzado › Lección 2 de 9</div>
+<h1>Atómicos, condition_variable y async</h1>
+<p class="subtitulo">Contar sin cerrojo, esperar sin gastar y pedir resultados para luego. ~40 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> contar con un <code>std::atomic</code> sin mutex,
+construir una cola donde un hilo produce y otro consume (con
+<code>condition_variable</code>), y repartir una suma en varias tareas con
+<code>std::async</code>, recogiendo cada resultado con su <code>future</code>.</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la
+<a href="01-hilos-y-mutex.html">lección 6.1 (hilos y mutex)</a>.
+Recordar lo de ayer es lo que hace que se quede.</p>
+</div>
+
+<p><strong>Por qué.</strong> En la 6.1 lo resolviste todo con <code>thread</code> y
+<code>mutex</code>. Funciona, pero se queda corto en tres situaciones muy comunes: un
+simple contador (el mutex es demasiado), un hilo que tiene que <em>esperar</em> a que otro
+le dé trabajo, y una tarea de la que solo quieres el <em>resultado</em>. Cada una tiene su
+herramienta. Hoy ves las tres y, sobre todo, cuándo usar cada una.</p>
+
+<p>Compila como en la 6.1: <code>g++ -std=c++20 -Wall -pthread</code>. Nada de esta
+lección necesita C++23.</p>
+
+<h2>1. <code>std::atomic</code>: el contador sin cerrojo</h2>
+
+<p>Un <strong>atómico</strong> es una variable cuyas operaciones no se pueden partir: el
+«leer, sumar 1, escribir» de <code>contador++</code> pasa en <strong>un solo paso</strong>
+indivisible. Ningún otro hilo puede colarse en medio.</p>
+
+<pre><code>#include &lt;atomic&gt;
+
+atomic&lt;int&gt; contador = 0;     <span class="c">// el único cambio respecto a la carrera de la 6.1</span>
+
+void sumar() {
+    for (int i = 0; i &lt; 100000; i++)
+        contador++;            <span class="c">// atómico: nadie se pisa</span>
+}
+<span class="c">// main: dos hilos, join, cout ... → contador = 200000, siempre</span></code></pre>
+
+<p>Lo ejecutamos: <code>200000</code>, y ThreadSanitizer no avisa de nada. Sin
+<code>mutex</code>, sin <code>lock_guard</code>.</p>
+
+<table>
+<tr><th>Escribes</th><th>Hace (todo en un paso)</th></tr>
+<tr><td><code>contador++</code>, <code>contador += 5</code></td><td>suma</td></tr>
+<tr><td><code>contador.load()</code></td><td>lee el valor</td></tr>
+<tr><td><code>contador.store(0)</code></td><td>escribe un valor</td></tr>
+<tr><td><code>contador.fetch_add(1)</code></td><td>suma y devuelve el valor <em>de antes</em></td></tr>
+</table>
+
+<div class="ojo">
+<p><strong>Error típico: creer que todo lo que toca un atómico es atómico.</strong></p>
+<pre><code>atomic&lt;int&gt; contador = 0;
+contador = contador + 1;     <span class="c">// ¡DOS pasos: un load y luego un store!</span></code></pre>
+<p>Cada paso es atómico, pero entre los dos se cuela el otro hilo. Lo ejecutamos con dos
+hilos de 100&nbsp;000: salió <code>150538</code>, <code>140873</code>, <code>153417</code>. Y lo
+peor: <strong>TSan no avisa</strong>, porque técnicamente no es una carrera de datos; es un
+error de lógica. Usa <code>contador++</code> o <code>contador += 1</code>, que son una sola
+operación.</p>
+</div>
+
+<p><strong>Límite:</strong> el atómico protege <em>una</em> variable. Si tienes que cambiar
+dos cosas juntas (el saldo de dos cuentas, una cola y su tamaño), necesitas un
+<code>mutex</code>: dos atómicos separados no hacen una operación atómica.</p>
+
+<h2>2. <code>condition_variable</code>: esperar dormido</h2>
+
+<p>El patrón más común con hilos es el <strong>productor-consumidor</strong>: un hilo
+produce datos y los mete en una cola; otro los saca y los procesa. Piensa en una cocina:
+el cocinero deja platos, el camarero los lleva.</p>
+
+<p>¿Qué hace el camarero si no hay platos? La idea ingenua es preguntar sin parar:</p>
+<pre><code>while (cola.empty()) { }     <span class="c">// MAL: gasta un núcleo al 100 % y además es una carrera</span></code></pre>
+
+<p>La buena es <strong>dormir hasta que lo avisen</strong>. Eso es una
+<code>condition_variable</code>: un timbre que un hilo toca y otro espera.</p>
+
+<pre><code>#include &lt;condition_variable&gt;
+#include &lt;queue&gt;
+
+queue&lt;int&gt; cola;
+mutex m;
+condition_variable hayDatos;
+bool terminado = false;
+
+void productor() {
+    for (int i = 1; i &lt;= 3; i++) {
+        { lock_guard&lt;mutex&gt; candado(m); cola.push(i); }   <span class="c">// meter, protegido</span>
+        hayDatos.notify_one();                              <span class="c">// tocar el timbre</span>
+    }
+    { lock_guard&lt;mutex&gt; candado(m); terminado = true; }    <span class="c">// avisar del final</span>
+    hayDatos.notify_one();
+}
+
+void consumidor() {
+    while (true) {
+        unique_lock&lt;mutex&gt; candado(m);
+        hayDatos.wait(candado, [] { return !cola.empty() || terminado; });
+        if (cola.empty()) break;           <span class="c">// despertó porque terminó</span>
+        int x = cola.front(); cola.pop();
+        candado.unlock();                  <span class="c">// soltar antes de trabajar</span>
+        cout &lt;&lt; "consumí " &lt;&lt; x &lt;&lt; "\n";
+    }
+}</code></pre>
+
+<p>Con <code>thread c(consumidor), p(productor);</code> y sus <code>join()</code>, la salida
+real es <code>consumí 1</code>, <code>consumí 2</code>, <code>consumí 3</code>, y termina.</p>
+
+<p>Lo importante está en <code>wait(candado, condición)</code>:</p>
+<ol>
+<li>Si la condición ya se cumple, sigue sin dormir.</li>
+<li>Si no, <strong>abre el mutex y duerme</strong> (así el productor puede entrar a meter).</li>
+<li>Al despertar, <strong>vuelve a cerrar el mutex</strong> y comprueba otra vez la condición.</li>
+</ol>
+
+<p>Por eso necesita <code>unique_lock</code> y no <code>lock_guard</code>: tiene que poder
+abrir y cerrar el mutex por dentro. Y por eso lleva la condición: un hilo puede
+despertarse <strong>sin que nadie lo avise</strong> (un «despertar espurio», según
+<a href="https://en.cppreference.com/w/cpp/thread/condition_variable">cppreference</a>), y
+la condición hace que vuelva a dormirse.</p>
+
+<div class="ojo">
+<p><strong>Error típico: la condición sin la salida.</strong> Si el consumidor espera con
+<code>[] { return !cola.empty(); }</code> (sin <code>|| terminado</code>), al acabarse los
+datos se duerme y <strong>nadie lo despierta nunca</strong>: el programa se queda colgado,
+como en un interbloqueo. Toda espera necesita una forma de terminar. Y avisa
+<em>después</em> de cambiar el dato, con <code>notify_one()</code> (despierta a uno) o
+<code>notify_all()</code> (a todos; úsalo al cerrar, para que salgan todos los consumidores).</p>
+</div>
+
+<h2>3. <code>std::async</code> y <code>std::future</code>: pedir un resultado para luego</h2>
+
+<p>Muchas veces no quieres «un hilo»: quieres <strong>un resultado</strong> calculado en
+paralelo. <code>async</code> lanza la tarea y te da un <code>future</code>: un vale que
+canjeas más tarde con <code>get()</code>.</p>
+
+<pre><code>#include &lt;future&gt;
+
+long long sumarHasta(int n) {
+    long long s = 0;
+    for (int i = 1; i &lt;= n; i++) s += i;
+    return s;
+}
+
+future&lt;long long&gt; f = async(launch::async, sumarHasta, 1000);   <span class="c">// arranca ya</span>
+cout &lt;&lt; "mientras tanto, main sigue...\n";
+cout &lt;&lt; "resultado = " &lt;&lt; f.get() &lt;&lt; "\n";   <span class="c">// espera si aún no acabó → 500500</span></code></pre>
+
+<p>Ventajas frente a <code>thread</code>:</p>
+<ul>
+<li><strong>Devuelve un valor.</strong> Con <code>thread</code> tendrías que escribirlo en una variable compartida.</li>
+<li><strong>Las excepciones viajan.</strong> Si la tarea lanza, la excepción salta en <code>get()</code>, en tu hilo, donde la puedes atrapar (lección <a href="../nivel-4-intermedio-avanzado/04-excepciones.html">4.4</a>).</li>
+<li><strong>No hay <code>join</code> que olvidar.</strong> <code>get()</code> ya espera.</li>
+</ul>
+
+<pre><code>int dividir(int a, int b) {
+    if (b == 0) throw invalid_argument("entre cero");
+    return a / b;
+}
+
+future&lt;int&gt; g = async(launch::async, dividir, 1, 0);
+try {
+    cout &lt;&lt; g.get();
+} catch (const invalid_argument&amp; e) {
+    cout &lt;&lt; "error: " &lt;&lt; e.what();      <span class="c">// salida real: error: entre cero</span>
+}</code></pre>
+
+<div class="ojo">
+<p><strong>Tres trampas de <code>async</code>:</strong></p>
+<ul>
+<li><strong>Pon <code>launch::async</code>.</strong> Sin él, la biblioteca puede decidir no crear
+hilo y ejecutar la tarea más tarde, dentro de <code>get()</code>: cero paralelismo.</li>
+<li><strong>Guarda el <code>future</code>.</strong> Si escribes <code>async(launch::async, f);</code> sin
+guardarlo, el <code>future</code> temporal se destruye en esa misma línea y su destructor
+<strong>espera</strong> a que <code>f</code> termine: el código queda secuencial
+(<a href="https://en.cppreference.com/w/cpp/thread/async">cppreference — async, Notes</a>).</li>
+<li><strong><code>get()</code> solo una vez.</strong> Después el <code>future</code> queda vacío
+(<code>valid()</code> es <code>false</code>) y llamarlo otra vez es comportamiento indefinido.</li>
+</ul>
+</div>
+
+<h2>4. ¿Cuál uso?</h2>
+
+<table>
+<tr><th>Necesitas...</th><th>Usa</th><th>Ejemplo</th></tr>
+<tr><td>un contador o una bandera compartidos</td><td><code>atomic</code></td><td>cuántas peticiones llevamos</td></tr>
+<tr><td>cambiar <em>varios</em> datos juntos</td><td><code>mutex</code> + <code>lock_guard</code> / <code>scoped_lock</code></td><td>transferir entre dos cuentas</td></tr>
+<tr><td>que un hilo espere a que otro le avise</td><td><code>condition_variable</code> (+ <code>mutex</code>)</td><td>cola productor-consumidor</td></tr>
+<tr><td>calcular algo en paralelo y recoger el resultado</td><td><code>async</code> + <code>future</code></td><td>sumar cada mitad de un vector</td></tr>
+<tr><td>un hilo de larga vida (un trabajador)</td><td><code>jthread</code></td><td>el consumidor que procesa la cola</td></tr>
+</table>
+
+<p>Regla de oro: <strong>cuanto menos compartan los hilos, mejor</strong>. Lo ideal es que
+cada tarea trabaje con sus propios datos y devuelva un resultado (<code>async</code>).
+Compartir con <code>mutex</code> es el plan B; los atómicos, para datos sueltos.</p>
+
+<h2>5. Una mención: el modelo de memoria</h2>
+
+<p>Debajo de todo esto hay una parte del estándar llamada <strong>modelo de memoria</strong>:
+las reglas de qué escritura de un hilo ve otro hilo, y cuándo. Los procesadores y los
+compiladores reordenan instrucciones para ir más rápido, y sin esas reglas un hilo podría
+ver los cambios de otro en un orden distinto al escrito.</p>
+
+<p>No tienes que dominarlo ahora. Lo que necesitas saber: los atómicos aceptan un
+segundo argumento, el <code>memory_order</code> (<code>relaxed</code>, <code>acquire</code>,
+<code>release</code>...), para relajar esas garantías a cambio de velocidad. Por defecto
+usan la más estricta, <code>seq_cst</code>, que es la que se comporta «como esperas»
+(<a href="https://en.cppreference.com/w/cpp/atomic/memory_order">cppreference — memory_order</a>).
+Quédate con el valor por defecto hasta que tengas una medición que diga lo contrario.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Un <code>atomic&lt;int&gt;</code> no vive en ningún sitio especial: ocupa su caja donde lo declares
+(el <code>contador</code> global, en la memoria estática). Lo distinto es <em>cómo</em> se toca: el
+procesador hace la operación entera sin dejar entrar a otro núcleo. Para un <code>int</code>, en esta
+máquina <code>contador.is_lock_free()</code> da <code>true</code>: no hay ningún mutex escondido.</p>
+<p>En tu <code>ColaSegura</code>, el objeto <code>queue</code> guarda sus datos en el montón
+(<em>heap</em>), y el montón es uno solo para todos los hilos: por eso va con mutex. La variable
+<code>x</code> de cada consumidor, en cambio, está en la memoria automática (la <em>pila de
+llamadas</em> o <em>stack</em>) de <em>su</em> hilo, y no hay que protegerla. Con <code>async</code>, el
+resultado no viaja por tu código: la tarea lo deja en un «estado compartido» entre ella y el
+<code>future</code> (normalmente en el montón), y <code>get()</code> lo recoge de allí.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#hilos">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>atomic&lt;int&gt; c = 0; c++;</code></td><td>contador compartido sin mutex</td></tr>
+<tr><td><code>c = c + 1;</code> con atómico</td><td>dos pasos separados: se pierden sumas</td></tr>
+<tr><td><code>unique_lock&lt;mutex&gt; l(m);</code></td><td>como <code>lock_guard</code>, pero se puede abrir y cerrar (lo necesita <code>wait</code>)</td></tr>
+<tr><td><code>cv.wait(l, [] { return cond; });</code></td><td>duerme hasta que <code>cond</code> sea verdad</td></tr>
+<tr><td><code>cv.notify_one()</code> / <code>notify_all()</code></td><td>despierta a uno / a todos los que esperan</td></tr>
+<tr><td><code>auto f = async(launch::async, g, x);</code></td><td>calcula <code>g(x)</code> en paralelo</td></tr>
+<tr><td><code>f.get()</code></td><td>espera y da el resultado (o relanza la excepción); una sola vez</td></tr>
+</table>
+
+<p>Todo esto, y lo de la lección 6.1, está en la
+<a href="../reference/concurrencia.html">hoja de referencia de concurrencia</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="0" data-explica="Con <code>atomic&lt;int&gt;</code>, <code>contador++</code> es una sola operación indivisible: ningún hilo pierde sumas. Sale 200000 todas las veces, y TSan no avisa.">
+<pre><code>atomic&lt;int&gt; contador = 0;
+void sumar() { for (int i = 0; i &lt; 100000; i++) contador++; }
+
+int main() {
+    thread a(sumar), b(sumar);
+    a.join(); b.join();
+    cout &lt;&lt; contador;
+}</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Siempre muestra exactamente 200000</button><button>Cualquier valor: comportamiento indefinido</button><button>Siempre muestra exactamente 100000</button><button>Error de compilación seguro</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="<code>contador + 1</code> es un <code>load</code> y el <code>=</code> es un <code>store</code>: dos operaciones atómicas por separado. Entre una y otra se cuela el otro hilo y se pierden sumas (en la prueba real: 150538, 140873...). Se arregla con <code>contador++</code>.">
+<pre><code>atomic&lt;int&gt; contador = 0;
+void sumar() {
+    for (int i = 0; i &lt; 100000; i++)
+        contador = contador + 1;
+}
+<span class="c">// dos hilos ejecutan sumar() a la vez</span></code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>Nada, el atómico lo protege</button><button>No compila con un atómico</button><button>Leer y escribir van separados</button><button>Se interbloquean los dos hilos</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Cuando el productor acaba, la cola queda vacía y la condición <code>!cola.empty()</code> no se vuelve a cumplir nunca. El consumidor duerme para siempre. Falta una salida: <code>|| terminado</code> y un aviso al terminar.">
+<pre><code><span class="c">// consumidor</span>
+while (true) {
+    unique_lock&lt;mutex&gt; candado(m);
+    hayDatos.wait(candado, [] { return !cola.empty(); });
+    cola.pop();
+}
+<span class="c">// el productor mete 3 datos, avisa y termina</span></code></pre>
+<p>¿Qué pasa al final?</p>
+<div class="opciones"><button>Saca los tres y termina</button><button>Se queda dormido para siempre</button><button>Saca datos que no existen</button><button>El programa no compila así</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="La excepción que lanza la tarea se guarda en el <code>future</code> y salta en <code>get()</code>, en el hilo que llama. El <code>catch</code> la atrapa: muestra «error».">
+<pre><code>int dividir(int a, int b) {
+    if (b == 0) throw invalid_argument("cero");
+    return a / b;
+}
+
+future&lt;int&gt; f = async(launch::async, dividir, 1, 0);
+try { cout &lt;&lt; f.get(); }
+catch (const invalid_argument&amp;) { cout &lt;&lt; "error"; }</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 0</button><button>Aborta siempre</button><button>No compila</button><button>Muestra error</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Esperar a que otro hilo avise es justo para lo que sirve <code>condition_variable</code> (con su mutex). El atómico es para datos sueltos, <code>lock_guard</code> solo protege, y un <code>future</code> espera un resultado único, no avisos repetidos.">
+<p>Un hilo trabajador debe dormir hasta que otro hilo le deje una tarea nueva en una cola, una y otra vez. ¿Qué usas para esperar?</p>
+<div class="opciones"><button><code>std::atomic&lt;unsigned&gt;</code></button><button><code>std::lock_guard&lt;mutex&gt;</code></button><button><code>std::condition_variable</code></button><button><code>std::future&lt;unsigned&gt;</code></button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Repaso de la lección 4.5: <code>move(p)</code> pasa la propiedad a <code>q</code> y deja <code>p</code> en <code>nullptr</code>, así que la comparación vale <code>true</code> y <code>cout</code> la muestra como 1. A <code>thread</code> le pasa igual: no se copia, se mueve (por eso <code>hilos.push_back(thread(...))</code> funciona).">
+<p><strong>Repaso.</strong></p>
+<pre><code>auto p = make_unique&lt;int&gt;(5);
+auto q = move(p);
+cout &lt;&lt; (p == nullptr);</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 0</button><button>Muestra 1</button><button>Muestra 5</button><button>No compila</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 6.2 · Una cola para dos hilos</h2>
+
+<p>Abre <a href="ejercicios/02-atomicos-y-async.cpp"><code>ejercicios/02-atomicos-y-async.cpp</code></a>.
+Completa:</p>
+
+<ol>
+<li><code>contarConAtomico(nHilos, porHilo)</code>: el <code>sumarConHilos</code> de la 6.1, pero con <code>atomic&lt;int&gt;</code> y sin mutex.</li>
+<li>La clase <code>ColaSegura</code>: <code>meter(x)</code>, <code>cerrar()</code> y <code>sacar(x)</code>. <code>sacar</code> espera dormido hasta que haya un dato (devuelve <code>true</code>) o la cola esté cerrada y vacía (devuelve <code>false</code>). Las pruebas la usan con 1 productor y 1 consumidor, y con 2 productores y 3 consumidores.</li>
+<li><code>sumaParalela(v, partes)</code>: reparte la suma en <code>partes</code> tareas con <code>async</code> y suma los <code>get()</code>.</li>
+<li><code>raizEnSegundoPlano(n)</code>: calcula <code>raizEntera(n)</code> (ya hecha) con <code>async</code>; si lanza, devuelve <code>"error"</code>.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++20 -Wall -pthread 02-atomicos-y-async.cpp -o prog &amp;&amp; ./prog</code></pre>
+<p>Y cuando salga todo en ✓, con el detector:</p>
+<pre><code>g++ -std=c++20 -Wall -pthread -fsanitize=thread -g 02-atomicos-y-async.cpp -o prog &amp;&amp; ./prog</code></pre>
+<p>Si un hilo se te queda dormido para siempre, las pruebas lo detectan a los 10 segundos y
+te avisan en vez de colgarse. Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> en <code>ColaSegura</code>, copia el patrón de la sección 2:
+<code>meter</code> es el cuerpo del bucle del productor; <code>cerrar</code> es el final del
+productor con <code>notify_all()</code>; <code>sacar</code> es una vuelta del consumidor que
+devuelve <code>false</code> en vez de hacer <code>break</code>. Para <code>sumaParalela</code>,
+los trozos se calculan igual que en <code>contarPares</code> de la 6.1.
+La solución está en <a href="soluciones/02-atomicos-y-async.cpp"><code>soluciones/02-atomicos-y-async.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://en.cppreference.com/w/cpp/thread/condition_variable">cppreference — std::condition_variable</a>
+(en inglés). Lee la descripción de arriba (los tres pasos del hilo que espera y del que
+avisa) y el ejemplo. Después,
+<a href="https://en.cppreference.com/w/cpp/thread/async">std::async</a> (su ejemplo suma un
+vector en paralelo, como tu <code>sumaParalela</code>) y
+<a href="https://en.cppreference.com/w/cpp/atomic/atomic">std::atomic</a> (solo la
+descripción). Unos 15 minutos. El índice de todo está en
+<a href="https://en.cppreference.com/w/cpp/thread">Concurrency support library</a>.</p>
+<p><strong>Para ir a fondo:</strong>
+<a href="https://www.manning.com/books/c-plus-plus-concurrency-in-action-second-edition">C++ Concurrency in Action, 2.ª ed., de Anthony Williams</a>:
+el capítulo 4 (sincronizar operaciones: <code>condition_variable</code>, <code>future</code>,
+<code>async</code>) es esta lección; el 5 es el modelo de memoria y los atómicos, para cuando
+quieras entrar de verdad.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="01-hilos-y-mutex.html">← Lección anterior</a> ·
+<a href="03-categorias-de-valor-y-reenvio.html">Siguiente: Lección 6.3 · Categorías de valor y reenvío →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

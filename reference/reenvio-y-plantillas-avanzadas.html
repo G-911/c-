@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Reenvío y plantillas avanzadas</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Reenvío y plantillas avanzadas</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones 6.3 y 6.4.</p>
+
+<h2>Categorías de valor</h2>
+<table>
+<tr><th>Categoría</th><th>¿Identidad?</th><th>¿Se le puede robar?</th><th>Ejemplos</th></tr>
+<tr><td>lvalue</td><td>sí</td><td>no</td><td><code>x</code>, <code>v[0]</code>, <code>*p</code>, un parámetro <code>T&amp;&amp; s</code> usado por su nombre</td></tr>
+<tr><td>xvalue</td><td>sí</td><td>sí</td><td><code>std::move(x)</code></td></tr>
+<tr><td>prvalue</td><td>no</td><td>sí</td><td><code>5</code>, <code>x + 1</code>, <code>string("hola")</code>, <code>f()</code> que devuelve por valor</td></tr>
+</table>
+<p>glvalue = lvalue + xvalue (tienen identidad). rvalue = xvalue + prvalue (se pueden robar).</p>
+
+<h2>Referencia de reenvío y colapso</h2>
+<table>
+<tr><th>Llamada a <code>template &lt;typename T&gt; void env(T&amp;&amp; x)</code></th><th><code>T</code></th><th>tipo de <code>x</code></th></tr>
+<tr><td><code>env(a)</code> (lvalue)</td><td><code>X&amp;</code></td><td><code>X&amp;</code></td></tr>
+<tr><td><code>env(X())</code> o <code>env(std::move(a))</code> (rvalue)</td><td><code>X</code></td><td><code>X&amp;&amp;</code></td></tr>
+</table>
+<table>
+<tr><th>Combinación</th><th>Colapsa a</th></tr>
+<tr><td><code>&amp; &amp;</code> · <code>&amp; &amp;&amp;</code> · <code>&amp;&amp; &amp;</code></td><td><code>&amp;</code></td></tr>
+<tr><td><code>&amp;&amp; &amp;&amp;</code></td><td><code>&amp;&amp;</code></td></tr>
+</table>
+<p>Es de reenvío <strong>solo</strong> si <code>T</code> es parámetro de esa misma función plantilla,
+se deduce en la llamada y no lleva <code>const</code> (también <code>auto&amp;&amp;</code>).
+<strong>No</strong> lo son: <code>string&amp;&amp;</code>, <code>const T&amp;&amp;</code>,
+<code>Pila&lt;T&gt;::push(T&amp;&amp;)</code>.</p>
+
+<h2>Plantillas listas para copiar</h2>
+<pre><code>#include &lt;utility&gt;   <span class="c">// std::move, std::forward</span>
+
+<span class="c">// Envoltorio que reenvía un argumento tal como llegó</span>
+template &lt;typename T&gt;
+void env(T&amp;&amp; x) {
+    f(std::forward&lt;T&gt;(x));            <span class="c">// con &lt;T&gt;, una sola vez</span>
+}
+
+<span class="c">// Fábrica que reenvía todos (así es make_unique)</span>
+template &lt;typename T, typename... Args&gt;
+unique_ptr&lt;T&gt; crear(Args&amp;&amp;... args) {
+    return unique_ptr&lt;T&gt;(new T(std::forward&lt;Args&gt;(args)...));
+}
+
+<span class="c">// Constructor que recibe un rvalue: el parámetro tiene nombre → std::move</span>
+Envoltorio(Rastreado&amp;&amp; r) : dentro(std::move(r)) {}
+
+<span class="c">// Construir dentro del vector, sin temporal</span>
+v.emplace_back("fede");               <span class="c">// argumentos del CONSTRUCTOR</span></code></pre>
+
+<table>
+<tr><th></th><th><code>std::move(x)</code></th><th><code>std::forward&lt;T&gt;(x)</code></th></tr>
+<tr><td>convierte en rvalue</td><td>siempre</td><td>solo si llegó un rvalue</td></tr>
+<tr><td>úsalo cuando</td><td>ya no usarás <code>x</code></td><td><code>x</code> es <code>T&amp;&amp;</code> con <code>T</code> deducido</td></tr>
+<tr><td>mueve algo él mismo</td><td>no (es un cast)</td><td>no (es un cast)</td></tr>
+</table>
+
+<h2>Especialización total</h2>
+<pre><code>template &lt;typename T&gt; string describir(T) { return "algo"; }
+template &lt;&gt; string describir&lt;bool&gt;(bool b) { return b ? "sí" : "no"; }
+
+template &lt;typename T&gt; struct NombreDe       { static string valor() { return "?"; } };
+template &lt;&gt;           struct NombreDe&lt;int&gt;  { static string valor() { return "int"; } };</code></pre>
+
+<h2>Plantillas variádicas y pliegues (C++17)</h2>
+<pre><code>template &lt;typename... Args&gt;          <span class="c">// paquete de tipos</span>
+void f(const Args&amp;... args) {        <span class="c">// paquete de valores</span>
+    sizeof...(args);                  <span class="c">// cuántos llegaron</span>
+    ((cout &lt;&lt; args &lt;&lt; ' '), ...);     <span class="c">// repetir una acción para cada uno</span>
+    auto s = (0 + ... + args);        <span class="c">// sumar, vale también con 0 argumentos</span>
+}</code></pre>
+<table>
+<tr><th>Escribes</th><th>Se expande a</th><th>Con 0 argumentos</th></tr>
+<tr><td><code>(args + ...)</code></td><td><code>a1 + (a2 + a3)</code></td><td>no compila</td></tr>
+<tr><td><code>(... + args)</code></td><td><code>(a1 + a2) + a3</code></td><td>no compila</td></tr>
+<tr><td><code>(args + ... + 0)</code></td><td><code>a1 + (a2 + (a3 + 0))</code></td><td><code>0</code></td></tr>
+<tr><td><code>(0 + ... + args)</code></td><td><code>((0 + a1) + a2) + a3</code></td><td><code>0</code></td></tr>
+<tr><td><code>(args &amp;&amp; ...)</code> / <code>(args || ...)</code> / coma</td><td>—</td><td><code>true</code> / <code>false</code> / nada</td></tr>
+</table>
+
+<h2>Rasgos de tipo (<code>#include &lt;type_traits&gt;</code>)</h2>
+<table>
+<tr><th>Rasgo</th><th>Verdadero para</th></tr>
+<tr><td><code>is_integral_v&lt;T&gt;</code></td><td><code>int</code>, <code>long</code>, <code>char</code>, <code>bool</code>...</td></tr>
+<tr><td><code>is_floating_point_v&lt;T&gt;</code></td><td><code>float</code>, <code>double</code>, <code>long double</code></td></tr>
+<tr><td><code>is_arithmetic_v&lt;T&gt;</code></td><td>enteros + coma flotante</td></tr>
+<tr><td><code>is_same_v&lt;T, U&gt;</code></td><td>mismo tipo</td></tr>
+<tr><td><code>is_pointer_v&lt;T&gt;</code></td><td>apuntadores</td></tr>
+</table>
+
+<h2>Decidir al compilar</h2>
+<table>
+<tr><th>Escribes</th><th>Hace</th></tr>
+<tr><td><code>if constexpr (is_same_v&lt;T, string&gt;) ... else ...</code></td><td>elige rama al compilar; la otra no se instancia (solo dentro de plantillas)</td></tr>
+<tr><td><code>constexpr int f(int n)</code></td><td>se calcula al compilar si puede; si no, al ejecutar</td></tr>
+<tr><td><code>consteval int f(int n)</code> (C++20)</td><td>siempre al compilar; si no puede, error</td></tr>
+<tr><td><code>constexpr int x = f(5);</code></td><td>obliga a conocer el valor al compilar</td></tr>
+<tr><td><code>static_assert(cond, "msg");</code></td><td>si <code>cond</code> es falsa, no compila</td></tr>
+</table>
+
+<h2>Concepts (C++20, <code>-std=c++20</code>)</h2>
+<pre><code>#include &lt;concepts&gt;
+
+template &lt;typename T&gt;
+concept Numerico = is_integral_v&lt;T&gt; || is_floating_point_v&lt;T&gt;;
+
+template &lt;typename T&gt;
+concept TieneTamano = requires(T c) { c.size(); };   <span class="c">// «esto tiene que compilar»</span>
+
+template &lt;Numerico T&gt;                       T doble(T x)  { return x * 2; }
+template &lt;typename T&gt; requires Numerico&lt;T&gt;  T mitad(T x)  { return x / 2; }
+auto triple(Numerico auto x)                              { return x * 3; }
+
+template &lt;std::totally_ordered T&gt;           T maximo(T a, T b) { return (a &gt; b) ? a : b; }</code></pre>
+<p>De la biblioteca: <code>std::integral</code>, <code>std::floating_point</code>,
+<code>std::totally_ordered</code>, <code>std::same_as&lt;T, U&gt;</code>...</p>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>f(s)</code> con <code>s</code> de tipo <code>T&amp;&amp;</code> (no deducido)</td><td>copia: <code>s</code> con nombre es lvalue</td><td><code>f(std::move(s))</code></td></tr>
+<tr><td><code>std::move</code> en una referencia de reenvío</td><td>roba también las variables de quien llama</td><td><code>std::forward&lt;T&gt;(x)</code></td></tr>
+<tr><td><code>std::forward(x)</code> sin <code>&lt;T&gt;</code></td><td>no compila</td><td>siempre <code>std::forward&lt;T&gt;(x)</code></td></tr>
+<tr><td>usar <code>x</code> después de reenviarlo</td><td>puede estar movido</td><td>reenviar una sola vez, al final</td></tr>
+<tr><td><code>(args + ...)</code> con 0 argumentos</td><td><em>fold of empty expansion</em></td><td><code>(0 + ... + args)</code></td></tr>
+<tr><td><code>if</code> normal según el tipo</td><td>la otra rama no compila</td><td><code>if constexpr</code></td></tr>
+<tr><td><code>consteval</code> con un valor de ejecución</td><td><em>not a constant expression</em></td><td><code>constexpr</code>, o pasar una constante</td></tr>
+<tr><td>concept que no pide todo lo que usa el cuerpo</td><td>vuelve el error largo dentro de la plantilla</td><td>pedir cada operación que se usa</td></tr>
+</table>
+
+<p>Memoria: ver el <a href="memoria.html#movimiento">mapa de la memoria (mover)</a> y
+<a href="memoria.html#mapa">las cuatro zonas</a>.</p>
+
+<p class="cita">Fuentes:
+<a href="https://en.cppreference.com/w/cpp/language/value_category">cppreference — Value categories</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/reference">Reference declaration</a> ·
+<a href="https://en.cppreference.com/w/cpp/utility/forward">std::forward</a> ·
+<a href="https://en.cppreference.com/w/cpp/container/vector/emplace_back">emplace_back</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/fold">Fold expressions</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/if">if constexpr</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/constraints">Constraints and concepts</a> ·
+<a href="https://en.cppreference.com/w/cpp/header/type_traits">&lt;type_traits&gt;</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/value-categories-lvalues-and-rvalues/">LearnCpp 12.2</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/constexpr-functions-part-3-and-consteval/">LearnCpp F.3</a> ·
+<a href="https://isocpp.org/blog/2012/11/universal-references-in-c11-scott-meyers">Scott Meyers — Universal References</a></p>
+
+</main>
+</body>
+</html>

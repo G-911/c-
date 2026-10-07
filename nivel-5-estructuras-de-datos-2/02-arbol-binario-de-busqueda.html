@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 5.2 · Árbol binario de búsqueda</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+<marker id="fla" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--acento)"/></marker>
+<marker id="flx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--suave)"/></marker>
+</defs>
+</svg>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 5 · Estructuras de datos II › Lección 2 de 7</div>
+<h1>Árbol binario de búsqueda</h1>
+<p class="subtitulo">Menores a la izquierda, mayores a la derecha: buscar sin mirarlo todo. ~40 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> escribir una clase <code>ArbolBusqueda</code> que inserta,
+busca, da el mínimo y el máximo, elimina en los tres casos (hoja, un hijo, dos hijos) y se libera
+sola; y explicar por qué a veces es tan lenta como una lista.</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la
+<a href="01-arboles-binarios.html">lección 5.1 (árboles binarios)</a>.</p>
+</div>
+
+<p><strong>Por qué.</strong> En la <a href="../nivel-3-estructuras-de-datos/08-complejidad.html">lección 3.8</a>
+viste que la búsqueda binaria en un vector ordenado es O(log n), pero meter un dato en medio
+obliga a correr todos los demás: O(n). El <strong>árbol binario de búsqueda</strong> (en inglés
+<em>binary search tree</em>, BST) hace las dos cosas en O(log n)… cuando está bien repartido. Es la
+pieza de exámenes universitarios por excelencia, y la idea que hay debajo de <code>std::map</code>
+y <code>std::set</code>.</p>
+
+<h2>1. La regla del árbol de búsqueda</h2>
+
+<p>Un árbol binario es <strong>de búsqueda</strong> si, para <strong>cada</strong> nodo:</p>
+<ul>
+<li>todo lo que hay en su subárbol <strong>izquierdo</strong> es <strong>menor</strong> que él, y</li>
+<li>todo lo que hay en su subárbol <strong>derecho</strong> es <strong>mayor</strong>.</li>
+</ul>
+<p>En este curso no admitimos repetidos: insertar un valor que ya está no hace nada.</p>
+
+<div class="diagrama"><svg viewBox="0 0 638 219" width="638" height="219" role="img" aria-label="Izquierda: el árbol de la lección, válido. Derecha: el 9 está en el subárbol izquierdo de 8, y 9 es mayor que 8: no es válido." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="148" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Sí es de búsqueda</text><line x1="156.1" y1="61.8" x2="97.5" y2="103.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="127.9" x2="49.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="127.9" x2="115.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="65.9" x2="203.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="223.8" y1="127.9" x2="247.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="82" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="119" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="126" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="170" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="214" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="258" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text><text x="479" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">No es de búsqueda</text><line x1="476.1" y1="61.8" x2="417.5" y2="103.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="392.2" y1="127.9" x2="369.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="411.8" y1="127.9" x2="435.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="499.8" y1="65.9" x2="523.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="543.8" y1="127.9" x2="567.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="358" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="358" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="402" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="402" y="119" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="446" cy="176" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="446" y="181" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">9</text><text x="466" y="180" font-size="12" style="fill:var(--mal)" font-weight="700">9 &gt; 8</text><circle cx="490" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="490" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="534" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="534" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="578" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="578" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text></svg></div>
+
+<div class="ojo">
+<p><strong>Error típico: comprobar solo con el padre.</strong> En el árbol de la derecha, el 9
+es mayor que su padre 3, así que «está bien puesto» respecto al 3. Pero está en el subárbol
+<em>izquierdo</em> del 8, y 9 &gt; 8. La regla habla de <strong>todo el subárbol</strong>, no solo
+del padre. Si alguien busca el 9, irá a la derecha del 8 y nunca lo encontrará.</p>
+</div>
+
+<h2>2. La clase</h2>
+
+<p>Igual que <code>ListaEnlazada</code> solo guardaba <code>cabeza</code>, el árbol solo guarda
+<code>raiz</code>. Los métodos públicos llaman a ayudantes privados recursivos que reciben un
+nodo:</p>
+
+<pre><code>class ArbolBusqueda {
+private:
+    NodoArbol* raiz;                                 <span class="c">// nullptr = árbol vacío</span>
+    NodoArbol* insertarEn(NodoArbol* n, int valor);  <span class="c">// ayudantes recursivos</span>
+    NodoArbol* eliminarEn(NodoArbol* n, int valor);
+    void liberar(NodoArbol* n);
+public:
+    ArbolBusqueda() : raiz(nullptr) {}
+    ~ArbolBusqueda() { liberar(raiz); }             <span class="c">// el liberar de la 5.1</span>
+    ArbolBusqueda(const ArbolBusqueda&amp;) = delete;             <span class="c">// prohibido copiar:</span>
+    ArbolBusqueda&amp; operator=(const ArbolBusqueda&amp;) = delete;  <span class="c">// evita la doble liberación (lección 3.5)</span>
+    bool insertar(int valor);
+    bool buscar(int valor) const;
+    int minimo() const;
+    int maximo() const;
+    bool eliminar(int valor);
+    <span class="c">// altura, tamano e inorden: los de la lección 5.1</span>
+};</code></pre>
+
+<p>Las dos líneas con <code>= delete</code> dicen «esta clase no se copia». Así el compilador
+rechaza <code>ArbolBusqueda b = a;</code> en lugar de dejar dos árboles con los mismos nodos.</p>
+
+<h2>3. Buscar: decidir en cada nodo</h2>
+
+<p>Para buscar el 6 no hace falta mirarlo todo. En cada nodo, una comparación dice hacia qué lado
+seguir, y el otro lado entero se descarta:</p>
+
+<pre><code>bool buscar(int valor) const {
+    NodoArbol* actual = raiz;
+    while (actual != nullptr) {
+        if (valor == actual-&gt;dato) return true;     <span class="c">// encontrado</span>
+        if (valor &lt; actual-&gt;dato) actual = actual-&gt;izq;   <span class="c">// menor: a la izquierda</span>
+        else                      actual = actual-&gt;der;   <span class="c">// mayor: a la derecha</span>
+    }
+    return false;                                   <span class="c">// llegó a nullptr: no está</span>
+}</code></pre>
+
+<div class="diagrama"><svg viewBox="0 0 318 211" width="318" height="211" role="img" aria-label="buscar(6): en 8 baja a la izquierda, en 3 baja a la derecha, y en 6 lo encuentra." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="156.1" y1="39.8" x2="97.5" y2="81.1" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="72.2" y1="105.9" x2="49.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="105.9" x2="115.0" y2="138.5" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="179.8" y1="43.9" x2="203.0" y2="76.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="223.8" y1="105.9" x2="247.0" y2="138.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="159" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="82" cy="92" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="82" y="97" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">3</text><text x="102" y="96" font-size="12" style="fill:var(--acento)" font-weight="700">6 &gt; 3: der</text><circle cx="126" cy="154" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="126" y="159" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">6</text><text x="146" y="158" font-size="12" style="fill:var(--acento)" font-weight="700">¡está!</text><circle cx="170" cy="30" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="170" y="35" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">8</text><text x="190" y="34" font-size="12" style="fill:var(--acento)" font-weight="700">6 &lt; 8: izq</text><circle cx="214" cy="92" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="97" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="258" cy="154" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="159" text-anchor="middle" font-size="15" fill="currentColor">14</text><text x="159" y="201" text-anchor="middle" font-size="12" style="fill:var(--suave)">3 comparaciones de 6 nodos</text></svg></div>
+
+<p>Aquí basta un <code>while</code>, sin recursión: solo se baja por <em>un</em> camino. Cuantas
+comparaciones hagas depende de la <strong>altura</strong>, no del número de nodos.</p>
+
+<h2>4. Insertar: buscar el hueco</h2>
+
+<p>Insertar es buscar el valor hasta caer en un <code>nullptr</code>. Ese hueco es justo donde
+tiene que ir. El truco elegante: el ayudante <strong>devuelve la raíz del subárbol</strong>, y cada
+padre se la reasigna a su hijo.</p>
+
+<pre><code>NodoArbol* insertarEn(NodoArbol* n, int valor) {
+    if (n == nullptr) return new NodoArbol(valor);      <span class="c">// el hueco: aquí va</span>
+    if (valor &lt; n-&gt;dato) n-&gt;izq = insertarEn(n-&gt;izq, valor);
+    else                 n-&gt;der = insertarEn(n-&gt;der, valor);
+    return n;                                            <span class="c">// este subárbol sigue empezando en n</span>
+}
+
+bool insertar(int valor) {
+    if (buscar(valor)) return false;      <span class="c">// sin repetidos</span>
+    raiz = insertarEn(raiz, valor);       <span class="c">// funciona también con el árbol vacío</span>
+    return true;
+}</code></pre>
+
+<div class="diagrama"><svg viewBox="0 0 713 281" width="713" height="281" role="img" aria-label="insertar(7): 7 &lt; 8 baja a la izquierda; 7 &gt; 3 a la derecha; 7 &gt; 6 a la derecha, que está libre: ahí queda el 7." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="148" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Antes</text><line x1="156.1" y1="61.8" x2="97.5" y2="103.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="127.9" x2="49.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="127.9" x2="115.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="65.9" x2="203.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="223.8" y1="127.9" x2="247.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="82" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="119" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="126" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="170" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="214" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="258" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text><line x1="294" y1="66" x2="375" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="334" y="58" text-anchor="middle" font-size="12" style="fill:var(--suave)">insertar(7)</text><text x="543" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Después</text><line x1="571.6" y1="59.2" x2="472.2" y2="105.9" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="445.2" y1="127.9" x2="422.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="464.8" y1="127.9" x2="488.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="508.8" y1="189.9" x2="532.0" y2="222.5" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="596.8" y1="65.9" x2="620.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="640.8" y1="127.9" x2="664.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="411" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="411" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="455" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="455" y="119" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="499" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="499" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="543" cy="238" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="543" y="243" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">7</text><circle cx="587" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="587" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="631" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="631" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="675" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="675" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text></svg></div>
+
+<p>¿Por qué devolver la raíz? Porque con el árbol vacío la raíz <em>cambia</em> (de
+<code>nullptr</code> al nodo nuevo), y con este patrón no hace falta un caso especial. En la
+lección 5.3 lo vas a agradecer: las rotaciones también cambian la raíz de un subárbol.</p>
+
+<h2>5. Mínimo y máximo</h2>
+
+<p>El más pequeño está lo más a la izquierda posible; el más grande, lo más a la derecha.</p>
+
+<div class="diagrama"><svg viewBox="0 0 384 285" width="384" height="285" role="img" aria-label="El mínimo (1) es el nodo de más a la izquierda; el máximo (14), el de más a la derecha." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="242.0" y1="47.6" x2="99.9" y2="97.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="117.9" x2="49.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="95.9" y1="113.8" x2="154.5" y2="155.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="160.2" y1="179.9" x2="137.0" y2="212.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="179.9" x2="203.0" y2="212.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="267.8" y1="55.9" x2="291.0" y2="88.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="311.8" y1="117.9" x2="335.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="166" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="38" y="171" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">1</text><text x="38" y="198" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">mínimo</text><circle cx="82" cy="104" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="109" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="126" cy="228" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="233" text-anchor="middle" font-size="15" fill="currentColor">4</text><circle cx="170" cy="166" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="171" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="214" cy="228" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="233" text-anchor="middle" font-size="15" fill="currentColor">7</text><circle cx="258" cy="42" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="47" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="302" cy="104" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="302" y="109" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="346" cy="166" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="346" y="171" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">14</text><text x="346" y="198" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">máximo</text></svg></div>
+
+<pre><code>int minimo() const {
+    if (raiz == nullptr) throw out_of_range("minimo: el árbol está vacío");   <span class="c">// lección 4.4</span>
+    NodoArbol* actual = raiz;
+    while (actual-&gt;izq != nullptr) actual = actual-&gt;izq;     <span class="c">// parar EN el último</span>
+    return actual-&gt;dato;
+}
+<span class="c">// maximo(): igual, con der.</span></code></pre>
+
+<p>Fíjate en la condición: <code>actual-&gt;izq != nullptr</code> se detiene <em>en</em> el último
+nodo, no después. Y con el árbol vacío no hay ningún valor sensato que devolver: se lanza una
+excepción, como hacía <code>pop()</code> en la Pila de la lección 4.4.</p>
+
+<h2>6. Inorden = ordenado</h2>
+
+<p>El inorden visita izquierda, raíz, derecha. Por la regla del árbol, todo lo de la izquierda es
+menor y todo lo de la derecha es mayor; y eso vale en cada subárbol. Resultado: <strong>el inorden
+de un árbol de búsqueda sale siempre ordenado de menor a mayor</strong>. Con el árbol de arriba:
+<code>1 3 4 6 7 8 10 14</code>.</p>
+
+<p>Eso da un método de ordenar «gratis»: mete los datos en el árbol y sácalos en inorden.</p>
+
+<h2>7. Eliminar: los tres casos</h2>
+
+<p>Es la operación difícil (<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/binary-search-trees/">Stanford CS106B la llama «hard function»</a>).
+Primero se busca el nodo bajando igual que al insertar. Al encontrarlo, depende de cuántos hijos tenga.</p>
+
+<h3>Caso 1: es una hoja</h3>
+<p>Se libera y su padre pasa a apuntar a <code>nullptr</code>.</p>
+<div class="diagrama"><svg viewBox="0 0 801 281" width="801" height="281" role="img" aria-label="Eliminar la hoja 7: se libera y el der de 6 pasa a nullptr." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="192" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Antes</text><line x1="242.0" y1="57.6" x2="99.9" y2="107.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="127.9" x2="49.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="95.9" y1="123.8" x2="154.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="160.2" y1="189.9" x2="137.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="189.9" x2="203.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="267.8" y1="65.9" x2="291.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="311.8" y1="127.9" x2="335.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="82" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="119" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="126" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="243" text-anchor="middle" font-size="15" fill="currentColor">4</text><circle cx="170" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="214" cy="238" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="214" y="243" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">7</text><circle cx="258" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="302" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="302" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="346" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="346" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text><line x1="382" y1="66" x2="463" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="422" y="58" text-anchor="middle" font-size="12" style="fill:var(--suave)">eliminar(7)</text><text x="631" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Después</text><line x1="659.6" y1="59.2" x2="560.2" y2="105.9" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="533.2" y1="127.9" x2="510.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="556.9" y1="123.8" x2="615.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="621.2" y1="189.9" x2="598.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="684.8" y1="65.9" x2="708.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="728.8" y1="127.9" x2="752.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="499" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="499" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="543" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="543" y="119" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="587" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="587" y="243" text-anchor="middle" font-size="15" fill="currentColor">4</text><circle cx="631" cy="176" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="631" y="181" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">6</text><circle cx="675" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="675" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="719" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="719" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="763" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="763" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text></svg></div>
+
+<h3>Caso 2: tiene un solo hijo</h3>
+<p>El hijo <strong>sube</strong> a ocupar su sitio: el padre pasa a apuntar al nieto. Todo lo que
+colgaba del hijo viene con él.</p>
+<div class="diagrama"><svg viewBox="0 0 808 281" width="808" height="281" role="img" aria-label="Eliminar 10, que solo tiene un hijo (14): el 14 sube a su sitio; el der de 8 ahora apunta a 14." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="192" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Antes</text><line x1="242.0" y1="57.6" x2="99.9" y2="107.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="127.9" x2="49.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="95.9" y1="123.8" x2="154.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="160.2" y1="189.9" x2="137.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="189.9" x2="203.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="267.8" y1="65.9" x2="291.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="311.8" y1="127.9" x2="335.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="82" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="119" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="126" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="243" text-anchor="middle" font-size="15" fill="currentColor">4</text><circle cx="170" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="214" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="243" text-anchor="middle" font-size="15" fill="currentColor">7</text><circle cx="258" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="302" cy="114" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="302" y="119" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">10</text><circle cx="346" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="346" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text><line x1="382" y1="66" x2="470" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="426" y="58" text-anchor="middle" font-size="12" style="fill:var(--suave)">eliminar(10)</text><text x="638" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Después</text><line x1="710.0" y1="57.6" x2="567.9" y2="107.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="540.2" y1="127.9" x2="517.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="563.9" y1="123.8" x2="622.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="628.2" y1="189.9" x2="605.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="647.8" y1="189.9" x2="671.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="735.8" y1="65.9" x2="759.0" y2="98.5" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><circle cx="506" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="506" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="550" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="550" y="119" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="594" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="594" y="243" text-anchor="middle" font-size="15" fill="currentColor">4</text><circle cx="638" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="638" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="682" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="682" y="243" text-anchor="middle" font-size="15" fill="currentColor">7</text><circle cx="726" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="726" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="770" cy="114" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="770" y="119" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">14</text></svg></div>
+
+<h3>Caso 3: tiene dos hijos</h3>
+<p>Aquí no se puede «subir» a un hijo: ¿cuál? ¿Y qué hacemos con el otro? El truco es buscar un
+<strong>sustituto</strong> que mantenga la regla: el <strong>sucesor inorden</strong>, que es el
+<strong>mínimo del subárbol derecho</strong> (el siguiente en orden). Se copia su dato en el nodo, y
+luego se elimina el sucesor original, que es fácil: nunca tiene hijo izquierdo (si lo tuviera, ese
+sería el mínimo), así que es el caso 1 o el 2.</p>
+<div class="diagrama"><svg viewBox="0 0 1232 281" width="1232" height="281" role="img" aria-label="Eliminar 3, que tiene dos hijos: su sucesor inorden es 4, el mínimo del subárbol derecho. Se copia 4 en el nodo del 3 y luego se elimina el 4 original, que es una hoja." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="203" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">1. Buscar el sucesor</text><line x1="242.0" y1="57.6" x2="99.9" y2="107.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="127.9" x2="49.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="95.9" y1="123.8" x2="154.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="160.2" y1="189.9" x2="137.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="189.9" x2="203.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="267.8" y1="65.9" x2="291.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="311.8" y1="127.9" x2="335.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="82" cy="114" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="82" y="119" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">3</text><circle cx="126" cy="238" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="126" y="243" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">4</text><text x="146" y="242" font-size="12" style="fill:var(--acento)" font-weight="700">sucesor</text><circle cx="170" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="214" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="243" text-anchor="middle" font-size="15" fill="currentColor">7</text><circle cx="258" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="302" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="302" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="346" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="346" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text><line x1="404" y1="66" x2="448" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="649" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">2. Copiar su dato</text><line x1="688.0" y1="57.6" x2="545.9" y2="107.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="518.2" y1="127.9" x2="495.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="541.9" y1="123.8" x2="600.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="606.2" y1="189.9" x2="583.0" y2="222.5" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" opacity=".45"/><line x1="625.8" y1="189.9" x2="649.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="713.8" y1="65.9" x2="737.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="757.8" y1="127.9" x2="781.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="484" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="484" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="528" cy="114" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="528" y="119" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">4</text><circle cx="572" cy="238" r="17" fill="none" stroke="currentColor" stroke-dasharray="4 3" opacity=".45"/><text x="572" y="243" text-anchor="middle" font-size="15" fill="currentColor" opacity=".45">4</text><text x="592" y="242" font-size="12" style="fill:var(--mal)" font-weight="700">borrar</text><circle cx="616" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="616" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="660" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="660" y="243" text-anchor="middle" font-size="15" fill="currentColor">7</text><circle cx="704" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="704" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="748" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="748" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="792" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="792" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text><line x1="850" y1="66" x2="894" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="1062" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">3. Borrar el original</text><line x1="1090.6" y1="59.2" x2="991.2" y2="105.9" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="964.2" y1="127.9" x2="941.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="983.8" y1="127.9" x2="1007.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="1027.8" y1="189.9" x2="1051.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="1115.8" y1="65.9" x2="1139.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="1159.8" y1="127.9" x2="1183.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="930" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="930" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="974" cy="114" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="974" y="119" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">4</text><circle cx="1018" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1018" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="1062" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1062" y="243" text-anchor="middle" font-size="15" fill="currentColor">7</text><circle cx="1106" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1106" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="1150" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1150" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="1194" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1194" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text></svg></div>
+
+<p>El 4 sirve porque es mayor que todo lo de la izquierda (es mayor que 3) y menor que todo lo
+demás de la derecha (es el mínimo de ese lado).</p>
+
+<h3>El código</h3>
+<pre><code>NodoArbol* eliminarEn(NodoArbol* n, int valor) {
+    if (n == nullptr) return nullptr;
+    if (valor &lt; n-&gt;dato) { n-&gt;izq = eliminarEn(n-&gt;izq, valor); return n; }
+    if (valor &gt; n-&gt;dato) { n-&gt;der = eliminarEn(n-&gt;der, valor); return n; }
+
+    <span class="c">// Encontrado: n es el que se va.</span>
+    if (n-&gt;izq == nullptr) {                 <span class="c">// casos 1 y 2: hoja o solo hijo derecho</span>
+        NodoArbol* hijo = n-&gt;der;            <span class="c">// guardar ANTES del delete</span>
+        delete n;
+        return hijo;                         <span class="c">// el hijo (o nullptr) ocupa su sitio</span>
+    }
+    if (n-&gt;der == nullptr) {                 <span class="c">// caso 2: solo hijo izquierdo</span>
+        NodoArbol* hijo = n-&gt;izq;
+        delete n;
+        return hijo;
+    }
+    NodoArbol* sucesor = n-&gt;der;             <span class="c">// caso 3: dos hijos</span>
+    while (sucesor-&gt;izq != nullptr) sucesor = sucesor-&gt;izq;
+    n-&gt;dato = sucesor-&gt;dato;                         <span class="c">// copiar el dato</span>
+    n-&gt;der = eliminarEn(n-&gt;der, sucesor-&gt;dato);      <span class="c">// borrar el original</span>
+    return n;
+}
+
+bool eliminar(int valor) {
+    if (!buscar(valor)) return false;
+    raiz = eliminarEn(raiz, valor);          <span class="c">// la raíz puede cambiar</span>
+    return true;
+}</code></pre>
+
+<p>Mira el primer <code>if</code> del «encontrado»: cubre la hoja <em>y</em> el nodo con solo hijo
+derecho, porque en una hoja <code>n-&gt;der</code> ya es <code>nullptr</code>. Es el mismo patrón
+«devuelvo la nueva raíz del subárbol» de insertar.</p>
+
+<div class="ojo">
+<p><strong>Error típico: borrar un nodo con dos hijos «a lo bruto».</strong></p>
+<pre><code>delete n;
+return nullptr;      <span class="c">// ¿y sus dos subárboles?</span></code></pre>
+<p>El padre pasa a apuntar a <code>nullptr</code> y todos los nodos de debajo quedan sin nadie que
+los apunte: perdidos para el árbol y sin liberar (fuga de memoria). El otro clásico es copiar el dato
+del sucesor y <em>olvidar</em> borrar el original: el valor queda repetido.</p>
+</div>
+
+<h2>8. El problema: el árbol degenerado</h2>
+
+<p>Todas las operaciones bajan por un camino, así que cuestan <strong>O(altura)</strong>. Si el
+árbol está repartido, la altura es más o menos log₂(n): con 1000 nodos, unos 10 niveles. Pero
+mira qué pasa al insertar datos <strong>ya ordenados</strong>:</p>
+
+<div class="diagrama"><svg viewBox="0 0 252 361" width="252" height="361" role="img" aria-label="Insertar 1, 2, 3, 4, 5 en orden: cada uno queda a la derecha del anterior. Altura 5: es una lista." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="47.8" y1="55.9" x2="71.0" y2="88.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="117.9" x2="115.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="135.8" y1="179.9" x2="159.0" y2="212.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="241.9" x2="203.0" y2="274.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="42" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="47" text-anchor="middle" font-size="15" fill="currentColor">1</text><text x="38" y="19" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">raíz</text><circle cx="82" cy="104" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="109" text-anchor="middle" font-size="15" fill="currentColor">2</text><circle cx="126" cy="166" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="126" y="171" text-anchor="middle" font-size="15" fill="currentColor">3</text><circle cx="170" cy="228" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="233" text-anchor="middle" font-size="15" fill="currentColor">4</text><circle cx="214" cy="290" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="295" text-anchor="middle" font-size="15" fill="currentColor">5</text><text x="126" y="351" text-anchor="middle" font-size="12" style="fill:var(--suave)">insertar 1 2 3 4 5: altura 5</text></svg></div>
+
+<p>Cada valor es mayor que todos los anteriores, así que siempre va a la derecha. El árbol
+<strong>degenera en una lista</strong>: altura n, y buscar vuelve a ser O(n).</p>
+
+<table>
+<tr><th>Datos insertados</th><th>Forma</th><th>Altura (n = 1000)</th><th>Buscar</th></tr>
+<tr><td>en orden aleatorio</td><td>repartida (casi siempre)</td><td>pocas decenas</td><td>O(log n) en promedio</td></tr>
+<tr><td>ya ordenados</td><td>una cadena</td><td>1000</td><td>O(n)</td></tr>
+</table>
+
+<p>Y los datos ordenados son lo más normal del mundo (IDs, fechas, listas exportadas). La solución
+es que el árbol se reorganice solo al insertar: eso es la lección 5.3.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Tu <code>ArbolBusqueda a;</code> en <code>main</code> vive en la memoria automática (la
+<em>pila de llamadas</em> o <em>stack</em>) y es diminuto: solo guarda <code>raiz</code>
+(<code>sizeof(a)</code> da normalmente 8). Los nodos están en el <strong>montón</strong>, y el árbol es
+su <strong>dueño</strong>: por eso su destructor llama a <code>liberar</code> y por eso prohibimos copiarlo.
+Al eliminar con dos hijos <strong>no se mueve ningún nodo</strong>: cambia un número y se libera otra caja.
+Con direcciones inventadas:</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">a (marco de main)</div>raiz = 0x100<div class="dir">no cambia: el 8 sigue arriba</div></div>
+  <div class="caja"><div class="nombre">nodo 0x200</div>dato: 3 → 4<div class="dir">la misma caja, otro dato</div></div>
+  <div class="caja"><div class="nombre">nodo 0x500</div>dato: 4<div class="dir">esta es la del delete</div></div>
+</div>
+<p>Y la recursión cuesta memoria automática: <code>insertarEn</code> y <code>eliminarEn</code> apilan un
+marco por nivel. En el árbol degenerado, insertar 100 000 valores ordenados pide 100 000 marcos a la
+vez, y la pila de llamadas puede desbordarse. Un árbol balanceado lo deja en unos 17.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#estructuras">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+
+<table>
+<tr><th>Operación</th><th>Idea</th><th>Coste</th></tr>
+<tr><td>regla</td><td>izquierda menor, derecha mayor, en <em>todo</em> el subárbol</td><td>—</td></tr>
+<tr><td><code>buscar</code></td><td>comparar y bajar por un lado</td><td>O(altura)</td></tr>
+<tr><td><code>insertar</code></td><td>buscar el hueco <code>nullptr</code>; el ayudante devuelve la raíz</td><td>O(altura)</td></tr>
+<tr><td><code>minimo</code> / <code>maximo</code></td><td>todo a la izquierda / todo a la derecha; vacío lanza</td><td>O(altura)</td></tr>
+<tr><td><code>eliminar</code> hoja</td><td>el padre apunta a <code>nullptr</code></td><td>O(altura)</td></tr>
+<tr><td><code>eliminar</code> un hijo</td><td>el hijo sube a su sitio</td><td>O(altura)</td></tr>
+<tr><td><code>eliminar</code> dos hijos</td><td>copiar el sucesor (mínimo de la derecha) y borrarlo</td><td>O(altura)</td></tr>
+<tr><td>inorden</td><td>sale ordenado</td><td>O(n)</td></tr>
+<tr><td>altura</td><td>log₂(n) si está repartido; n si degenera</td><td>—</td></tr>
+</table>
+
+<p>El código completo y los errores típicos están en la
+<a href="../reference/arboles.html#busqueda">hoja de referencia de árboles</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>. Dibuja los árboles en un papel.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="1" data-explica="Da igual el orden de inserción: el inorden de un árbol de búsqueda siempre sale ordenado de menor a mayor.">
+<pre><code>ArbolBusqueda a;
+for (int x : {5, 3, 8, 1, 4}) a.insertar(x);
+vector&lt;int&gt; v;
+a.inorden(v);</code></pre>
+<p>¿Qué queda en <code>v</code>?</p>
+<div class="opciones"><button>5 3 8 1 4</button><button>1 3 4 5 8</button><button>5 3 1 4 8</button><button>1 4 3 8 5</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="El 12 es mayor que 10 (baja a la derecha, al 15) y menor que 15 (baja a la izquierda). Ese hueco está libre: queda como hijo izquierdo del 15.">
+<pre><code>for (int x : {10, 5, 15, 12}) a.insertar(x);   <span class="c">// a empieza vacío</span></code></pre>
+<p>¿Dónde queda el 12?</p>
+<div class="opciones"><button>Hijo derecho del 10</button><button>Hijo izquierdo del 5</button><button>Hijo derecho del 5</button><button>Hijo izquierdo del 15</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="El 50 tiene dos hijos. Su sucesor inorden es el mínimo del subárbol derecho (70, 60, 80): el 60. Se copia el 60 en la raíz y se borra el 60 original.">
+<pre><code>for (int x : {50, 30, 70, 20, 40, 60, 80}) a.insertar(x);   <span class="c">// a empieza vacío</span>
+a.eliminar(50);</code></pre>
+<p>¿Cuál es la raíz ahora?</p>
+<div class="opciones"><button>La raíz es 60</button><button>La raíz es 40</button><button>La raíz es 70</button><button>La raíz es 30</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Con el árbol vacío, <code>actual</code> vale <code>nullptr</code> y <code>actual-&gt;izq</code> lo desreferencia. Hay que comprobar <code>raiz</code> antes y lanzar <code>out_of_range</code>.">
+<pre><code>int minimo() const {
+    NodoArbol* actual = raiz;
+    while (actual-&gt;izq != nullptr) actual = actual-&gt;izq;
+    return actual-&gt;dato;
+}</code></pre>
+<p>¿Qué falla aquí?</p>
+<div class="opciones"><button>Devuelve el máximo por error</button><button>Recorre el árbol entero siempre</button><button>Se cae si está vacío</button><button>Nada, funciona en todo caso</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Cada valor es mayor que todos los anteriores, así que siempre va a la derecha: una cadena de 5 nodos, altura 5. Es el árbol degenerado.">
+<pre><code>for (int x : {1, 2, 3, 4, 5}) a.insertar(x);   <span class="c">// a empieza vacío</span></code></pre>
+<p>¿Qué devuelve <code>a.altura()</code>?</p>
+<div class="opciones"><button>Altura 3</button><button>Altura 5</button><button>Altura 2</button><button>Altura 4</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="El padre del 3 pasa a apuntar a <code>nullptr</code>: los nodos 1, 6, 4 y 7 quedan sin nadie que los apunte. Desaparecen del árbol y nunca se liberan (fuga de memoria).">
+<p>En el árbol de la lección (8, 3, 10, 1, 6, 14, 4, 7), el caso «dos hijos» de
+<code>eliminarEn</code> está escrito así:</p>
+<pre><code>delete n;
+return nullptr;</code></pre>
+<p>¿Qué pasa con <code>eliminar(3)</code>?</p>
+<div class="opciones"><button>Elimina solo el nodo 3</button><button>Se cae por doble liberación</button><button>Deja el valor 4 repetido</button><button>Pierde los hijos del 3</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 5.2 · Un árbol de búsqueda completo</h2>
+
+<p>Abre <a href="ejercicios/02-arbol-binario-de-busqueda.cpp"><code>ejercicios/02-arbol-binario-de-busqueda.cpp</code></a>.
+La clase <code>ArbolBusqueda</code> ya trae <code>altura</code>, <code>tamano</code>, <code>inorden</code> y los
+envoltorios <code>insertar</code>/<code>eliminar</code>. Completa, en este orden:</p>
+
+<ol>
+<li><code>insertarEn</code> — la de la sección 4.</li>
+<li><code>buscar</code> — el <code>while</code> de la sección 3.</li>
+<li><code>minimo</code> y <code>maximo</code> — con la excepción si está vacío.</li>
+<li><code>eliminarEn</code> — los tres casos de la sección 7. Es el plato fuerte.</li>
+<li><code>liberar</code> — el de la lección 5.1; lo usa el destructor.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 02-arbol-binario-de-busqueda.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Terminaste cuando todo sale en ✓, incluidas «cada eliminar liberó exactamente un nodo» y
+«no quedan nodos sin liberar». Unos 20 minutos (eliminar se lleva la mitad).</p>
+
+<div class="nota">
+<p><strong>Si te atascas</strong> en <code>eliminarEn</code>: dibuja el árbol de las pruebas
+(8, 3, 10, 1, 6, 14, 4, 7) y haz a mano <code>eliminar(7)</code>, <code>eliminar(10)</code> y
+<code>eliminar(3)</code>, en ese orden, preguntándote en cada caso «¿qué devuelvo a mi padre?». En el
+caso de dos hijos, recuerda: no se borra <em>este</em> nodo, se borra el del sucesor.
+La solución está en <a href="soluciones/02-arbol-binario-de-busqueda.cpp"><code>soluciones/02-arbol-binario-de-busqueda.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/binary-search-trees/">Stanford CS106B — Binary Search Trees</a>
+(en inglés). Lee desde «Binary Search Tree Definition» hasta «Have we created the perfect set?»: es esta
+lección con otros dibujos, incluido el <code>remove</code> con sucesor. Unos 20 minutos.</p>
+<p>Para jugar: la <a href="https://www.cs.usfca.edu/~galles/visualization/BST.html">visualización de BST de
+David Galles (Universidad de San Francisco)</a>. Inserta 8, 3, 10, 1, 6, 14, 4, 7 y luego borra el 3: verás
+moverse el sucesor paso a paso. Después inserta 1, 2, 3, 4, 5 y mira la cadena.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+un caso de eliminar que no te cuadra, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="01-arboles-binarios.html">← Lección anterior</a> ·
+<a href="03-arboles-balanceados.html">Siguiente: Lección 5.3 · Árboles balanceados (AVL) →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

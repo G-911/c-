@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Árboles</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+<marker id="fla" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--acento)"/></marker>
+<marker id="flx" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--suave)"/></marker>
+</defs>
+</svg>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Árboles</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones 5.1, 5.2 y 5.3.</p>
+
+<div class="diagrama"><svg viewBox="0 0 296 237" width="296" height="237" role="img" aria-label="Árbol con raíz 8; hijos 3 y 10; 3 tiene hijos 1 y 6; 10 tiene hijo derecho 14. Las hojas son 1, 6 y 14. En color, el subárbol izquierdo de 8." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><line x1="156.1" y1="51.8" x2="97.5" y2="93.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="117.9" x2="49.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="117.9" x2="115.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="55.9" x2="203.0" y2="88.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="223.8" y1="117.9" x2="247.0" y2="150.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="166" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="38" y="171" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">1</text><text x="38" y="198" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">hoja</text><circle cx="82" cy="104" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="82" y="109" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">3</text><circle cx="126" cy="166" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="126" y="171" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">6</text><text x="126" y="198" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">hoja</text><circle cx="170" cy="42" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="47" text-anchor="middle" font-size="15" fill="currentColor">8</text><text x="170" y="19" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">raíz</text><circle cx="214" cy="104" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="109" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="258" cy="166" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="171" text-anchor="middle" font-size="15" fill="currentColor">14</text><text x="258" y="198" text-anchor="middle" font-size="12" font-weight="700" style="fill:var(--acento)">hoja</text><text x="148" y="227" text-anchor="middle" font-size="12" style="fill:var(--suave)">en color: el subárbol izquierdo de 8</text></svg></div>
+
+<h2 id="binarios">Lección 5.1 · Árboles binarios</h2>
+
+<h3>El nodo</h3>
+<pre><code>struct NodoArbol {
+    int dato;
+    NodoArbol* izq;
+    NodoArbol* der;
+    NodoArbol(int d) : dato(d), izq(nullptr), der(nullptr) {}
+};</code></pre>
+
+<h3>Vocabulario</h3>
+<table>
+<tr><th>Palabra</th><th>Significa</th></tr>
+<tr><td>raíz</td><td>el nodo de arriba; nadie lo apunta</td></tr>
+<tr><td>hoja</td><td>nodo sin hijos</td></tr>
+<tr><td>subárbol</td><td>un nodo con todo lo que cuelga de él</td></tr>
+<tr><td>altura</td><td>nodos del camino más largo raíz → hoja. Vacío 0, un nodo 1 (algunos libros cuentan flechas: uno menos)</td></tr>
+</table>
+
+<h3>Los patrones (todos recursivos)</h3>
+<table>
+<tr><th>Para</th><th>Código</th></tr>
+<tr><td>preorden (raíz, izq, der)</td><td><code>if (!n) return;</code><br><code>v.push_back(n-&gt;dato);</code><br><code>preorden(n-&gt;izq, v); preorden(n-&gt;der, v);</code></td></tr>
+<tr><td>inorden (izq, raíz, der)</td><td><code>if (!n) return;</code><br><code>inorden(n-&gt;izq, v);</code><br><code>v.push_back(n-&gt;dato);</code><br><code>inorden(n-&gt;der, v);</code></td></tr>
+<tr><td>postorden (izq, der, raíz)</td><td><code>if (!n) return;</code><br><code>postorden(n-&gt;izq, v); postorden(n-&gt;der, v);</code><br><code>v.push_back(n-&gt;dato);</code></td></tr>
+<tr><td>contar nodos</td><td><code>if (!n) return 0;</code><br><code>return 1 + contar(n-&gt;izq) + contar(n-&gt;der);</code></td></tr>
+<tr><td>altura</td><td><code>if (!n) return 0;</code><br><code>return 1 + max(altura(n-&gt;izq), altura(n-&gt;der));</code></td></tr>
+<tr><td>liberar (postorden)</td><td><code>if (!n) return;</code><br><code>liberar(n-&gt;izq); liberar(n-&gt;der);</code><br><code>delete n;</code></td></tr>
+</table>
+
+<p>Con el árbol del dibujo: preorden 8 3 1 6 10 14 · inorden 1 3 6 8 10 14 · postorden 1 6 3 14 10 8.</p>
+
+<h3>Errores típicos</h3>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>sin <code>if (n == nullptr)</code></td><td>desreferencia <code>nullptr</code> bajo una hoja: se cae</td><td>el caso base siempre en la primera línea</td></tr>
+<tr><td><code>delete n;</code> antes de liberar los hijos</td><td>lee <code>n-&gt;izq</code> de un nodo liberado (apuntador colgante)</td><td>liberar en postorden</td></tr>
+<tr><td>mezclar las dos definiciones de altura</td><td>respuestas con uno de diferencia</td><td>aquí: vacío 0, hoja 1</td></tr>
+</table>
+
+<h2 id="busqueda">Lección 5.2 · Árbol binario de búsqueda</h2>
+
+<p><strong>Regla:</strong> en cada nodo, todo su subárbol izquierdo es menor y todo su subárbol
+derecho es mayor. Consecuencia: <strong>el inorden sale ordenado</strong>.</p>
+
+<h3>buscar e insertar</h3>
+<pre><code>bool buscar(int valor) const {
+    NodoArbol* actual = raiz;
+    while (actual != nullptr) {
+        if (valor == actual-&gt;dato) return true;
+        actual = (valor &lt; actual-&gt;dato) ? actual-&gt;izq : actual-&gt;der;
+    }
+    return false;
+}
+
+NodoArbol* insertarEn(NodoArbol* n, int valor) {         <span class="c">// devuelve la raíz del subárbol</span>
+    if (n == nullptr) return new NodoArbol(valor);
+    if (valor &lt; n-&gt;dato) n-&gt;izq = insertarEn(n-&gt;izq, valor);
+    else                 n-&gt;der = insertarEn(n-&gt;der, valor);
+    return n;
+}
+<span class="c">// insertar(v):  if (buscar(v)) return false;  raiz = insertarEn(raiz, v);  return true;</span></code></pre>
+
+<h3>mínimo y máximo</h3>
+<pre><code>if (raiz == nullptr) throw out_of_range("árbol vacío");
+NodoArbol* actual = raiz;
+while (actual-&gt;izq != nullptr) actual = actual-&gt;izq;     <span class="c">// máximo: con der</span>
+return actual-&gt;dato;</code></pre>
+
+<h3>eliminar: los tres casos</h3>
+<table>
+<tr><th>El nodo es…</th><th>Qué se hace</th></tr>
+<tr><td>hoja</td><td><code>delete</code>; el padre apunta a <code>nullptr</code></td></tr>
+<tr><td>con un hijo</td><td>el hijo sube a su sitio; <code>delete</code> del nodo</td></tr>
+<tr><td>con dos hijos</td><td>copiar el dato del <strong>sucesor inorden</strong> (mínimo del subárbol derecho) y eliminar ese sucesor del subárbol derecho</td></tr>
+</table>
+<div class="diagrama"><svg viewBox="0 0 1232 281" width="1232" height="281" role="img" aria-label="Eliminar 3, que tiene dos hijos: su sucesor inorden es 4, el mínimo del subárbol derecho. Se copia 4 en el nodo del 3 y luego se elimina el 4 original, que es una hoja." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="203" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">1. Buscar el sucesor</text><line x1="242.0" y1="57.6" x2="99.9" y2="107.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="127.9" x2="49.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="95.9" y1="123.8" x2="154.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="160.2" y1="189.9" x2="137.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="189.9" x2="203.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="267.8" y1="65.9" x2="291.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="311.8" y1="127.9" x2="335.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="38" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="38" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="82" cy="114" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="82" y="119" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">3</text><circle cx="126" cy="238" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="126" y="243" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">4</text><text x="146" y="242" font-size="12" style="fill:var(--acento)" font-weight="700">sucesor</text><circle cx="170" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="214" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="214" y="243" text-anchor="middle" font-size="15" fill="currentColor">7</text><circle cx="258" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="302" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="302" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="346" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="346" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text><line x1="404" y1="66" x2="448" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="649" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">2. Copiar su dato</text><line x1="688.0" y1="57.6" x2="545.9" y2="107.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="518.2" y1="127.9" x2="495.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="541.9" y1="123.8" x2="600.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="606.2" y1="189.9" x2="583.0" y2="222.5" stroke="currentColor" stroke-width="1.4" stroke-dasharray="5 4" opacity=".45"/><line x1="625.8" y1="189.9" x2="649.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="713.8" y1="65.9" x2="737.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="757.8" y1="127.9" x2="781.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="484" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="484" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="528" cy="114" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="528" y="119" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">4</text><circle cx="572" cy="238" r="17" fill="none" stroke="currentColor" stroke-dasharray="4 3" opacity=".45"/><text x="572" y="243" text-anchor="middle" font-size="15" fill="currentColor" opacity=".45">4</text><text x="592" y="242" font-size="12" style="fill:var(--mal)" font-weight="700">borrar</text><circle cx="616" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="616" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="660" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="660" y="243" text-anchor="middle" font-size="15" fill="currentColor">7</text><circle cx="704" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="704" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="748" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="748" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="792" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="792" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text><line x1="850" y1="66" x2="894" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="1062" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">3. Borrar el original</text><line x1="1090.6" y1="59.2" x2="991.2" y2="105.9" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="964.2" y1="127.9" x2="941.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="983.8" y1="127.9" x2="1007.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="1027.8" y1="189.9" x2="1051.0" y2="222.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="1115.8" y1="65.9" x2="1139.0" y2="98.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="1159.8" y1="127.9" x2="1183.0" y2="160.5" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><circle cx="930" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="930" y="181" text-anchor="middle" font-size="15" fill="currentColor">1</text><circle cx="974" cy="114" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="974" y="119" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">4</text><circle cx="1018" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1018" y="181" text-anchor="middle" font-size="15" fill="currentColor">6</text><circle cx="1062" cy="238" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1062" y="243" text-anchor="middle" font-size="15" fill="currentColor">7</text><circle cx="1106" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1106" y="57" text-anchor="middle" font-size="15" fill="currentColor">8</text><circle cx="1150" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1150" y="119" text-anchor="middle" font-size="15" fill="currentColor">10</text><circle cx="1194" cy="176" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="1194" y="181" text-anchor="middle" font-size="15" fill="currentColor">14</text></svg></div>
+<pre><code>NodoArbol* eliminarEn(NodoArbol* n, int valor) {
+    if (n == nullptr) return nullptr;
+    if (valor &lt; n-&gt;dato) { n-&gt;izq = eliminarEn(n-&gt;izq, valor); return n; }
+    if (valor &gt; n-&gt;dato) { n-&gt;der = eliminarEn(n-&gt;der, valor); return n; }
+    if (n-&gt;izq == nullptr) { NodoArbol* h = n-&gt;der; delete n; return h; }   <span class="c">// hoja o solo der</span>
+    if (n-&gt;der == nullptr) { NodoArbol* h = n-&gt;izq; delete n; return h; }   <span class="c">// solo izq</span>
+    NodoArbol* suc = n-&gt;der;                                                 <span class="c">// dos hijos</span>
+    while (suc-&gt;izq != nullptr) suc = suc-&gt;izq;
+    n-&gt;dato = suc-&gt;dato;
+    n-&gt;der = eliminarEn(n-&gt;der, suc-&gt;dato);
+    return n;
+}</code></pre>
+
+<h3>Costes</h3>
+<table>
+<tr><th>Operación</th><th>Árbol repartido</th><th>Árbol degenerado (datos ordenados)</th></tr>
+<tr><td>buscar / insertar / eliminar / mínimo</td><td>O(log n)</td><td>O(n)</td></tr>
+<tr><td>recorrer (inorden…)</td><td>O(n)</td><td>O(n)</td></tr>
+</table>
+
+<h3>Errores típicos</h3>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>comprobar la regla solo con el padre</td><td>un valor queda en el lado equivocado de un abuelo y <code>buscar</code> no lo encuentra</td><td>la regla es para todo el subárbol</td></tr>
+<tr><td><code>insertarEn(n-&gt;izq, v);</code> sin asignar</td><td>el nodo nuevo no se engancha: se pierde y se fuga</td><td>asignar: <code>n-&gt;izq = ...</code></td></tr>
+<tr><td><code>minimo()</code> sin comprobar vacío</td><td>desreferencia <code>nullptr</code></td><td>lanzar <code>out_of_range</code> primero</td></tr>
+<tr><td>dos hijos: <code>delete n; return nullptr;</code></td><td>se pierden los dos subárboles (fuga)</td><td>usar el sucesor</td></tr>
+<tr><td>copiar el sucesor y no borrarlo</td><td>valor repetido</td><td>eliminar el sucesor del subárbol derecho</td></tr>
+<tr><td>copiar el árbol con el constructor por defecto</td><td>dos dueños de los mismos nodos: doble liberación</td><td><code>= delete</code> o copia profunda</td></tr>
+</table>
+
+<h2 id="avl">Lección 5.3 · Árboles AVL</h2>
+
+<p><strong>Regla:</strong> en cada nodo, <code>factor = altura(izq) − altura(der)</code> vale −1, 0 o +1.
+Altura ≤ ~1,44·log₂(n): todo es O(log n) siempre.</p>
+
+<h3>Rotación a la derecha (caso izquierda-izquierda)</h3>
+<div class="diagrama"><svg viewBox="0 0 609 219" width="609" height="219" role="img" aria-label="Rotación a la derecha en general: x sube; y baja a la derecha de x; el subárbol T2, que estaba a la derecha de x, pasa a la izquierda de y. T1 y T3 no cambian de padre." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="126" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Antes</text><line x1="156.1" y1="61.8" x2="97.5" y2="103.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="127.9" x2="39.7" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="91.8" y1="127.9" x2="124.3" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="65.9" x2="212.3" y2="111.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><path d="M38,159 L19,196 L57,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="38" y="190" text-anchor="middle" font-size="12" fill="currentColor">T1</text><circle cx="82" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="119" text-anchor="middle" font-size="15" fill="currentColor">x</text><path d="M126,159 L107,196 L145,196 Z" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="126" y="190" text-anchor="middle" font-size="12" style="fill:var(--acento)">T2</text><circle cx="170" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="57" text-anchor="middle" font-size="15" fill="currentColor">y</text><path d="M214,97 L195,134 L233,134 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="214" y="128" text-anchor="middle" font-size="12" fill="currentColor">T3</text><line x1="250" y1="66" x2="359" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="304" y="58" text-anchor="middle" font-size="12" style="fill:var(--suave)">rotarDerecha(y)</text><text x="483" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Después</text><line x1="429.2" y1="65.9" x2="396.7" y2="111.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="452.9" y1="61.8" x2="511.5" y2="103.1" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="517.2" y1="127.9" x2="484.7" y2="173.6" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="536.8" y1="127.9" x2="569.3" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><path d="M395,97 L376,134 L414,134 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="395" y="128" text-anchor="middle" font-size="12" fill="currentColor">T1</text><circle cx="439" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="439" y="57" text-anchor="middle" font-size="15" fill="currentColor">x</text><path d="M483,159 L464,196 L502,196 Z" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="483" y="190" text-anchor="middle" font-size="12" style="fill:var(--acento)">T2</text><circle cx="527" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="527" y="119" text-anchor="middle" font-size="15" fill="currentColor">y</text><path d="M571,159 L552,196 L590,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="571" y="190" text-anchor="middle" font-size="12" fill="currentColor">T3</text></svg></div>
+<pre><code>NodoAVL* rotarDerecha(NodoAVL* y) {
+    NodoAVL* x = y-&gt;izq;
+    NodoAVL* t2 = x-&gt;der;
+    x-&gt;der = y;
+    y-&gt;izq = t2;
+    actualizarAltura(y);       <span class="c">// primero el que bajó</span>
+    actualizarAltura(x);
+    return x;
+}</code></pre>
+
+<h3>Rotación a la izquierda (caso derecha-derecha)</h3>
+<div class="diagrama"><svg viewBox="0 0 623 219" width="623" height="219" role="img" aria-label="Rotación a la izquierda en general: y sube; x baja a la izquierda de y; T2 pasa de la izquierda de y a la derecha de x." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="126" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Antes</text><line x1="72.2" y1="65.9" x2="39.7" y2="111.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="95.9" y1="61.8" x2="154.5" y2="103.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="160.2" y1="127.9" x2="127.7" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="127.9" x2="212.3" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><path d="M38,97 L19,134 L57,134 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="38" y="128" text-anchor="middle" font-size="12" fill="currentColor">T1</text><circle cx="82" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="57" text-anchor="middle" font-size="15" fill="currentColor">x</text><path d="M126,159 L107,196 L145,196 Z" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="126" y="190" text-anchor="middle" font-size="12" style="fill:var(--acento)">T2</text><circle cx="170" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="119" text-anchor="middle" font-size="15" fill="currentColor">y</text><path d="M214,159 L195,196 L233,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="214" y="190" text-anchor="middle" font-size="12" fill="currentColor">T3</text><line x1="250" y1="66" x2="373" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="312" y="58" text-anchor="middle" font-size="12" style="fill:var(--suave)">rotarIzquierda(x)</text><text x="497" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Después</text><line x1="527.1" y1="61.8" x2="468.5" y2="103.1" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="443.2" y1="127.9" x2="410.7" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="462.8" y1="127.9" x2="495.3" y2="173.6" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="550.8" y1="65.9" x2="583.3" y2="111.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><path d="M409,159 L390,196 L428,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="409" y="190" text-anchor="middle" font-size="12" fill="currentColor">T1</text><circle cx="453" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="453" y="119" text-anchor="middle" font-size="15" fill="currentColor">x</text><path d="M497,159 L478,196 L516,196 Z" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="497" y="190" text-anchor="middle" font-size="12" style="fill:var(--acento)">T2</text><circle cx="541" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="541" y="57" text-anchor="middle" font-size="15" fill="currentColor">y</text><path d="M585,97 L566,134 L604,134 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="585" y="128" text-anchor="middle" font-size="12" fill="currentColor">T3</text></svg></div>
+<pre><code>NodoAVL* rotarIzquierda(NodoAVL* x) {
+    NodoAVL* y = x-&gt;der;
+    NodoAVL* t2 = y-&gt;izq;
+    y-&gt;izq = x;
+    x-&gt;der = t2;
+    actualizarAltura(x);
+    actualizarAltura(y);
+    return y;
+}</code></pre>
+
+<h3>Rotación doble izquierda-derecha</h3>
+<p><code>n-&gt;izq = rotarIzquierda(n-&gt;izq);</code> y luego <code>return rotarDerecha(n);</code></p>
+<div class="diagrama"><svg viewBox="0 0 778 281" width="778" height="281" role="img" aria-label="Doble rotación izquierda-derecha en general: el nieto y sube dos niveles; x queda a su izquierda con T1 y T2; z a su derecha con T3 y T4." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="170" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Antes</text><line x1="242.0" y1="57.6" x2="99.9" y2="107.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="72.2" y1="127.9" x2="39.7" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="95.9" y1="123.8" x2="154.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="160.2" y1="189.9" x2="127.7" y2="235.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="189.9" x2="212.3" y2="235.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="267.8" y1="65.9" x2="300.3" y2="111.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><path d="M38,159 L19,196 L57,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="38" y="190" text-anchor="middle" font-size="12" fill="currentColor">T1</text><circle cx="82" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="119" text-anchor="middle" font-size="15" fill="currentColor">x</text><path d="M126,221 L107,258 L145,258 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="126" y="252" text-anchor="middle" font-size="12" fill="currentColor">T2</text><circle cx="170" cy="176" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="170" y="181" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">y</text><path d="M214,221 L195,258 L233,258 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="214" y="252" text-anchor="middle" font-size="12" fill="currentColor">T3</text><circle cx="258" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="57" text-anchor="middle" font-size="15" fill="currentColor">z</text><path d="M302,97 L283,134 L321,134 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="302" y="128" text-anchor="middle" font-size="12" fill="currentColor">T4</text><line x1="338" y1="66" x2="440" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="389" y="58" text-anchor="middle" font-size="12" style="fill:var(--suave)">dos rotaciones</text><text x="608" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Después</text><line x1="594.1" y1="61.8" x2="535.5" y2="103.1" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="510.2" y1="127.9" x2="477.7" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="529.8" y1="127.9" x2="562.3" y2="173.6" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="621.9" y1="61.8" x2="680.5" y2="103.1" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="686.2" y1="127.9" x2="653.7" y2="173.6" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="705.8" y1="127.9" x2="738.3" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><path d="M476,159 L457,196 L495,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="476" y="190" text-anchor="middle" font-size="12" fill="currentColor">T1</text><circle cx="520" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="520" y="119" text-anchor="middle" font-size="15" fill="currentColor">x</text><path d="M564,159 L545,196 L583,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="564" y="190" text-anchor="middle" font-size="12" fill="currentColor">T2</text><circle cx="608" cy="52" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="608" y="57" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">y</text><path d="M652,159 L633,196 L671,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="652" y="190" text-anchor="middle" font-size="12" fill="currentColor">T3</text><circle cx="696" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="696" y="119" text-anchor="middle" font-size="15" fill="currentColor">z</text><path d="M740,159 L721,196 L759,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="740" y="190" text-anchor="middle" font-size="12" fill="currentColor">T4</text></svg></div>
+
+<h3>Rotación doble derecha-izquierda</h3>
+<p><code>n-&gt;der = rotarDerecha(n-&gt;der);</code> y luego <code>return rotarIzquierda(n);</code></p>
+<div class="diagrama"><svg viewBox="0 0 778 281" width="778" height="281" role="img" aria-label="Doble rotación derecha-izquierda en general: el nieto y sube dos niveles; z queda a su izquierda con T1 y T2; x a su derecha con T3 y T4." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="170" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Antes</text><line x1="72.2" y1="65.9" x2="39.7" y2="111.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="98.0" y1="57.6" x2="240.1" y2="107.7" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="244.1" y1="123.8" x2="185.5" y2="165.1" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="160.2" y1="189.9" x2="127.7" y2="235.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="179.8" y1="189.9" x2="212.3" y2="235.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="267.8" y1="127.9" x2="300.3" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><path d="M38,97 L19,134 L57,134 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="38" y="128" text-anchor="middle" font-size="12" fill="currentColor">T1</text><circle cx="82" cy="52" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="82" y="57" text-anchor="middle" font-size="15" fill="currentColor">z</text><path d="M126,221 L107,258 L145,258 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="126" y="252" text-anchor="middle" font-size="12" fill="currentColor">T2</text><circle cx="170" cy="176" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="170" y="181" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">y</text><path d="M214,221 L195,258 L233,258 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="214" y="252" text-anchor="middle" font-size="12" fill="currentColor">T3</text><circle cx="258" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="258" y="119" text-anchor="middle" font-size="15" fill="currentColor">x</text><path d="M302,159 L283,196 L321,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="302" y="190" text-anchor="middle" font-size="12" fill="currentColor">T4</text><line x1="338" y1="66" x2="440" y2="66" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><text x="389" y="58" text-anchor="middle" font-size="12" style="fill:var(--suave)">dos rotaciones</text><text x="608" y="16" text-anchor="middle" font-size="13" font-weight="700" fill="currentColor">Después</text><line x1="594.1" y1="61.8" x2="535.5" y2="103.1" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="510.2" y1="127.9" x2="477.7" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><line x1="529.8" y1="127.9" x2="562.3" y2="173.6" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="621.9" y1="61.8" x2="680.5" y2="103.1" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="686.2" y1="127.9" x2="653.7" y2="173.6" style="stroke:var(--acento)" stroke-width="2.6" marker-end="url(#fla)"/><line x1="705.8" y1="127.9" x2="738.3" y2="173.6" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><path d="M476,159 L457,196 L495,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="476" y="190" text-anchor="middle" font-size="12" fill="currentColor">T1</text><circle cx="520" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="520" y="119" text-anchor="middle" font-size="15" fill="currentColor">z</text><path d="M564,159 L545,196 L583,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="564" y="190" text-anchor="middle" font-size="12" fill="currentColor">T2</text><circle cx="608" cy="52" r="17" fill="none" style="stroke:var(--acento)" stroke-width="2.4"/><text x="608" y="57" text-anchor="middle" font-size="15" font-weight="700" style="fill:var(--acento)">y</text><path d="M652,159 L633,196 L671,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="652" y="190" text-anchor="middle" font-size="12" fill="currentColor">T3</text><circle cx="696" cy="114" r="17" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="696" y="119" text-anchor="middle" font-size="15" fill="currentColor">x</text><path d="M740,159 L721,196 L759,196 Z" fill="none" stroke="currentColor" stroke-width="1.4"/><text x="740" y="190" text-anchor="middle" font-size="12" fill="currentColor">T4</text></svg></div>
+
+<h3>Los cuatro casos</h3>
+<table>
+<tr><th>Caso</th><th>Nodo</th><th>Hijo de ese lado</th><th>Arreglo</th></tr>
+<tr><td>izquierda-izquierda</td><td>+2</td><td>+1 o 0</td><td>rotar a la derecha el nodo</td></tr>
+<tr><td>derecha-derecha</td><td>−2</td><td>−1 o 0</td><td>rotar a la izquierda el nodo</td></tr>
+<tr><td>izquierda-derecha</td><td>+2</td><td>−1</td><td>izquierda el hijo, derecha el nodo</td></tr>
+<tr><td>derecha-izquierda</td><td>−2</td><td>+1</td><td>derecha el hijo, izquierda el nodo</td></tr>
+</table>
+
+<h3>balancear e insertar</h3>
+<pre><code>NodoAVL* balancear(NodoAVL* n) {
+    actualizarAltura(n);
+    int fb = factorBalance(n);
+    if (fb &gt; 1) {
+        if (factorBalance(n-&gt;izq) &lt; 0) n-&gt;izq = rotarIzquierda(n-&gt;izq);
+        return rotarDerecha(n);
+    }
+    if (fb &lt; -1) {
+        if (factorBalance(n-&gt;der) &gt; 0) n-&gt;der = rotarDerecha(n-&gt;der);
+        return rotarIzquierda(n);
+    }
+    return n;
+}
+
+NodoAVL* insertarEn(NodoAVL* n, int valor) {
+    if (n == nullptr) return new NodoAVL(valor);
+    if (valor &lt; n-&gt;dato) n-&gt;izq = insertarEn(n-&gt;izq, valor);
+    else                 n-&gt;der = insertarEn(n-&gt;der, valor);
+    return balancear(n);                      <span class="c">// la única diferencia con el BST</span>
+}</code></pre>
+
+<h3>Errores típicos</h3>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>actualizar la altura de <code>x</code> antes que la de <code>y</code></td><td>alturas y factores falsos encima</td><td>primero el que bajó</td></tr>
+<tr><td>rotar sin usar lo que devuelve</td><td>el nodo que subió se pierde (fuga)</td><td>devolverlo o asignarlo siempre</td></tr>
+<tr><td>rotación simple en un zigzag</td><td>queda torcido hacia el otro lado</td><td>mirar el factor del hijo: doble rotación</td></tr>
+<tr><td>calcular la altura recorriendo el subárbol</td><td>cada inserción pasa a costar O(n)</td><td>guardarla en el nodo y recalcularla desde los hijos</td></tr>
+</table>
+
+<h3>En la biblioteca estándar</h3>
+<p><code>std::map</code> y <code>std::set</code> «normalmente se implementan como árboles rojo-negro»
+(<a href="https://en.cppreference.com/w/cpp/container/map">cppreference</a>): otro árbol balanceado con
+rotaciones. Por eso son O(log n) y se recorren en orden.</p>
+
+<p class="cita">Memoria: los nodos viven en el montón; rotar solo reasigna apuntadores. Ver el
+<a href="memoria.html#estructuras">mapa de la memoria</a>.</p>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="../nivel-5-estructuras-de-datos-2/01-arboles-binarios.html">Lección 5.1</a> ·
+<a href="../nivel-5-estructuras-de-datos-2/02-arbol-binario-de-busqueda.html">Lección 5.2</a> ·
+<a href="../nivel-5-estructuras-de-datos-2/03-arboles-balanceados.html">Lección 5.3</a>
+</footer>
+
+</main>
+</body>
+</html>

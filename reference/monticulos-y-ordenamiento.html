@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Montículos y ordenamiento</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Montículos y ordenamiento</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones
+<a href="../nivel-5-estructuras-de-datos-2/04-monticulos-y-colas-de-prioridad.html">5.4</a> y
+<a href="../nivel-5-estructuras-de-datos-2/05-ordenamiento.html">5.5</a>.</p>
+
+<h2>Montículo de máximos en un vector</h2>
+<table>
+<tr><th>Regla</th><th>Qué dice</th></tr>
+<tr><td>forma</td><td>árbol completo: se llena por niveles, de izquierda a derecha</td></tr>
+<tr><td>orden</td><td>cada padre <code>&gt;=</code> sus hijos → el mayor en <code>datos[0]</code></td></tr>
+<tr><td>padre de <code>i</code></td><td><code>(i - 1) / 2</code></td></tr>
+<tr><td>hijos de <code>i</code></td><td><code>2*i + 1</code> y <code>2*i + 2</code> (existen si <code>&lt; datos.size()</code>)</td></tr>
+</table>
+<p>«Montículo» (<em>heap</em>, estructura de datos) ≠ «montón» (<em>heap</em>, zona de memoria de <code>new</code>).</p>
+
+<pre><code>void subir(int i) {                     <span class="c">// tras push_back</span>
+    while (i &gt; 0 &amp;&amp; datos[i] &gt; datos[(i - 1) / 2]) {
+        swap(datos[i], datos[(i - 1) / 2]);
+        i = (i - 1) / 2;
+    }
+}
+
+void hundir(int i) {                    <span class="c">// tras poner el último en la raíz</span>
+    int n = datos.size();
+    while (true) {
+        int izq = 2 * i + 1, der = 2 * i + 2, mayor = i;
+        if (izq &lt; n &amp;&amp; datos[izq] &gt; datos[mayor]) mayor = izq;
+        if (der &lt; n &amp;&amp; datos[der] &gt; datos[mayor]) mayor = der;
+        if (mayor == i) break;
+        swap(datos[i], datos[mayor]);
+        i = mayor;
+    }
+}</code></pre>
+
+<table>
+<tr><th>Operación</th><th>Cómo</th><th>Coste</th></tr>
+<tr><td><code>insertar(x)</code></td><td><code>push_back(x)</code> + <code>subir(último)</code></td><td>O(log n)</td></tr>
+<tr><td><code>verMax()</code></td><td><code>datos[0]</code></td><td>O(1)</td></tr>
+<tr><td><code>extraerMax()</code></td><td>guarda <code>datos[0]</code>; último a la raíz; <code>pop_back</code>; <code>hundir(0)</code></td><td>O(log n)</td></tr>
+<tr><td>montar desde un vector</td><td><code>hundir(i)</code> desde <code>n/2 - 1</code> hasta 0</td><td>O(n)</td></tr>
+</table>
+
+<h2><code>std::priority_queue</code> (<code>&lt;queue&gt;</code>)</h2>
+<pre><code>priority_queue&lt;int&gt; maxi;                                  <span class="c">// arriba el MAYOR (por defecto)</span>
+priority_queue&lt;int, vector&lt;int&gt;, greater&lt;int&gt;&gt; mini;      <span class="c">// arriba el MENOR (&lt;functional&gt;)</span>
+
+maxi.push(5);                 <span class="c">// O(log n)</span>
+int x = maxi.top();           <span class="c">// O(1): mirar</span>
+maxi.pop();                   <span class="c">// O(log n): quitar. NO devuelve nada</span>
+maxi.empty(); maxi.size();</code></pre>
+<p>Los k mayores de n datos: cola de <strong>mínimos</strong> de tamaño k; <code>push</code> y, si pasa de k, <code>pop</code>. O(n log k).</p>
+
+<h2>Las trazas, en una línea cada una</h2>
+<p>Con <code>v = 5 2 4 1 3</code> (número de comparaciones entre paréntesis):</p>
+<table>
+<tr><th>Algoritmo</th><th>Estados de <code>v</code></th></tr>
+<tr><td>burbuja (10)</td><td><code>2 4 1 3 5</code> → <code>2 1 3 4 5</code> → <code>1 2 3 4 5</code> → sin cambios, fin</td></tr>
+<tr><td>selección (10)</td><td><code>1 2 4 5 3</code> → <code>1 2 4 5 3</code> → <code>1 2 3 5 4</code> → <code>1 2 3 4 5</code></td></tr>
+<tr><td>inserción (9)</td><td><code>2 5 4 1 3</code> → <code>2 4 5 1 3</code> → <code>1 2 4 5 3</code> → <code>1 2 3 4 5</code></td></tr>
+<tr><td>mergesort (8)</td><td>mezclas: <code>2 5</code>, <code>1 3</code>, <code>1 3 4</code>, <code>1 2 3 4 5</code></td></tr>
+<tr><td>quicksort (6)</td><td>pivote 3: <code>2 1 3 5 4</code> → pivote 1: <code>1 2 3 5 4</code> → pivote 4: <code>1 2 3 4 5</code></td></tr>
+<tr><td>heapsort con <code>4 10 3 5 1</code></td><td>montar: <code>10 5 3 4 1</code> → <code>5 4 3 1 | 10</code> → <code>4 1 3 | 5 10</code> → <code>3 1 | 4 5 10</code> → <code>1 3 4 5 10</code></td></tr>
+</table>
+
+<h2>Los algoritmos en pocas líneas</h2>
+<pre><code><span class="c">// INSERCIÓN</span>
+for (int i = 1; i &lt; n; i++) {
+    int x = v[i], j = i - 1;
+    while (j &gt;= 0 &amp;&amp; v[j] &gt; x) { v[j + 1] = v[j]; j--; }   <span class="c">// j &gt;= 0 PRIMERO</span>
+    v[j + 1] = x;
+}
+
+<span class="c">// MERGESORT: [ini, fin)</span>
+if (fin - ini &lt;= 1) return;
+int medio = ini + (fin - ini) / 2;
+mergesort(v, ini, medio); mergesort(v, medio, fin);
+mezclar(v, ini, medio, fin);      <span class="c">// vector temp; en empate gana la izquierda</span>
+
+<span class="c">// QUICKSORT (Lomuto): [ini, fin], pivote = v[fin]</span>
+int pivote = v[fin], i = ini;
+for (int j = ini; j &lt; fin; j++)
+    if (v[j] &lt;= pivote) swap(v[i++], v[j]);
+swap(v[i], v[fin]);               <span class="c">// i = posición final del pivote</span>
+quicksort(v, ini, i - 1); quicksort(v, i + 1, fin);</code></pre>
+
+<h2>Tabla comparativa</h2>
+<table>
+<tr><th>Algoritmo</th><th>Mejor</th><th>Promedio</th><th>Peor</th><th>Memoria extra</th><th>Estable</th></tr>
+<tr><td>burbuja (con bandera)</td><td>O(n)</td><td>O(n²)</td><td>O(n²)</td><td>O(1)</td><td>sí</td></tr>
+<tr><td>selección</td><td>O(n²)</td><td>O(n²)</td><td>O(n²)</td><td>O(1)</td><td>no</td></tr>
+<tr><td>inserción</td><td>O(n)</td><td>O(n²)</td><td>O(n²)</td><td>O(1)</td><td>sí</td></tr>
+<tr><td>mergesort</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n)</td><td>sí</td></tr>
+<tr><td>quicksort</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n²)</td><td>O(log n) de recursión; O(n) en el peor</td><td>no</td></tr>
+<tr><td>heapsort</td><td>O(n log n)</td><td>O(n log n)</td><td>O(n log n)</td><td>O(1)</td><td>no</td></tr>
+</table>
+<p><strong>Peor caso de quicksort</strong> con pivote = último: el vector ya ordenado (o al revés).
+<strong>Estable</strong> = los elementos iguales conservan su orden de llegada.</p>
+
+<h2>En la biblioteca (<code>&lt;algorithm&gt;</code>)</h2>
+<table>
+<tr><th>Escribes</th><th>Hace</th></tr>
+<tr><td><code>sort(v.begin(), v.end())</code></td><td>ordena de menor a mayor; O(n log n); no estable</td></tr>
+<tr><td><code>sort(..., [](int a, int b) { return a &gt; b; })</code></td><td>de mayor a menor (la lambda: «¿a va antes que b?», con <code>&lt;</code>/<code>&gt;</code>, nunca <code>&lt;=</code>)</td></tr>
+<tr><td><code>stable_sort(v.begin(), v.end(), cmp)</code></td><td>como <code>sort</code> pero los iguales conservan su orden</td></tr>
+<tr><td><code>make_heap(b, e)</code> / <code>sort_heap(b, e)</code></td><td>las dos fases de heapsort</td></tr>
+<tr><td><code>is_sorted(b, e)</code></td><td>¿ya está ordenado?</td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>hundir con el primer hijo mayor, no con el MAYOR</td><td>el montículo queda roto</td><td>compara con los dos hijos y elige el mayor</td></tr>
+<tr><td>leer <code>datos[izq]</code> sin <code>izq &lt; n</code></td><td>fuera de rango: comportamiento indefinido</td><td>comprueba el índice antes</td></tr>
+<tr><td><code>int x = pq.pop();</code></td><td>no compila: <code>pop</code> devuelve <code>void</code></td><td><code>top()</code> y luego <code>pop()</code></td></tr>
+<tr><td><code>while (v[j] &gt; x &amp;&amp; j &gt;= 0)</code></td><td>lee <code>v[-1]</code></td><td><code>j &gt;= 0</code> primero</td></tr>
+<tr><td>creer que quicksort es siempre O(n log n)</td><td>O(n²) con datos ordenados y pivote fijo</td><td>pivote del medio o al azar; o <code>std::sort</code></td></tr>
+<tr><td>usar <code>sort</code> cuando el orden de los empates importa</td><td>los iguales pueden cambiar de orden</td><td><code>stable_sort</code></td></tr>
+</table>
+
+<p>Animaciones: <a href="https://visualgo.net/es/heap">VisuAlgo — Binary Heap</a> y
+<a href="https://visualgo.net/es/sorting">VisuAlgo — Sorting</a>.
+Referencia: <a href="https://en.cppreference.com/w/cpp/container/priority_queue">std::priority_queue</a>,
+<a href="https://en.cppreference.com/w/cpp/algorithm/sort">std::sort</a>,
+<a href="https://en.cppreference.com/w/cpp/algorithm/stable_sort">std::stable_sort</a>.</p>
+
+<p class="cita">Memoria: el montículo vive en un vector contiguo (ver <a href="memoria.html#estructuras">mapa de la memoria</a>);
+mergesort usa O(n) extra y la recursión de quicksort gasta marcos (ver <a href="memoria.html#automatica">memoria automática</a>).</p>
+
+</main>
+</body>
+</html>

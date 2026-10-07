@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 6.8 · Comportamiento indefinido y rendimiento</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 6 · Avanzado › Lección 8 de 9</div>
+<h1>Comportamiento indefinido y rendimiento</h1>
+<p class="subtitulo">Por qué un programa con un error puede «funcionar» hasta que activas -O2, y por qué recorrer la memoria en orden es mucho más rápido. ~40 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> reconocer los comportamientos indefinidos más comunes,
+cazarlos con <code>-fsanitize=undefined,address</code>, y medir con <code>&lt;chrono&gt;</code>
+sin engañarte: con <code>-O2</code>, repitiendo, y entendiendo qué pinta la caché.</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la
+<a href="07-diseno.html">lección 6.7 (diseño)</a>.
+Recordar lo de ayer es lo que hace que se quede.</p>
+</div>
+
+<p><strong>Por qué.</strong> C++ es rápido porque confía en ti: no comprueba cada índice ni cada
+suma. El precio es el <strong>comportamiento indefinido</strong>: si rompes una regla, el programa
+puede hacer <em>cualquier cosa</em>, y el optimizador lo empeora. Las dos mitades de esta lección
+son las dos caras de esa confianza: no romper las reglas, y aprovechar la velocidad de verdad.</p>
+
+<p>Todo el código de esta lección es C++17. Las salidas son reales: g++ 15.2 en esta máquina.</p>
+
+<h2>1. Qué es el comportamiento indefinido</h2>
+
+<p>El estándar de C++ dice qué hace cada operación correcta. Para algunas operaciones incorrectas
+dice algo más raro: <strong>«el comportamiento es indefinido»</strong> (<em>undefined behavior</em>,
+UB). No significa «da error» ni «da un valor raro». Significa que el estándar
+<strong>no promete nada</strong>: puede caerse, dar basura, o parecer que funciona
+(<a href="https://en.cppreference.com/w/cpp/language/ub">cppreference — Undefined behavior</a>).</p>
+
+<p>Ya te has cruzado con varios:</p>
+
+<table>
+<tr><th>UB</th><th>Ejemplo</th><th>Lo viste en</th></tr>
+<tr><td>desbordar un entero <em>con signo</em></td><td><code>int x = INT_MAX; x++;</code></td><td><a href="../nivel-1-fundamentos/02-variables-y-tipos.html">1.2</a></td></tr>
+<tr><td>salirse del rango</td><td><code>v[3]</code> con 3 elementos</td><td><a href="../nivel-1-fundamentos/07-arreglos-y-strings.html">1.7</a></td></tr>
+<tr><td>usar tras liberar</td><td>leer <code>*p</code> después de <code>delete p</code></td><td><a href="../nivel-2-memoria-y-poo/03-memoria-dinamica.html">2.3</a></td></tr>
+<tr><td>desreferenciar <code>nullptr</code></td><td><code>Nodo* p = nullptr; p-&gt;dato;</code></td><td><a href="../nivel-2-memoria-y-poo/02-apuntadores.html">2.2</a></td></tr>
+<tr><td>carrera de datos</td><td>dos hilos escriben la misma variable sin <code>mutex</code></td><td><a href="01-hilos-y-mutex.html">6.1</a></td></tr>
+</table>
+
+<p>Ojo con el primero: <strong>con signo</strong>. Los <code>unsigned</code> no desbordan: dan la
+vuelta de forma definida (<code>UINT_MAX + 1</code> es <code>0</code>). Los <code>int</code>, no
+(<a href="https://www.learncpp.com/cpp-tutorial/signed-integers/">LearnCpp 4.4</a>).</p>
+
+<h2>2. Por qué el compilador lo aprovecha</h2>
+
+<p>La regla clave: <strong>el compilador supone que tu programa no tiene UB</strong>. Si una
+línea solo puede ser verdad con UB, la trata como imposible y optimiza a partir de ahí.
+cppreference lo dice así: como los programas correctos no tienen UB, con la optimización activada
+un programa que sí lo tiene puede dar «resultados inesperados».</p>
+
+<p>Míralo de verdad. Esta función pregunta si a <code>x</code> le cabe uno más:</p>
+
+<pre><code>#include &lt;climits&gt;
+#include &lt;iostream&gt;
+using namespace std;
+
+bool cabeUnoMas(int x) {
+    int siguiente = x + 1;     <span class="c">// si x == INT_MAX, esto desborda: UB</span>
+    return siguiente &gt; x;
+}
+
+int main() {
+    cout &lt;&lt; boolalpha &lt;&lt; cabeUnoMas(INT_MAX) &lt;&lt; "\n";
+}</code></pre>
+
+<p>El mismo código, dos niveles de optimización:</p>
+
+<pre><code>$ g++ -std=c++17 -Wall -O0 ub.cpp -o ub &amp;&amp; ./ub
+false
+$ g++ -std=c++17 -Wall -O2 ub.cpp -o ub &amp;&amp; ./ub
+true</code></pre>
+
+<p>Con <code>-O0</code> la suma da la vuelta (en la práctica, a un número negativo) y la comparación
+dice <code>false</code>. Con <code>-O2</code>, el compilador razona: «<code>x + 1 &gt; x</code> es
+siempre verdad... <em>si no hay desbordamiento</em>, y el desbordamiento no puede pasar». El
+ensamblador de la función se queda en una sola instrucción útil, <code>movl $1, %eax</code>:
+devolver <code>true</code> sin sumar nada. Ninguno de los dos resultados es «el correcto»: con UB
+no existe un resultado correcto.</p>
+
+<h3>Un caso más extremo</h3>
+
+<pre><code>int main() {
+    int vueltas = 0;
+    for (int i = INT_MAX - 3; i &gt; 0; i++) {   <span class="c">// i++ acaba desbordando: UB</span>
+        vueltas++;
+        if (vueltas == 10) break;             <span class="c">// freno de seguridad</span>
+    }
+    cout &lt;&lt; vueltas &lt;&lt; "\n";
+}</code></pre>
+
+<pre><code>$ g++ -std=c++17 -Wall -O0 bucle.cpp -o bucle &amp;&amp; ./bucle
+4
+$ g++ -std=c++17 -Wall -O2 bucle.cpp -o bucle &amp;&amp; ./bucle
+Violación de segmento (`core' generado)</code></pre>
+
+<p>Con <code>-O2</code>, g++ ve que <em>todo</em> camino de <code>main</code> llega al desbordamiento
+(el freno está en 10 y el desbordamiento llega en la vuelta 4). Como «eso no puede pasar», concluye
+que <code>main</code> nunca se ejecuta... y no genera código para ella: en el ensamblador,
+<code>main</code> está vacía. El procesador sigue de largo y se estrella. Ni un aviso al compilar.</p>
+
+<div class="ojo">
+<p><strong>Error típico: «en mi máquina funciona».</strong> Con UB, que funcione hoy no demuestra
+nada. Cambia el nivel de optimización, la versión del compilador o una línea de al lado, y el
+resultado cambia. En el miniproyecto de esta lección, el ejercicio sin resolver compilado con
+<code>-O2</code> no da ✗: <strong>repite las pruebas sin fin</strong>, porque un bucle con UB
+hizo que el programa saltara de vuelta al principio. Con UB, la única opción segura es quitarlo.</p>
+</div>
+
+<h2>3. Cómo cazarlo</h2>
+
+<p>No se caza mirando la salida. Se caza con herramientas que <em>vigilan</em> mientras el programa
+corre (los <em>sanitizers</em> de la <a href="../nivel-4-intermedio-avanzado/08-panorama.html">lección 4.8</a>):</p>
+
+<pre><code>$ g++ -std=c++17 -Wall -g -fsanitize=undefined ub.cpp -o ub &amp;&amp; ./ub
+ub.cpp:6:9: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'
+false</code></pre>
+
+<p>Archivo, línea, columna y qué pasó. Cada sanitizer vigila una familia:</p>
+
+<table>
+<tr><th>Opción</th><th>Caza</th></tr>
+<tr><td><code>-fsanitize=undefined</code> (UBSan)</td><td>desbordamiento con signo, índice fuera de un arreglo de tamaño conocido, <code>nullptr</code>... Avisa y sigue</td></tr>
+<tr><td><code>-fsanitize=address</code> (ASan)</td><td>usar tras liberar, salirse del montón, fugas. Se detiene en el primero</td></tr>
+<tr><td><code>-fsanitize=thread</code> (TSan)</td><td>carreras de datos (<a href="01-hilos-y-mutex.html">lección 6.1</a>). No se combina con <code>address</code></td></tr>
+</table>
+
+<p>Y una novedad de g++ 15: sin optimizar (<code>-O0</code>), la biblioteca estándar comprueba
+<code>v[i]</code> por ti
+(<a href="https://gcc.gnu.org/gcc-15/changes.html">GCC 15 — Changes</a>: «Debug assertions are
+now enabled by default for unoptimized builds»). Con <code>vector&lt;int&gt; v = {1, 2, 3};</code>
+y <code>cout &lt;&lt; v[i];</code> con <code>i</code> valiendo 3:</p>
+
+<pre><code>$ g++ -std=c++17 -Wall -O0 rango.cpp -o rango &amp;&amp; ./rango
+.../stl_vector.h:1263: ... Assertion '__n &lt; this-&gt;size()' failed.
+Abortado (`core' generado)
+$ g++ -std=c++17 -Wall -O2 rango.cpp -o rango &amp;&amp; ./rango
+0</code></pre>
+
+<p>Con <code>-O2</code> esa comprobación se quita (g++ sí avisó al compilar, con
+<code>-Warray-bounds</code>) y el programa imprime basura tan tranquilo. Por eso: <strong>desarrolla
+y prueba con <code>-g -fsanitize=address,undefined</code></strong>, y deja <code>-O2</code> para
+cuando ya no haya UB y quieras velocidad.</p>
+
+<h2>4. La otra cara: la caché</h2>
+
+<p>Cambiamos de tema: ahora el programa es correcto y queremos que vaya rápido. La primera idea
+que hay que tener es que <strong>leer de la memoria principal (RAM) es lento</strong> comparado con
+lo que tarda el procesador en sumar. Por eso el procesador tiene una <strong>caché</strong>: una
+memoria pequeña y muy rápida pegada a él.</p>
+
+<p>El truco de la caché: cuando pides un <code>int</code>, no trae solo ese. Trae el bloque entero
+donde está, una <strong>línea de caché</strong> (en esta máquina, 64 bytes:
+<code>getconf LEVEL1_DCACHE_LINESIZE</code>). Si el siguiente dato que pides está en ese mismo
+bloque, ya está ahí: gratis. A eso se le llama <strong>localidad</strong>: usar lo que está al
+lado de lo que acabas de usar.</p>
+
+<p>Dos consecuencias que se miden:</p>
+<ul>
+<li><strong>Matriz por filas o por columnas.</strong> En un <code>vector&lt;vector&lt;int&gt;&gt;</code>,
+cada fila es un bloque seguido. Recorrer <code>m[f][c]</code> con <code>c</code> en el bucle de dentro
+va de vecino en vecino. Con <code>f</code> dentro, cada paso salta a otra fila.</li>
+<li><strong><code>vector</code> o <code>list</code>.</strong> El <code>vector</code> guarda todo seguido.
+La <code>list</code> son nodos sueltos en el montón unidos por apuntadores
+(<a href="../nivel-3-estructuras-de-datos/04-lista-doble-y-circular.html">lección 3.4</a>): cada
+nodo puede estar en cualquier sitio.</li>
+</ul>
+
+<h2>5. Medir sin engañarse</h2>
+
+<p>Ya mediste con <code>&lt;chrono&gt;</code> en la
+<a href="../nivel-3-estructuras-de-datos/08-complejidad.html">lección 3.8</a>. Para que el número
+signifique algo, tres reglas:</p>
+
+<ol>
+<li><strong>Compila con <code>-O2</code>.</strong> Sin optimizar mides otra cosa. En esta máquina, la
+suma por filas tardó 136 ms con <code>-O0</code> y unos 5 ms con <code>-O2</code>.</li>
+<li><strong>Repite y quédate con la mediana.</strong> Una sola medida mezcla tu código con lo que
+hacía el sistema en ese momento.</li>
+<li><strong>Usa el resultado.</strong> Si no imprimes lo que calculas, el optimizador puede borrar
+el cálculo entero.</li>
+</ol>
+
+<pre><code>template &lt;typename F&gt;
+double medir(F f, long long&amp; resultado) {           <span class="c">// mediana de 7 repeticiones, en ms</span>
+    vector&lt;double&gt; tiempos;
+    for (int r = 0; r &lt; 7; r++) {
+        auto inicio = chrono::steady_clock::now();
+        resultado = f();
+        auto fin = chrono::steady_clock::now();
+        tiempos.push_back(chrono::duration&lt;double, milli&gt;(fin - inicio).count());
+    }
+    sort(tiempos.begin(), tiempos.end());
+    return tiempos[tiempos.size() / 2];
+}
+
+long long r, control = 0;
+cout &lt;&lt; medir([&amp;] { return porFilas(m); }, r) &lt;&lt; " ms\n";
+control += r;                                        <span class="c">// ...y al final: cout &lt;&lt; control</span></code></pre>
+
+<div class="ojo">
+<p><strong>Error típico: medir algo que el compilador ya borró.</strong> La primera versión de esta
+medición no usaba <code>r</code>. Resultado con <code>-O2</code>: unas <code>0.00003 ms</code> para
+sumar 16 millones de números. No era la caché: <code>g++</code> vio que el resultado no se usaba y
+quitó el bucle. Si una medida parece demasiado buena, desconfía.</p>
+</div>
+
+<p>Los resultados, <strong>en esta máquina</strong> (Intel Core i7-13700H, g++ 15.2, <code>-O2</code>,
+mediana de 7 repeticiones; tres ejecuciones del programa, de ahí los rangos):</p>
+
+<table>
+<tr><th>Qué</th><th>Tiempo</th><th>Comparado</th></tr>
+<tr><td>matriz 4000×4000, por filas</td><td>4 a 7 ms</td><td>la referencia</td></tr>
+<tr><td>la misma, por columnas</td><td>55 a 100 ms</td><td>unas 11 a 18 veces más lenta</td></tr>
+<tr><td><code>vector&lt;int&gt;</code> de 10 millones, recorrer</td><td>5 a 9 ms</td><td>la referencia</td></tr>
+<tr><td><code>list&lt;int&gt;</code> de 10 millones, nodos creados en orden</td><td>22 a 35 ms</td><td>unas 4 veces más lenta</td></tr>
+<tr><td>la misma <code>list</code> después de <code>l.sort()</code></td><td>1160 a 1560 ms</td><td>unas 150 a 240 veces más lenta</td></tr>
+</table>
+
+<p>Las dos sumas por filas y por columnas hacen <em>exactamente</em> las mismas operaciones: misma
+O grande. Solo cambia el orden en que se visita la memoria. Y fíjate en la última fila: la lista
+recién creada aún tiene sus nodos casi seguidos en el montón (se pidieron uno detrás de otro).
+<code>l.sort()</code> reengancha los nodos sin moverlos, así que recorrerla en orden significa saltar
+por todo el montón. Así queda una lista real después de mucho insertar y borrar.</p>
+
+<p>Los números exactos cambiarán en tu ordenador. Lo que no cambia es el orden de magnitud: la
+memoria contigua gana. Por eso <code>vector</code> es el contenedor por defecto aunque la O grande
+de <code>list</code> parezca mejor para algunas cosas.</p>
+
+<h2>6. Perfilar (opcional)</h2>
+
+<p>Medir con <code>&lt;chrono&gt;</code> responde «¿cuánto tarda esto?». Un
+<strong>perfilador</strong> responde «¿dónde se va el tiempo?» en un programa entero. Dos que existen
+en Linux:</p>
+<ul>
+<li><code>gprof</code>: compila con <code>-pg</code>, ejecuta, y luego <code>gprof -b prog gmon.out</code>
+muestra qué funciones gastaron más tiempo. Funciona en esta máquina.</li>
+<li><code>perf</code>: más potente (puede contar fallos de caché). Necesita permisos del sistema;
+en esta máquina, sin ellos, se niega
+(<a href="https://perf.wiki.kernel.org/index.php/Main_Page">perf wiki</a>).</li>
+</ul>
+<p>Con lo que sabes ya basta para este curso. Si algún día optimizas en serio: primero mide,
+luego cambia, luego vuelve a medir.</p>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>El procesador no lee la RAM de <code>int</code> en <code>int</code>: trae líneas de 64 bytes a la
+caché. Una línea guarda 16 <code>int</code> (si <code>sizeof(int)</code> es 4, lo normal). Recorrer un
+<code>vector</code> aprovecha las 16; recorrer una <code>list</code> desordenada aprovecha una, porque
+cada nodo es un bloque aparte del montón (<em>heap</em>) con su dato y sus dos apuntadores.</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">vector (montón)</div>[1|2|3|4|5|6...]<div class="dir">una línea trae 16 seguidos</div></div>
+  <div class="caja"><div class="nombre">list (montón)</div>[3]→ ... [1]→ ... [2]<div class="dir">cada nodo, quizá otra línea</div></div>
+</div>
+<p>En <code>vector&lt;vector&lt;int&gt;&gt;</code>, cada fila es su propio bloque del montón. Por filas
+lees un bloque de principio a fin; por columnas tomas un <code>int</code> de cada fila y saltas a la
+siguiente. Y el UB del miniproyecto también es memoria: en <code>struct Alumno { int notas[3]; int edad; }</code>,
+<code>notas[3]</code> no existe, pero en la práctica lee la caja de al lado, la <code>edad</code>.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#cache">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+<table>
+<tr><th>Idea</th><th>Recuerda</th></tr>
+<tr><td>comportamiento indefinido (UB)</td><td>el estándar no promete nada; «funciona» no prueba nada</td></tr>
+<tr><td>UB comunes</td><td>desborde con signo, fuera de rango, usar tras liberar, <code>nullptr</code>, carrera de datos</td></tr>
+<tr><td>el optimizador</td><td>supone que no hay UB; con <code>-O2</code> el resultado puede cambiar</td></tr>
+<tr><td>cazarlo</td><td><code>-g -fsanitize=address,undefined</code>; hilos: <code>-fsanitize=thread</code></td></tr>
+<tr><td>caché</td><td>trae líneas de 64 bytes; lo contiguo es mucho más rápido</td></tr>
+<tr><td>matriz</td><td>la columna en el bucle de dentro: <code>m[f][c]</code> con <code>c</code> dentro</td></tr>
+<tr><td>medir</td><td><code>-O2</code>, repetir (mediana) y usar el resultado</td></tr>
+</table>
+
+<p>Todo esto, y lo de la lección 6.7, está en la
+<a href="../reference/diseno-y-rendimiento.html">hoja de referencia de diseño y rendimiento</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="1" data-explica="<code>x + 1</code> con <code>x == INT_MAX</code> es UB. Con <code>-O2</code>, g++ supone que no desborda, así que <code>x + 1 &gt; x</code> «siempre» es verdad: devuelve <code>true</code> sin sumar. Con <code>-O0</code> salió <code>false</code>.">
+<pre><code>bool cabeUnoMas(int x) {
+    int siguiente = x + 1;
+    return siguiente &gt; x;
+}
+<span class="c">// main: cout &lt;&lt; boolalpha &lt;&lt; cabeUnoMas(INT_MAX);
+// compilado con g++ 15 y -O2</span></code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra false</button><button>Muestra true</button><button>No compila</button><button>Lanza excepción</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Los programas correctos no tienen UB, así que el optimizador da por hecho que el tuyo tampoco: lo que solo pasaría con UB lo trata como imposible y optimiza a partir de ahí. No lo detecta (para eso están los sanitizers) ni lo convierte en excepción.">
+<p>¿Qué hace el optimizador con el comportamiento indefinido?</p>
+<div class="opciones"><button>Lo detecta y lo avisa siempre</button><button>Lo convierte en una excepción estándar</button><button>Lo trata igual que con -O0</button><button>Supone que nunca va a ocurrir</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="Las dos hacen las mismas sumas (misma O grande). Por filas, el bucle de dentro avanza por <code>c</code> y recorre cada fila seguida: aprovecha cada línea de caché. Por columnas, cada paso salta a otra fila.">
+<pre><code><span class="c">// m es un vector&lt;vector&lt;int&gt;&gt; de 4000 x 4000</span>
+for (int f = 0; f &lt; N; f++)            <span class="c">// A</span>
+    for (int c = 0; c &lt; N; c++) suma += m[f][c];
+
+for (int c = 0; c &lt; N; c++)            <span class="c">// B</span>
+    for (int f = 0; f &lt; N; f++) suma += m[f][c];</code></pre>
+<p>Con <code>-O2</code>, ¿cuál es más rápido y por qué?</p>
+<div class="opciones"><button>A: recorre memoria contigua</button><button>B: hace menos saltos</button><button>Iguales: misma O grande</button><button>Depende del compilador usado</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Si nadie usa el resultado, el optimizador puede quitar el bucle entero: mides «nada». Hay que usar lo calculado (imprimirlo, por ejemplo). Fue lo que pasó al preparar esta lección.">
+<pre><code><span class="c">// compilado con -O2</span>
+auto inicio = chrono::steady_clock::now();
+long long suma = 0;
+for (int x : v) suma += x;          <span class="c">// v: 10 millones de int</span>
+auto fin = chrono::steady_clock::now();
+<span class="c">// se imprime el tiempo, pero nunca la suma</span>
+<span class="c">// Muestra unas 0.00003 ms</span></code></pre>
+<p>¿Qué pasó?</p>
+<div class="opciones"><button>La caché lo hizo instantáneo</button><button>chrono no mide tan poco</button><button>El compilador quitó el bucle</button><button>El procesador es muy rápido</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Si <code>v</code> está lleno, <code>push_back</code> muda los datos a otro bloque del montón y libera el viejo. <code>primero</code> sigue señalando el bloque liberado: leerlo es usar tras liberar. Arreglo: <code>int primero = v[0];</code> (una copia).">
+<pre><code>int agregarYDarPrimero(vector&lt;int&gt;&amp; v, int x) {
+    const int&amp; primero = v[0];
+    v.push_back(x);
+    return primero;
+}</code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>No compila la referencia</button><button>Lee memoria ya liberada</button><button>Se fuga el vector</button><button>Nada, todo está bien</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Repaso de las lecciones 3.2 y 3.8: insertar al inicio de una lista enlazada es crear un nodo y reenganchar la cabeza, O(1). Que sea O(1) no la hace rápida de recorrer: eso lo decide la caché.">
+<p><strong>Repaso.</strong> Insertar al inicio de una lista enlazada cuesta:</p>
+<div class="opciones"><button>Lineal, O(n) siempre</button><button>Logarítmico, O(log n)</button><button>Cuadrático, O(n²) siempre</button><button>Constante, O(1) siempre</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 6.8 · Caza de comportamiento indefinido</h2>
+
+<p>Abre <a href="ejercicios/08-comportamiento-indefinido-y-rendimiento.cpp"><code>ejercicios/08-comportamiento-indefinido-y-rendimiento.cpp</code></a>.
+Tiene dos partes:</p>
+
+<ol>
+<li><strong>Parte A.</strong> Cuatro funciones <em>ya escritas</em>, cada una con un UB escondido:
+<code>promedio</code>, <code>sumaCabe</code>, <code>sumaNotas</code> y <code>agregarYDarPrimero</code>.
+Encuéntralo y arréglalo sin cambiar lo que la función promete. Las pruebas solo pasan si lo arreglas.</li>
+<li><strong>Parte B.</strong> Completa <code>sumaPorFilas</code> y <code>sumaPorColumnas</code>. Las pruebas
+miran que la suma sea correcta, no el tiempo.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>, <strong>sin <code>-O2</code></strong>:</p>
+<pre><code>g++ -std=c++17 -Wall -pthread 08-comportamiento-indefinido-y-rendimiento.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Para que las herramientas te señalen los fallos de la parte A:</p>
+<pre><code>g++ -std=c++17 -Wall -pthread -g -fsanitize=address,undefined 08-comportamiento-indefinido-y-rendimiento.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Cuando todo esté en ✓, compila con <code>-O2</code> y ejecuta <code>./prog --medir</code>: mide tus dos
+sumas con una matriz grande (es opcional y no forma parte de las pruebas). Al principio verás varias ✗.
+Terminaste cuando salgan todas en ✓. Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> deja que el sanitizer te diga la línea; cada aviso
+corresponde a una función. Tres de los cuatro arreglos son cambiar <em>una</em> línea: sumar en
+<code>long long</code> <em>antes</em> de que se desborde, <code>&lt;</code> en vez de <code>&lt;=</code>,
+y copiar el valor en vez de guardar una referencia. Para <code>sumaPorColumnas</code>, cuidado con
+<code>m[0]</code> si la matriz está vacía. La solución está en
+<a href="soluciones/08-comportamiento-indefinido-y-rendimiento.cpp"><code>soluciones/08-comportamiento-indefinido-y-rendimiento.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://en.cppreference.com/w/cpp/language/ub">cppreference — Undefined behavior</a>
+(en inglés). Lee la lista del principio y la sección «UB and optimization»: tiene ejemplos como los
+de la sección 2. Unos 15 minutos. Para empezar más suave:
+<a href="https://www.learncpp.com/cpp-tutorial/uninitialized-variables-and-undefined-behavior/">LearnCpp — 1.6 Uninitialized variables and undefined behavior</a>.
+Si te gustó el tema:
+<a href="https://blog.regehr.org/archives/213">John Regehr — A Guide to Undefined Behavior in C and C++</a>
+(un clásico, por un investigador del tema). Para medir:
+<a href="https://www.learncpp.com/cpp-tutorial/timing-your-code/">LearnCpp — 18.4 Timing your code</a>.
+Y si algún día quieres saberlo <em>todo</em> de la caché:
+<a href="https://people.freebsd.org/~lstewart/articles/cpumemory.pdf">Ulrich Drepper — What Every Programmer Should Know About Memory</a>
+(PDF largo; la sección 3 trata la caché).</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="07-diseno.html">← Lección anterior</a> ·
+<a href="09-herramientas-y-cpp-moderno.html">Siguiente: Lección 6.9 · Herramientas profesionales y C++ moderno →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

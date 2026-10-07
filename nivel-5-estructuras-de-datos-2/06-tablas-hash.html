@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 5.6 · Tablas hash</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+<defs>
+<marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker>
+<marker id="fla" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill:var(--acento)"/></marker>
+</defs>
+</svg>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 5 · Estructuras de datos II › Lección 6 de 7</div>
+<h1>Tablas hash</h1>
+<p class="subtitulo">Buscar por nombre sin recorrer nada: calcular dónde está. ~35 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> escribir una clase <code>TablaHash</code> que guarda
+pares clave-valor en cubetas, resuelve las colisiones con listas y se agranda sola (rehash)
+cuando se llena; y explicar por qué <code>std::unordered_map</code> busca en O(1) en promedio
+pero O(n) en el peor caso.</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la
+<a href="05-ordenamiento.html">lección 5.5 (ordenamiento)</a>.
+Recordar lo de ayer es lo que hace que se quede.</p>
+</div>
+
+<p><strong>Por qué.</strong> Un árbol balanceado (lección 5.3) encuentra una clave en
+O(log n). Una tabla hash lo hace, en promedio, en <strong>O(1)</strong>: da igual que tenga
+diez claves o un millón. Por eso está en todas partes: diccionarios, cachés, bases de datos,
+el <code>unordered_map</code> que usaste en la
+<a href="../nivel-4-intermedio-avanzado/02-stl-contenedores.html">lección 4.2</a>. Y es
+pregunta fija de examen: colisiones, factor de carga y peor caso.</p>
+
+<h2>1. La idea: calcular el sitio en vez de buscarlo</h2>
+
+<p>Piensa en los casilleros de un gimnasio, numerados del 0 al 7. Si la regla fuera
+«tu casillero es el número que sale de tu nombre», no tendrías que abrirlos todos para
+encontrar tus cosas: calculas el número y vas directo.</p>
+
+<p>Una tabla hash es eso:</p>
+<ul>
+<li>Un <code>vector</code> de <strong>cubetas</strong> (los casilleros). En inglés, <em>buckets</em>.</li>
+<li>Una <strong>función hash</strong> que convierte la clave (por ejemplo, un <code>string</code>) en un número.</li>
+<li>El índice de la cubeta es ese número <strong>módulo</strong> el número de cubetas: <code>hash(clave) % m</code>.</li>
+</ul>
+
+<p>Buscar es: calcular el índice (rápido) y mirar <em>solo</em> esa cubeta
+(<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/hashing/">Stanford CS106B, Hashing</a>).</p>
+
+<h2>2. La función hash</h2>
+
+<p>Convierte una clave en un número. La que usamos en el curso multiplica por 31 y suma
+cada letra:</p>
+
+<pre><code>size_t hashCadena(const string&amp; clave) {
+    size_t h = 0;
+    for (char c : clave) h = h * 31 + (unsigned char)c;   <span class="c">// mezcla cada letra</span>
+    return h;
+}
+
+cout &lt;&lt; hashCadena("ana");       <span class="c">// 96724</span>
+cout &lt;&lt; hashCadena("ana") % 8;   <span class="c">// 4  → con 8 cubetas, "ana" va a la cubeta 4</span></code></pre>
+
+<p>Lo que se le pide a una buena función hash:</p>
+<ul>
+<li><strong>Determinista:</strong> la misma clave da siempre el mismo número. Si no, nunca la encontrarías.</li>
+<li><strong>Reparte bien:</strong> claves parecidas deben caer en cubetas distintas.</li>
+<li><strong>Rápida:</strong> si calcular el hash cuesta mucho, se pierde la ventaja.</li>
+</ul>
+
+<p>¿Por qué no sumar las letras y ya? Porque <code>"amor"</code> y <code>"roma"</code> tienen
+las mismas letras y darían el mismo número. Multiplicar por 31 en cada paso hace que el
+<em>orden</em> cuente: <code>hashCadena("amor")</code> vale 2998031 y <code>hashCadena("roma")</code>
+vale 3506321.</p>
+
+<div class="ojo">
+<p><strong>Error típico: un hash con signo.</strong> Si guardas el hash en un <code>int</code>,
+al crecer se desborda (comportamiento indefinido) y puede salir negativo; y un número negativo
+<code>% m</code> da un índice negativo: <code>cubetas[-3]</code> lee memoria ajena. Usa
+<code>size_t</code>, que no tiene signo.</p>
+</div>
+
+<h2>3. Colisiones: dos claves, la misma cubeta</h2>
+
+<p>Hay infinitas claves posibles y pocas cubetas, así que tarde o temprano dos claves caen en
+el mismo sitio. Eso es una <strong>colisión</strong>, y no es un error: es normal.</p>
+
+<p>La solución más común es el <strong>encadenamiento</strong> (<em>chaining</em>): cada cubeta
+no guarda un par, sino una <strong>lista</strong> de pares. Si dos claves chocan, las dos viven
+en la misma lista.</p>
+
+<pre><code>class TablaHash {
+private:
+    vector&lt;list&lt;pair&lt;string, int&gt;&gt;&gt; cubetas;   <span class="c">// cada cubeta: lista de (clave, valor)</span>
+    size_t cantidad;                           <span class="c">// pares guardados en total</span>
+
+    size_t indiceDe(const string&amp; clave) const {
+        return hashCadena(clave) % cubetas.size();
+    }
+public:
+    TablaHash(size_t m = 8) : cubetas(m), cantidad(0) {}
+    <span class="c">// insertar, buscar, eliminar, factorDeCarga, rehash: abajo</span>
+};</code></pre>
+
+<p>Así queda una tabla de 5 cubetas después de insertar <code>ana</code>, <code>luis</code>,
+<code>eva</code>, <code>juan</code> y <code>sol</code>. Con 5 cubetas, <code>luis</code> y
+<code>juan</code> caen en la 0, y <code>ana</code> y <code>sol</code> en la 4 (en color, las que
+chocaron al llegar):</p>
+
+<div class="diagrama"><svg viewBox="0 0 406 242" width="406" height="242" role="img" aria-label="Tabla de 5 cubetas. Cubeta 0: luis y juan. Cubeta 1: eva. Cubetas 2 y 3 vacías. Cubeta 4: ana y sol." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="20" y="29" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">0</text><rect x="36" y="6" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="23" r="3.5" fill="currentColor"/><line x1="58" y1="23" x2="120" y2="23" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="6" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="28" text-anchor="middle" font-size="13" fill="currentColor">luis: 31</text><line x1="220" y1="23" x2="258" y2="23" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="258" y="6" width="100" height="34" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="308" y="28" text-anchor="middle" font-size="13" style="fill:var(--acento)">juan: 40</text><text x="20" y="75" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">1</text><rect x="36" y="52" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="69" r="3.5" fill="currentColor"/><line x1="58" y1="69" x2="120" y2="69" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="52" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="74" text-anchor="middle" font-size="13" fill="currentColor">eva: 25</text><text x="20" y="121" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">2</text><rect x="36" y="98" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="96" y="120" font-size="12" fill="currentColor" opacity=".55">(vacía)</text><text x="20" y="167" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">3</text><rect x="36" y="144" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="96" y="166" font-size="12" fill="currentColor" opacity=".55">(vacía)</text><text x="20" y="213" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">4</text><rect x="36" y="190" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="207" r="3.5" fill="currentColor"/><line x1="58" y1="207" x2="120" y2="207" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="190" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="212" text-anchor="middle" font-size="13" fill="currentColor">ana: 20</text><line x1="220" y1="207" x2="258" y2="207" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="258" y="190" width="100" height="34" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="308" y="212" text-anchor="middle" font-size="13" style="fill:var(--acento)">sol: 18</text></svg></div>
+
+<p>Buscar <code>"sol"</code>: el índice es 4; se recorre la lista de la cubeta 4 comparando
+claves: <code>ana</code> no, <code>sol</code> sí. Dos comparaciones, no cinco.</p>
+
+<h2>4. Insertar, buscar y eliminar</h2>
+
+<p>Las tres operaciones empiezan igual: <strong>calcular la cubeta</strong>. Después, todo es
+recorrer una lista corta, como en el Nivel 3.</p>
+
+<pre><code>void insertar(const string&amp; clave, int valor) {
+    auto&amp; cubeta = cubetas[indiceDe(clave)];
+    for (auto&amp; par : cubeta)
+        if (par.first == clave) { par.second = valor; return; }   <span class="c">// ya estaba: actualizar</span>
+    cubeta.push_back({clave, valor});                             <span class="c">// nueva: al final</span>
+    cantidad++;
+    if (factorDeCarga() &gt; 1.0) rehash(cubetas.size() * 2);        <span class="c">// sección 5</span>
+}
+
+bool buscar(const string&amp; clave, int&amp; valor) const {
+    for (const auto&amp; par : cubetas[indiceDe(clave)])
+        if (par.first == clave) { valor = par.second; return true; }
+    return false;
+}</code></pre>
+
+<p><code>eliminar</code> es el mismo recorrido con un iterador, para poder llamar a
+<code>cubeta.erase(it)</code> y bajar <code>cantidad</code>. Lo escribes tú en el miniproyecto.</p>
+
+<h2>5. Factor de carga y rehash</h2>
+
+<p>Si metes 1000 claves en 8 cubetas, cada lista tendrá unas 125: buscar ya no es rápido.
+Lo que importa es cuántos pares hay <em>por cubeta</em>:</p>
+
+<pre><code>factor de carga = pares / cubetas      <span class="c">// α («alfa») = n / m</span></code></pre>
+
+<p>Cuando el factor pasa de un límite (en el curso, 1.0), la tabla hace un
+<strong>rehash</strong>: pide el doble de cubetas y <strong>vuelve a calcular la cubeta de
+cada clave</strong>, porque el índice depende de <code>m</code>. Con 4 cubetas, al insertar el
+quinto par (α = 5/4 = 1.25) toca mudarse a 8:</p>
+
+<div class="diagrama"><svg viewBox="0 0 406 220" width="406" height="220" role="img" aria-label="Antes: 4 cubetas con 5 pares. Cubeta 0: ana y juan. Cubeta 1: pan. Cubeta 2: mar. Cubeta 3: luis." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="8" y="18" font-size="13" font-weight="700" fill="currentColor">Antes: 4 cubetas, 5 pares (α = 1.25)</text><text x="20" y="53" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">0</text><rect x="36" y="30" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="47" r="3.5" fill="currentColor"/><line x1="58" y1="47" x2="120" y2="47" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="30" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="52" text-anchor="middle" font-size="13" fill="currentColor">ana: 20</text><line x1="220" y1="47" x2="258" y2="47" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="258" y="30" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="308" y="52" text-anchor="middle" font-size="13" fill="currentColor">juan: 40</text><text x="20" y="99" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">1</text><rect x="36" y="76" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="93" r="3.5" fill="currentColor"/><line x1="58" y1="93" x2="120" y2="93" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="76" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="98" text-anchor="middle" font-size="13" fill="currentColor">pan: 7</text><text x="20" y="145" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">2</text><rect x="36" y="122" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="139" r="3.5" fill="currentColor"/><line x1="58" y1="139" x2="120" y2="139" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="122" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="144" text-anchor="middle" font-size="13" fill="currentColor">mar: 12</text><text x="20" y="191" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">3</text><rect x="36" y="168" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="185" r="3.5" fill="currentColor"/><line x1="58" y1="185" x2="120" y2="185" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="168" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="190" text-anchor="middle" font-size="13" fill="currentColor">luis: 31</text></svg></div>
+<p>Se recalcula <code>hashCadena(clave) % 8</code> para cada par. En color, los que cambiaron de cubeta:</p>
+<div class="diagrama"><svg viewBox="0 0 400 404" width="400" height="404" role="img" aria-label="Después: 8 cubetas. Cubeta 0: juan. 3: luis. 4: ana. 5: pan. 6: mar. Las demás vacías." style="max-width:100%;height:auto;color:var(--texto);font-family:Consolas,monospace"><text x="8" y="18" font-size="13" font-weight="700" fill="currentColor">Después del rehash: 8 cubetas (α = 0.625)</text><text x="20" y="53" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">0</text><rect x="36" y="30" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="47" r="3.5" fill="currentColor"/><line x1="58" y1="47" x2="120" y2="47" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="30" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="52" text-anchor="middle" font-size="13" fill="currentColor">juan: 40</text><text x="20" y="99" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">1</text><rect x="36" y="76" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="96" y="98" font-size="12" fill="currentColor" opacity=".55">(vacía)</text><text x="20" y="145" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">2</text><rect x="36" y="122" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="96" y="144" font-size="12" fill="currentColor" opacity=".55">(vacía)</text><text x="20" y="191" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">3</text><rect x="36" y="168" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="185" r="3.5" fill="currentColor"/><line x1="58" y1="185" x2="120" y2="185" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="168" width="100" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="170" y="190" text-anchor="middle" font-size="13" fill="currentColor">luis: 31</text><text x="20" y="237" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">4</text><rect x="36" y="214" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="231" r="3.5" fill="currentColor"/><line x1="58" y1="231" x2="120" y2="231" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="214" width="100" height="34" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="170" y="236" text-anchor="middle" font-size="13" style="fill:var(--acento)">ana: 20</text><text x="20" y="283" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">5</text><rect x="36" y="260" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="277" r="3.5" fill="currentColor"/><line x1="58" y1="277" x2="120" y2="277" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="260" width="100" height="34" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="170" y="282" text-anchor="middle" font-size="13" style="fill:var(--acento)">pan: 7</text><text x="20" y="329" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">6</text><rect x="36" y="306" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="58" cy="323" r="3.5" fill="currentColor"/><line x1="58" y1="323" x2="120" y2="323" stroke="currentColor" stroke-width="1.6" marker-end="url(#fl)"/><rect x="120" y="306" width="100" height="34" rx="4" fill="none" style="stroke:var(--acento)" stroke-width="2.2"/><text x="170" y="328" text-anchor="middle" font-size="13" style="fill:var(--acento)">mar: 12</text><text x="20" y="375" text-anchor="middle" font-size="13" fill="currentColor" opacity=".7">7</text><rect x="36" y="352" width="44" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="96" y="374" font-size="12" fill="currentColor" opacity=".55">(vacía)</text></svg></div>
+
+<p>Fíjate en <code>ana</code>: con 4 cubetas iba a la 0 (96724 % 4); con 8, va a la 4
+(96724 % 8). Cada par se reparte de nuevo y las listas quedan cortas otra vez.</p>
+
+<pre><code>void rehash(size_t nuevas) {
+    vector&lt;list&lt;pair&lt;string, int&gt;&gt;&gt; viejas(nuevas);
+    viejas.swap(cubetas);                     <span class="c">// cubetas: tamaño nuevo y vacía</span>
+    for (auto&amp; cubeta : viejas)
+        for (auto&amp; par : cubeta)
+            cubetas[indiceDe(par.first)].push_back(par);   <span class="c">// índice con el m NUEVO</span>
+}                                             <span class="c">// «viejas» se destruye sola</span></code></pre>
+
+<p>Un rehash cuesta O(n), porque mueve todo. Pero como cada vez se duplica, pasa pocas
+veces: repartido entre todas las inserciones, insertar sigue costando O(1) en promedio.
+Es el mismo truco que usa <code>vector</code> al crecer (lección 1.8).</p>
+
+<div class="ojo">
+<p><strong>Error típico: copiar las cubetas tal cual.</strong> Si en el rehash haces
+<code>nuevas[i] = cubetas[i]</code>, <code>ana</code> se queda en la cubeta 0. Pero
+<code>buscar("ana")</code> ahora calcula 96724 % 8 = 4, mira la cubeta 4 y no la encuentra.
+La clave sigue en memoria, pero es como si no existiera. Hay que recalcular el índice de
+<strong>cada</strong> par.</p>
+</div>
+
+<h2>6. ¿Cuánto cuesta? Promedio y peor caso</h2>
+
+<p>Con una buena función hash y el factor de carga bajo control, cada lista tiene, en
+promedio, uno o dos pares. Por eso insertar, buscar y eliminar son <strong>O(1) en
+promedio</strong>.</p>
+
+<p>El peor caso es otra historia. Si todas las claves caen en la misma cubeta (una función
+hash mala, o datos preparados para atacarla), la tabla se convierte en <em>una sola lista</em>
+y buscar es <strong>O(n)</strong>. El ejemplo extremo:</p>
+
+<pre><code>size_t hashMalo(const string&amp; clave) { return 0; }   <span class="c">// ¡todas a la cubeta 0!</span></code></pre>
+
+<p>cppreference lo dice así para <code>unordered_map::find</code>: «constante en promedio,
+lineal en el peor caso»
+(<a href="https://en.cppreference.com/w/cpp/container/unordered_map/find">cppreference, find</a>).</p>
+
+<h2>7. <code>std::unordered_map</code> y <code>std::hash</code></h2>
+
+<p>En la práctica no escribes tu tabla: usas <code>std::unordered_map</code>, que por dentro es
+exactamente esto, cubetas con elementos agrupados por su hash
+(<a href="https://en.cppreference.com/w/cpp/container/unordered_map">cppreference, std::unordered_map</a>).
+Hasta te deja mirar las cubetas:</p>
+
+<pre><code>#include &lt;unordered_map&gt;
+
+unordered_map&lt;string, int&gt; cuenta;
+for (string p : {"uno", "dos", "uno"}) cuenta[p]++;   <span class="c">// [] crea con 0 si no existe</span>
+
+cout &lt;&lt; cuenta["uno"];           <span class="c">// 2</span>
+cout &lt;&lt; cuenta.size();           <span class="c">// 2   (claves distintas)</span>
+cout &lt;&lt; cuenta.bucket_count();   <span class="c">// cuántas cubetas tiene (con g++, 13)</span>
+cout &lt;&lt; cuenta.load_factor();    <span class="c">// size / bucket_count</span>
+cout &lt;&lt; cuenta.max_load_factor();<span class="c">// el límite antes del rehash: 1 al empezar</span></code></pre>
+
+<p>La función hash que usa es <code>std::hash&lt;Clave&gt;</code>, que ya existe para
+<code>int</code>, <code>string</code>, <code>double</code>, apuntadores…
+(<a href="https://en.cppreference.com/w/cpp/utility/hash">cppreference, std::hash</a>):</p>
+
+<pre><code>size_t h = hash&lt;string&gt;{}("ana");   <span class="c">// un número grande; cuál, depende del compilador</span></code></pre>
+
+<p>Si la clave es una clase tuya, <code>unordered_map</code> no sabe calcular su hash y no
+compila: hay que darle uno. <code>map</code> (un árbol, lección 5.3) solo necesita
+<code>&lt;</code>.</p>
+
+<table>
+<tr><th></th><th><code>map</code> (árbol)</th><th><code>unordered_map</code> (hash)</th></tr>
+<tr><td>buscar / insertar</td><td>O(log n) siempre</td><td>O(1) promedio, O(n) peor caso</td></tr>
+<tr><td>recorrer</td><td>en orden de clave</td><td>sin orden garantizado</td></tr>
+<tr><td>la clave necesita</td><td><code>operator&lt;</code></td><td><code>std::hash</code> y <code>==</code></td></tr>
+<tr><td>elígelo si…</td><td>necesitas orden o rangos</td><td>solo buscas por clave exacta</td></tr>
+</table>
+
+<div class="ojo">
+<p><strong>Error típico: contar con el orden de recorrido.</strong> Recorrer un
+<code>unordered_map</code> sigue el orden de las cubetas, no el de inserción ni el alfabético.
+Puede cambiar con un rehash o con otro compilador. Si necesitas orden, usa <code>map</code> o
+copia las claves a un <code>vector</code> y ordénalo (lección 5.5).</p>
+</div>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>Tu <code>TablaHash t;</code> en <code>main</code> vive en la memoria automática (la
+<em>pila de llamadas</em> o <em>stack</em>) y es pequeña: el objeto <code>vector</code> y
+<code>cantidad</code>. Las cubetas están en el montón (<em>heap</em>), en un
+<strong>bloque contiguo</strong>: cada una es un objeto <code>list</code> vacío o casi, de unos
+pocos apuntadores (míralo con <code>sizeof</code>). Los pares, en cambio, viven en los nodos de
+esas listas, cada uno pedido por separado y disperso por el montón.</p>
+<div class="diagrama"><svg viewBox="0 0 560 280" width="100%" style="max-width:560px;height:auto;color:var(--texto);font-family:Consolas,monospace" role="img" aria-label="En la memoria automática, t guarda cubetas = 0x100 y cantidad = 3. En el montón, un bloque contiguo en 0x100 con 4 objetos list. De la cubeta 0 sale el nodo ana (0x480), que apunta al nodo juan (0x2C0). De la cubeta 3 sale el nodo luis (0x610).">
+<defs><marker id="mm56" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="currentColor"/></marker></defs>
+<g fill="currentColor">
+<rect x="4" y="4" width="250" height="110" rx="6" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".55"/>
+<text x="14" y="24" font-size="13" font-weight="700">memoria automática</text>
+<text x="14" y="38" font-size="12" opacity=".7">marco de main</text>
+<rect x="24" y="46" width="200" height="58" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<text x="34" y="63" font-size="13" font-weight="700">t  (TablaHash)</text>
+<text x="34" y="80" font-size="13">cubetas: 0x100</text>
+<text x="34" y="96" font-size="13">cantidad: 3</text>
+<rect x="4" y="130" width="552" height="146" rx="6" fill="none" stroke="currentColor" stroke-dasharray="5 4" opacity=".55"/>
+<text x="546" y="150" text-anchor="end" font-size="13" font-weight="700">montón (heap)</text>
+<rect x="24" y="166" width="184" height="36" rx="3" fill="none" stroke="currentColor" stroke-width="1.6"/>
+<line x1="70" y1="166" x2="70" y2="202" stroke="currentColor" stroke-width="1.2"/>
+<line x1="116" y1="166" x2="116" y2="202" stroke="currentColor" stroke-width="1.2"/>
+<line x1="162" y1="166" x2="162" y2="202" stroke="currentColor" stroke-width="1.2"/>
+<text x="47" y="196" text-anchor="middle" font-size="11">list</text><text x="93" y="196" text-anchor="middle" font-size="11">list</text><text x="139" y="196" text-anchor="middle" font-size="11">list</text><text x="185" y="196" text-anchor="middle" font-size="11">list</text>
+<text x="47" y="218" text-anchor="middle" font-size="11" opacity=".7">0</text><text x="93" y="218" text-anchor="middle" font-size="11" opacity=".7">1</text><text x="139" y="218" text-anchor="middle" font-size="11" opacity=".7">2</text><text x="185" y="218" text-anchor="middle" font-size="11" opacity=".7">3</text>
+<text x="24" y="236" font-size="12" opacity=".7">0x100: 4 cubetas seguidas</text>
+<rect x="270" y="166" width="96" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="318" y="188" text-anchor="middle" font-size="13">ana: 20</text><text x="318" y="216" text-anchor="middle" font-size="12" opacity=".7">0x480</text>
+<rect x="430" y="166" width="96" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="478" y="188" text-anchor="middle" font-size="13">juan: 40</text><text x="478" y="216" text-anchor="middle" font-size="12" opacity=".7">0x2C0</text>
+<rect x="300" y="232" width="96" height="34" rx="4" fill="none" stroke="currentColor" stroke-width="1.6"/><text x="348" y="254" text-anchor="middle" font-size="13">luis: 31</text><text x="406" y="254" font-size="12" opacity=".7">0x610</text>
+<circle cx="47" cy="176" r="3"/>
+<path d="M47,176 C47,146 240,146 270,176" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#mm56)"/>
+<circle cx="366" cy="183" r="3"/>
+<line x1="366" y1="183" x2="430" y2="183" stroke="currentColor" stroke-width="1.4" marker-end="url(#mm56)"/>
+<circle cx="185" cy="176" r="3"/>
+<path d="M185,176 C250,176 250,249 300,249" fill="none" stroke="currentColor" stroke-width="1.4" marker-end="url(#mm56)"/>
+<circle cx="156" cy="76" r="3.5"/>
+<path d="M156,76 C240,76 240,130 60,164" fill="none" stroke="currentColor" stroke-width="1.6" marker-end="url(#mm56)"/>
+</g></svg></div>
+<p>Las direcciones son inventadas: lo que importa es que las cubetas van seguidas y los nodos no.</p>
+<p>Un rehash es una <strong>mudanza</strong>: se pide un bloque nuevo de cubetas el doble de
+grande, se reparten los pares y el bloque viejo se libera solo al destruirse
+<code>viejas</code> (nadie escribe <code>delete</code>: <code>vector</code> y <code>list</code>
+son los dueños). <code>std::unordered_map</code> es más fino: no muda los elementos, por eso un
+rehash invalida los iteradores, pero las referencias y apuntadores a los elementos siguen
+valiendo (lo dice cppreference en <a href="https://en.cppreference.com/w/cpp/container/unordered_map">«Iterator invalidation»</a>).</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#estructuras">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+
+<table>
+<tr><th>Concepto</th><th>Idea</th><th>Código clave</th></tr>
+<tr><td>cubeta</td><td>casillero: una lista de pares</td><td><code>vector&lt;list&lt;pair&lt;string,int&gt;&gt;&gt;</code></td></tr>
+<tr><td>función hash</td><td>clave → número; determinista y que reparta</td><td><code>h = h * 31 + c</code></td></tr>
+<tr><td>índice</td><td>número → cubeta</td><td><code>hashCadena(clave) % cubetas.size()</code></td></tr>
+<tr><td>colisión</td><td>dos claves en la misma cubeta: normal</td><td>encadenamiento: misma lista</td></tr>
+<tr><td>factor de carga</td><td>pares por cubeta</td><td><code>(double)cantidad / cubetas.size()</code></td></tr>
+<tr><td>rehash</td><td>duplicar cubetas y <em>recalcular</em> cada índice</td><td><code>cubetas[indiceDe(par.first)].push_back(par)</code></td></tr>
+<tr><td>coste</td><td>O(1) promedio; O(n) si todo choca</td><td>—</td></tr>
+<tr><td>en la STL</td><td><code>unordered_map</code>, <code>unordered_set</code>, <code>std::hash</code></td><td><code>bucket_count()</code>, <code>load_factor()</code></td></tr>
+</table>
+
+<p>Todo esto, con el código completo, está en la
+<a href="../reference/tablas-hash.html">hoja de referencia de tablas hash</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>. Si dudas, dibuja las cubetas en un papel.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="2" data-explica="El índice es el hash módulo el número de cubetas: 96724 % 8 = 4 (96724 = 8 × 12090 + 4). Con 4 cubetas habría ido a la 0.">
+<pre><code>TablaHash t(8);                <span class="c">// 8 cubetas</span>
+<span class="c">// hashCadena("ana") vale 96724</span>
+t.insertar("ana", 20);</code></pre>
+<p>¿En qué cubeta queda <code>"ana"</code>?</p>
+<div class="opciones"><button>En la cubeta 0</button><button>En la cubeta 6</button><button>En la cubeta 4</button><button>En la cubeta 2</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Factor de carga = pares / cubetas = 6 / 4 = 1.5. Con el límite de 1.0 del curso, la tabla ya habría hecho un rehash al llegar al quinto par.">
+<p>Una tabla tiene 4 cubetas y 6 pares guardados. ¿Cuál es su factor de carga?</p>
+<div class="opciones"><button>Vale 0.67</button><button>Vale 1.5</button><button>Vale 6</button><button>Vale 24</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Copia cada lista a la misma posición. Pero el índice depende del número de cubetas: con 8, <code>buscar</code> calcula otra cubeta y no encuentra claves que sí están. Hay que recalcular <code>indiceDe</code> para cada par.">
+<pre><code>void rehash(size_t nuevas) {
+    vector&lt;list&lt;pair&lt;string,int&gt;&gt;&gt; nuevo(nuevas);
+    for (size_t i = 0; i &lt; cubetas.size(); i++)
+        nuevo[i] = cubetas[i];      <span class="c">// misma cubeta que antes</span>
+    cubetas.swap(nuevo);
+}</code></pre>
+<p>¿Qué falla aquí?</p>
+<div class="opciones"><button>Pierde memoria porque falta un delete</button><button>No compila: swap no existe aquí</button><button>Duplica cada par en dos cubetas</button><button>Deja claves donde buscar no mira</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="Si el hash siempre devuelve 0, todas las claves van a la cubeta 0: la tabla es una sola lista y buscar recorre hasta n pares. Es el peor caso, O(n).">
+<pre><code>size_t hashMalo(const string&amp; clave) { return 0; }</code></pre>
+<p>Con este hash y <code>n</code> claves guardadas, ¿cuánto cuesta buscar una?</p>
+<div class="opciones"><button>Constante en promedio</button><button>Lineal en n</button><button>Logarítmica en n</button><button>Cuadrática en n</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="La segunda línea no añade otra clave: <code>[&quot;ana&quot;]</code> encuentra la que ya existe y le cambia el valor. Queda una clave, con valor 21.">
+<pre><code>unordered_map&lt;string, int&gt; edades;
+edades["ana"] = 20;
+edades["ana"] = 21;
+cout &lt;&lt; edades.size() &lt;&lt; " " &lt;&lt; edades["ana"];</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 1 21</button><button>Muestra 2 21</button><button>Muestra 2 20</button><button>Muestra 1 20</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Un <code>unordered_map</code> se recorre en el orden de sus cubetas, que depende del hash y del compilador. No es el orden de inserción ni el alfabético. Si lo necesitas ordenado, usa <code>map</code>.">
+<pre><code>unordered_map&lt;string, int&gt; m;
+m["b"] = 1; m["a"] = 2; m["c"] = 3;
+for (auto&amp; par : m) cout &lt;&lt; par.first;</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Seguro sale abc</button><button>Seguro sale bac</button><button>Seguro sale cba</button><button>Orden no garantizado</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 5.6 · Tu propia tabla hash</h2>
+
+<p>Abre <a href="ejercicios/06-tablas-hash.cpp"><code>ejercicios/06-tablas-hash.cpp</code></a>.
+La clase ya trae <code>hashCadena</code>, <code>indiceDe</code>, el constructor y unas funciones
+de ayuda para las pruebas. Completa:</p>
+
+<ol>
+<li><code>factorDeCarga()</code> — una línea.</li>
+<li><code>insertar(clave, valor)</code> — actualiza si existe; si no, añade y, si el factor pasa de 1.0, <code>rehash</code> al doble.</li>
+<li><code>buscar(clave, valor)</code> — mira solo una cubeta.</li>
+<li><code>eliminar(clave)</code> — con un iterador y <code>erase</code>.</li>
+<li><code>rehash(nuevas)</code> — recalculando el índice de cada par.</li>
+<li><code>contarPalabras(texto, t)</code> — cuenta cuántas veces sale cada palabra, usando tu tabla.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code>:</p>
+<pre><code>g++ -std=c++17 -Wall 06-tablas-hash.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás varias ✗. Terminaste cuando salgan todas en ✓, incluida la que inserta
+1000 claves y comprueba que cada una está en su cubeta. Unos 20 minutos.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> haz primero <code>buscar</code> e <code>insertar</code> sin
+rehash; con eso ya pasan las primeras pruebas. Para el rehash, dibuja la tabla de 4 cubetas de
+la sección 5 y haz a mano el <code>% 8</code> de cada clave.
+La solución está en <a href="soluciones/06-tablas-hash.cpp"><code>soluciones/06-tablas-hash.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1206/lectures/hashing/">Stanford CS106B — Hashing</a>
+(en inglés). Es la clase de la universidad de Stanford sobre este mismo tema: función hash,
+cubetas, colisiones con encadenamiento y rehash. Mira las diapositivas y el código. Unos 20 minutos.</p>
+<p>Para ver cómo se llenan las cubetas, animado:
+<a href="https://visualgo.net/en/hashtable">VisuAlgo — Hash Table</a> (elige «Separate Chaining»).
+Y la referencia de la biblioteca:
+<a href="https://en.cppreference.com/w/cpp/container/unordered_map">cppreference — std::unordered_map</a>
+(mira la sección «Bucket interface» y «Hash policy»).</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="05-ordenamiento.html">← Lección anterior</a> ·
+<a href="07-grafos.html">Siguiente: Lección 5.7 · Grafos →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Concurrencia</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Concurrencia</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones
+<a href="../nivel-6-avanzado/01-hilos-y-mutex.html">6.1</a> y
+<a href="../nivel-6-avanzado/02-atomicos-y-async.html">6.2</a>.</p>
+
+<h2>Compilar</h2>
+<pre><code>g++ -std=c++20 -Wall -pthread prog.cpp -o prog &amp;&amp; ./prog                        <span class="c"># normal</span>
+g++ -std=c++20 -Wall -pthread -fsanitize=thread -g prog.cpp -o prog &amp;&amp; ./prog    <span class="c"># busca carreras de datos</span></code></pre>
+<p><code>-fsanitize=thread</code> no se combina con <code>-fsanitize=address</code>: compila dos veces.
+<code>-std=c++20</code> solo hace falta por <code>jthread</code>; lo demás es C++11/17.</p>
+
+<h2>Hilos (<code>#include &lt;thread&gt;</code>)</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>thread t(f, a, b);</code></td><td>arranca <code>f(a, b)</code> en otro hilo; copia los argumentos</td></tr>
+<tr><td><code>thread t(f, ref(x));</code></td><td>pasa <code>x</code> por referencia (<code>&lt;functional&gt;</code>)</td></tr>
+<tr><td><code>thread t([&amp;] { ... });</code></td><td>con lambda; ojo con lo capturado por referencia</td></tr>
+<tr><td><code>t.join();</code></td><td>espera a que termine; obligatorio (si no, <code>std::terminate</code>)</td></tr>
+<tr><td><code>jthread j(f);</code></td><td>hace <code>join()</code> solo en su destructor (C++20)</td></tr>
+<tr><td><code>vector&lt;thread&gt; hs; hs.push_back(thread(f));</code></td><td>varios hilos; <code>thread</code> se mueve, no se copia</td></tr>
+<tr><td><code>thread::hardware_concurrency()</code></td><td>hilos simultáneos del hardware; pista; 0 si no lo sabe</td></tr>
+</table>
+
+<h2>Proteger datos compartidos (<code>#include &lt;mutex&gt;</code>)</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>mutex m;</code></td><td>un cerrojo: un hilo a la vez</td></tr>
+<tr><td><code>lock_guard&lt;mutex&gt; c(m);</code></td><td>cierra hasta el final del bloque (RAII)</td></tr>
+<tr><td><code>scoped_lock c(m1, m2);</code></td><td>cierra varios a la vez sin interbloqueo (C++17)</td></tr>
+<tr><td><code>unique_lock&lt;mutex&gt; c(m);</code></td><td>como <code>lock_guard</code>, pero con <code>unlock()</code>/<code>lock()</code>; lo pide <code>wait</code></td></tr>
+<tr><td><code>m.lock(); ... m.unlock();</code></td><td>a mano: evítalo (un <code>return</code> o una excepción lo deja cerrado)</td></tr>
+</table>
+
+<h2>Atómicos (<code>#include &lt;atomic&gt;</code>)</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>atomic&lt;int&gt; c = 0;</code></td><td>entero compartido sin mutex</td></tr>
+<tr><td><code>c++;</code> <code>c += 5;</code> <code>c.fetch_add(1);</code></td><td>sumas atómicas (un solo paso)</td></tr>
+<tr><td><code>c.load()</code> / <code>c.store(v)</code></td><td>leer / escribir atómicamente</td></tr>
+<tr><td><code>c = c + 1;</code></td><td>MAL: un <code>load</code> y un <code>store</code> separados; se pierden sumas</td></tr>
+<tr><td><code>memory_order_...</code></td><td>para expertos; por defecto <code>seq_cst</code>, el más seguro</td></tr>
+</table>
+
+<h2>Esperar un aviso (<code>#include &lt;condition_variable&gt;</code>)</h2>
+<pre><code><span class="c">// quien espera</span>
+unique_lock&lt;mutex&gt; candado(m);
+cv.wait(candado, [&amp;] { return !cola.empty() || cerrada; });   <span class="c">// SIEMPRE con condición y con salida</span>
+
+<span class="c">// quien avisa</span>
+{ lock_guard&lt;mutex&gt; candado(m); cola.push(x); }   <span class="c">// 1.º cambiar el dato, protegido</span>
+cv.notify_one();                                  <span class="c">// 2.º avisar (notify_all al cerrar)</span></code></pre>
+
+<h2>Resultados en paralelo (<code>#include &lt;future&gt;</code>)</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>future&lt;int&gt; f = async(launch::async, g, x);</code></td><td>calcula <code>g(x)</code> en otro hilo</td></tr>
+<tr><td><code>f.get()</code></td><td>espera y devuelve el valor; si <code>g</code> lanzó, relanza aquí; una sola vez</td></tr>
+<tr><td><code>f.wait_for(chrono::seconds(10))</code></td><td>espera con tiempo máximo; devuelve <code>future_status::ready</code> o <code>timeout</code></td></tr>
+<tr><td><code>async(launch::async, g);</code> sin guardar</td><td>MAL: el <code>future</code> temporal espera ahí mismo; queda secuencial</td></tr>
+</table>
+
+<h2>¿Cuál uso?</h2>
+<table>
+<tr><th>Necesitas</th><th>Usa</th></tr>
+<tr><td>calcular en paralelo y recoger un resultado</td><td><code>async</code> + <code>future</code></td></tr>
+<tr><td>un contador o bandera compartidos</td><td><code>atomic</code></td></tr>
+<tr><td>cambiar varios datos juntos</td><td><code>mutex</code> + <code>lock_guard</code> / <code>scoped_lock</code></td></tr>
+<tr><td>que un hilo espere a otro</td><td><code>condition_variable</code></td></tr>
+<tr><td>un hilo trabajador de larga vida</td><td><code>jthread</code></td></tr>
+</table>
+<p>Primero intenta <strong>no compartir</strong>: cada hilo con sus datos y un resultado al final.</p>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td>dos hilos escriben una variable sin protección</td><td>carrera de datos: comportamiento indefinido (puede «funcionar» con <code>-O2</code>)</td><td><code>mutex</code> o <code>atomic</code>; comprueba con <code>-fsanitize=thread</code></td></tr>
+<tr><td><code>thread</code> destruido sin <code>join()</code></td><td><code>std::terminate</code>: el programa aborta</td><td><code>join()</code> siempre, o <code>jthread</code></td></tr>
+<tr><td>dos mutex cerrados en orden distinto</td><td>interbloqueo: el programa se congela</td><td><code>scoped_lock(m1, m2)</code> o siempre el mismo orden</td></tr>
+<tr><td><code>wait</code> sin condición de salida</td><td>el hilo duerme para siempre</td><td>la condición incluye «terminado/cerrada» + <code>notify_all</code></td></tr>
+<tr><td>lambda con <code>[&amp;]</code> que vive más que la función</td><td>el hilo escribe en un marco ya liberado</td><td><code>join()</code> antes del <code>return</code></td></tr>
+<tr><td>capturar el índice del bucle por referencia</td><td>el hilo lee un índice que ya cambió</td><td>captura <code>i</code> por copia: <code>[&amp;v, i]</code></td></tr>
+</table>
+
+<p>Memoria: ver el <a href="memoria.html#hilos">mapa de la memoria</a> (cada hilo tiene su pila; el montón y la estática se comparten).</p>
+
+<p class="cita">Fuentes:
+<a href="https://en.cppreference.com/w/cpp/thread">cppreference — Concurrency support library</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/multithread">Multi-threaded executions and data races</a> ·
+<a href="https://en.cppreference.com/w/cpp/thread/scoped_lock">std::scoped_lock</a> ·
+<a href="https://en.cppreference.com/w/cpp/thread/condition_variable">std::condition_variable</a> ·
+<a href="https://en.cppreference.com/w/cpp/thread/async">std::async</a> ·
+<a href="https://en.cppreference.com/w/cpp/atomic/atomic">std::atomic</a> ·
+<a href="https://www.manning.com/books/c-plus-plus-concurrency-in-action-second-edition">Anthony Williams — C++ Concurrency in Action, 2.ª ed.</a> ·
+<a href="https://clang.llvm.org/docs/ThreadSanitizer.html">ThreadSanitizer</a></p>
+
+</main>
+</body>
+</html>

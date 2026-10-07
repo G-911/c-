@@ -1,0 +1,461 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lección 6.6 · Errores con garantías</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Nivel 6 · Avanzado › Lección 6 de 9</div>
+<h1>Errores con garantías</h1>
+<p class="subtitulo">Lanzar una excepción no basta: hay que dejar las cosas en buen estado. ~40 minutos.</p>
+
+<div class="logro">
+<p><strong>Al terminar podrás:</strong> decir qué garantía da una función cuando algo
+falla (básica, fuerte o <em>nothrow</em>), conseguir la fuerte con «copiar y luego
+intercambiar», explicar con un contador por qué <code>vector</code> copia en vez de mover
+si falta <code>noexcept</code>, y devolver errores sin excepciones con
+<code>std::expected</code> (C++23).</p>
+</div>
+
+<div class="nota">
+<p><strong>Antes de empezar:</strong> repite sin mirar el quiz de la
+<a href="05-biblioteca-moderna.html">lección 6.5 (biblioteca moderna)</a>.
+Recordar lo de ayer es lo que hace que se quede.</p>
+</div>
+
+<p><strong>Por qué.</strong> En la
+<a href="../nivel-4-intermedio-avanzado/04-excepciones.html">lección 4.4</a> aprendiste a
+lanzar y atrapar. Pero quedó una frase suelta: «se comprueba <em>antes</em> de tocar nada;
+si lanzas a mitad de cambio, la pila queda rota». Hoy esa frase se convierte en una
+herramienta. Es lo que separa código que «casi siempre funciona» de código en el que puedes
+confiar, y es exactamente lo que la biblioteca estándar promete en cada función.</p>
+
+<h2>1. El problema: fallar a mitad de camino</h2>
+
+<p>Esta función cobra <code>monto</code> a cada saldo. Si alguno no alcanza, lanza:</p>
+
+<pre><code>void cobrar(vector&lt;int&gt;&amp; saldos, int monto) {
+    for (int&amp; s : saldos) {
+        if (s &lt; monto) throw runtime_error("saldo insuficiente");
+        s -= monto;
+    }
+}
+
+vector&lt;int&gt; s = {10, 5, 8};
+try { cobrar(s, 6); } catch (const runtime_error&amp;) {}
+<span class="c">// s queda en {4, 5, 8}</span></code></pre>
+
+<p>Al primero ya le cobró; al segundo no pudo; al tercero ni llegó. No hay fugas y el
+<code>vector</code> funciona, pero quien atrapa el error no sabe a quién se le cobró. Un
+banco no puede vivir con eso.</p>
+
+<h2>2. Las cuatro garantías</h2>
+
+<p>Ante una excepción, cada función promete uno de estos niveles
+(<a href="https://www.learncpp.com/cpp-tutorial/exception-specifications-and-noexcept/">LearnCpp 27.9</a>,
+<a href="https://en.cppreference.com/w/cpp/language/exceptions#Exception_safety">cppreference</a>):</p>
+
+<table>
+<tr><th>Garantía</th><th>Si algo lanza...</th><th>Ejemplo</th></tr>
+<tr><td>sin garantía</td><td>puede haber fugas o objetos rotos</td><td>un <code>new</code> suelto antes de algo que lanza (4.4)</td></tr>
+<tr><td><strong>básica</strong></td><td>no hay fugas y todo sigue siendo válido, pero <em>puede haber cambiado</em></td><td><code>cobrar</code> de arriba</td></tr>
+<tr><td><strong>fuerte</strong></td><td>todo queda <em>exactamente</em> como antes de la llamada: o sale entera o no pasó nada</td><td><code>vector::push_back</code>; el <code>pop</code> de la 4.4</td></tr>
+<tr><td><strong>nothrow</strong></td><td>nunca lanza</td><td>destructores, <code>swap</code>, mover</td></tr>
+</table>
+
+<p>La básica es el mínimo exigible a cualquier función. La fuerte es la que quieres en las
+operaciones importantes. Y la <em>nothrow</em> es la pieza que hace posible la fuerte,
+como verás ahora.</p>
+
+<h2>3. Cómo conseguir la garantía fuerte</h2>
+
+<p>La receta tiene dos pasos: <strong>haz el trabajo en una copia</strong> (si algo falla,
+el original ni se entera) y <strong>confírmalo con algo que no puede fallar</strong>.</p>
+
+<pre><code>void cobrarFuerte(vector&lt;int&gt;&amp; saldos, int monto) {
+    vector&lt;int&gt; copia = saldos;          <span class="c">// 1. trabajar en una copia</span>
+    for (int&amp; s : copia) {
+        if (s &lt; monto) throw runtime_error("saldo insuficiente");
+        s -= monto;
+    }
+    saldos.swap(copia);                  <span class="c">// 2. confirmar: swap no lanza</span>
+}
+<span class="c">// con {10, 5, 8} y 6: lanza y s sigue en {10, 5, 8}</span></code></pre>
+
+<p>Si lanza en el bucle, lo que se pierde es la copia. Si llega al final, el
+<code>swap</code> solo intercambia los apuntadores internos de los dos vectores: no copia
+elementos y no puede fallar. Cuando se pueda, hay una forma aún más barata: comprobar
+<em>todo</em> antes de tocar <em>nada</em>, como el <code>pop</code> de la 4.4.</p>
+
+<div class="ojo">
+<p><strong>Error típico: el paso de confirmar puede fallar.</strong> Si en lugar de
+<code>swap</code> escribes <code>saldos = copia;</code>, eso copia otra vez los elementos
+y puede lanzar (por ejemplo, si se acaba la memoria): la garantía fuerte se pierde en la
+última línea. El paso final tiene que ser <em>nothrow</em>: <code>swap</code> o un
+movimiento <code>noexcept</code>.</p>
+</div>
+
+<h2>4. <code>noexcept</code>: la promesa de no lanzar</h2>
+
+<p><code>noexcept</code> (C++11) en una función le dice al compilador y a quien la llama:
+«esta función no lanza». Desde C++17 forma parte del tipo de la función.</p>
+
+<pre><code>void f() noexcept {}         <span class="c">// promete no lanzar</span>
+void g() {}                  <span class="c">// sin promesa</span>
+
+cout &lt;&lt; noexcept(f()) &lt;&lt; noexcept(g());   <span class="c">// 10: el operador noexcept pregunta (sin ejecutar)</span></code></pre>
+
+<p>¿Y si una función <code>noexcept</code> lanza de todos modos? No se atrapa: el programa
+llama a <code>std::terminate()</code> y se corta. g++ te avisa si lo ve venir:</p>
+
+<pre><code>void f() noexcept { throw runtime_error("x"); }
+<span class="c">// warning: ‘throw’ will always call ‘terminate’ [-Wterminate]</span>
+<span class="c">// al ejecutar: terminate called after throwing an instance of 'std::runtime_error'</span></code></pre>
+
+<p>¿Qué marcar con <code>noexcept</code>? Lo que de verdad no puede fallar: el constructor
+y la asignación de <strong>movimiento</strong>, <code>swap</code> e
+<code>intercambiar</code>. Los destructores ya lo son por defecto. No lo pongas «por si
+acaso» en funciones que hacen <code>new</code> o llaman a cosas que lanzan: quitarlo
+luego rompe a quien confiaba en la promesa (LearnCpp 27.9).</p>
+
+<h2>5. Por qué a <code>vector</code> le importa tanto (comprobado)</h2>
+
+<p>En la <a href="../nivel-4-intermedio-avanzado/07-semantica-de-movimiento.html">lección 4.7</a>
+leíste que <code>vector</code> solo mueve al crecer si el movimiento es
+<code>noexcept</code>. Vamos a verlo con un contador. Dos tipos iguales; solo cambia la
+palabra <code>noexcept</code>:</p>
+
+<pre><code>int copias = 0, movimientos = 0;
+
+struct ConNoexcept {
+    ConNoexcept() {}
+    ConNoexcept(const ConNoexcept&amp;) { copias++; }
+    ConNoexcept(ConNoexcept&amp;&amp;) noexcept { movimientos++; }   <span class="c">// promete no lanzar</span>
+};
+
+struct SinNoexcept {
+    SinNoexcept() {}
+    SinNoexcept(const SinNoexcept&amp;) { copias++; }
+    SinNoexcept(SinNoexcept&amp;&amp;) { movimientos++; }            <span class="c">// sin promesa</span>
+};
+
+template &lt;typename T&gt;
+void probar(const char* nombre) {
+    copias = movimientos = 0;
+    vector&lt;T&gt; v;
+    for (int i = 0; i &lt; 5; i++) v.push_back(T{});   <span class="c">// cada T{} entra moviéndose</span>
+    cout &lt;&lt; nombre &lt;&lt; ": " &lt;&lt; copias &lt;&lt; " copias, " &lt;&lt; movimientos &lt;&lt; " movimientos\n";
+}
+
+int main() {
+    probar&lt;ConNoexcept&gt;("con noexcept");
+    probar&lt;SinNoexcept&gt;("sin noexcept");
+}</code></pre>
+
+<p>Salida real (g++ 15, igual con <code>-std=c++17</code> y <code>-std=c++23</code>):</p>
+
+<pre><code>con noexcept: 0 copias, 12 movimientos
+sin noexcept: 7 copias, 5 movimientos</code></pre>
+
+<p>Las cuentas: los 5 <code>T{}</code> entran moviéndose (5). Al crecer, g++ duplica la
+capacidad (1 → 2 → 4 → 8), así que muda los elementos viejos tres veces: 1 + 2 + 4 = 7.
+<strong>Con <code>noexcept</code> esos 7 se mueven; sin él, se copian.</strong> Con una
+<code>Pila</code> de mil nodos, cada una de esas copias son mil <code>new</code>.</p>
+
+<p><strong>¿Por qué?</strong> Porque <code>push_back</code> promete la garantía fuerte
+(<a href="https://en.cppreference.com/w/cpp/container/vector/push_back">cppreference</a>).
+Imagina que muda 5 elementos y el 3.º falla:</p>
+<ul>
+<li><strong>Copiando</strong>, los originales siguen intactos: tira el bloque nuevo y el
+vector queda como estaba. Garantía fuerte.</li>
+<li><strong>Moviendo</strong>, el 1.º y el 2.º ya fueron «robados»: el bloque viejo está
+medio vacío. Devolverlos sería mover otra vez, y eso también podría fallar. No hay forma
+segura de deshacer.</li>
+</ul>
+<p>Así que <code>vector</code> pregunta: «¿tu movimiento promete no lanzar?». Si sí,
+mueve. Si no, copia para ir a lo seguro. Esa pregunta tiene nombre:
+<code>std::move_if_noexcept</code>
+(<a href="https://www.learncpp.com/cpp-tutorial/stdmove_if_noexcept/">LearnCpp 27.10</a>).
+Una excepción: si el tipo no se puede copiar (como <code>unique_ptr</code>), mueve
+igualmente y la garantía fuerte se pierde si ese movimiento lanza.</p>
+
+<h2>6. Copy-and-swap: un <code>operator=</code> con garantía fuerte</h2>
+
+<p>Vuelve al <code>operator=</code> de la
+<a href="../nivel-3-estructuras-de-datos/05-copiar-estructuras.html">lección 3.5</a>:
+comprobar <code>a = a</code>, <code>vaciar()</code> los nodos viejos y copiar los de
+<code>otra</code> con <code>new</code>. Si un <code>new</code> falla a mitad de la copia,
+tu lista ya perdió sus nodos y tiene solo parte de los nuevos. Garantía básica, como
+mucho.</p>
+
+<p>El idioma <strong>copy-and-swap</strong> (copiar e intercambiar) le da la vuelta. Para
+la <code>Pila</code> de la 4.7 (con <code>tope</code> y <code>n</code>):</p>
+
+<pre><code>void intercambiar(Pila&amp; otra) noexcept {
+    swap(tope, otra.tope);   <span class="c">// solo intercambia dos apuntadores...</span>
+    swap(n, otra.n);         <span class="c">// ...y dos int: no puede fallar</span>
+}
+
+Pila&amp; operator=(Pila otra) noexcept {   <span class="c">// por VALOR: al entrar, otra ya es la copia</span>
+    intercambiar(otra);                 <span class="c">// me quedo los nodos nuevos; otra, los viejos</span>
+    return *this;
+}                                       <span class="c">// otra muere aquí y libera los nodos VIEJOS</span></code></pre>
+
+<p>Tres ventajas de golpe
+(<a href="https://en.cppreference.com/w/cpp/language/operators">cppreference, «copy-and-swap idiom»</a>):</p>
+<ol>
+<li><strong>Garantía fuerte.</strong> Lo que puede fallar (copiar) ocurre al pasar el
+parámetro, antes de entrar. Si falla, <code>*this</code> ni se ha tocado.</li>
+<li><strong><code>a = a</code> funciona sin <code>if</code>.</strong> Se copia
+<code>a</code>, se intercambia y se libera lo viejo: el resultado es igual.</li>
+<li><strong>Sirve también para mover.</strong> Con <code>a = std::move(b);</code> el
+parámetro se construye moviendo (sin copiar nodos). Un solo <code>operator=</code> hace
+de los dos.</li>
+</ol>
+<p>El precio: siempre crea nodos nuevos, aunque <code>a</code> ya tuviera sitio para
+reutilizar. Para una lista enlazada da igual; para un <code>vector</code> grande, a veces
+importa.</p>
+
+<div class="ojo">
+<p><strong>Error típico: dejar también el <code>operator=(Pila&amp;&amp;)</code> de la
+4.7.</strong> Con los dos, <code>a = std::move(b);</code> encaja igual de bien en ambos y
+g++ no sabe cuál elegir:</p>
+<pre><code>error: ambiguous overload for ‘operator=’</code></pre>
+<p>Con copy-and-swap, el <code>operator=</code> por valor <em>sustituye</em> a los dos
+de antes (copia y movimiento). Los constructores de copia y de movimiento sí se quedan:
+son los que fabrican el parámetro.</p>
+</div>
+
+<h2>7. <code>std::expected</code>: el error como valor (C++23)</h2>
+
+<p>A veces el error no es excepcional: un dato mal escrito por el usuario, un archivo que
+falta. <code>expected&lt;T, E&gt;</code> (C++23, <code>&lt;expected&gt;</code>) guarda
+<em>o</em> un resultado de tipo <code>T</code>, <em>o</em> un error de tipo
+<code>E</code>. Es como el <code>optional</code> de la 6.5, pero cuando no hay valor te
+dice <strong>por qué</strong>.</p>
+
+<pre><code>#include &lt;expected&gt;
+
+expected&lt;int, string&gt; dividir(int a, int b) {
+    if (b == 0) return unexpected("división entre cero");   <span class="c">// el error</span>
+    return a / b;                                            <span class="c">// el valor</span>
+}
+
+auto r = dividir(7, 2);
+if (r) cout &lt;&lt; *r;               <span class="c">// 3</span>
+auto e = dividir(1, 0);
+if (!e) cout &lt;&lt; e.error();       <span class="c">// división entre cero</span>
+cout &lt;&lt; e.value_or(-1);          <span class="c">// -1</span></code></pre>
+
+<p>Igual que en <code>optional</code>: <code>*r</code> sin comprobar es comportamiento
+indefinido; <code>r.value()</code> lanza (<code>bad_expected_access</code>) si hay error.
+El error no se puede ignorar sin querer: para llegar al <code>int</code> tienes que
+mirar. Y se pasa hacia arriba a mano:</p>
+
+<pre><code>expected&lt;int, string&gt; media(const vector&lt;int&gt;&amp; v) {
+    int suma = 0;
+    for (int x : v) suma += x;
+    auto r = dividir(suma, (int)v.size());
+    if (!r) return unexpected(r.error());   <span class="c">// pasar el error a quien me llamó</span>
+    return *r;
+}
+<span class="c">// media({4, 6}) → 5      media({}) → error "división entre cero"</span></code></pre>
+
+<p>C++23 trae también <code>and_then</code> y <code>transform</code> para encadenar
+pasos sin tantos <code>if</code>; con lo de arriba te basta para empezar.</p>
+
+<table>
+<tr><th>Situación</th><th>Mejor</th></tr>
+<tr><td>no se puede seguir, y quien lo arregla está lejos (varias llamadas arriba)</td><td>excepción</td></tr>
+<tr><td>«no hay resultado» y no hace falta decir por qué</td><td><code>optional</code></td></tr>
+<tr><td>fallo esperable que quien llama debe tratar al momento, con su motivo</td><td><code>expected</code></td></tr>
+</table>
+
+<div class="enmemoria">
+<h3>¿Qué pasa en la memoria?</h3>
+<p>En <code>a = b;</code> con copy-and-swap, el parámetro <code>otra</code> nace en el
+<strong>marco</strong> de <code>operator=</code> (memoria automática o <em>stack</em>) y sus nodos
+nuevos, en el montón (<em>heap</em>). Durante un instante conviven los nodos viejos y los
+nuevos: es el precio de la garantía fuerte. El intercambio no mueve ni un nodo; solo cambia
+quién es el <strong>dueño</strong> de cada cadena:</p>
+<div class="memoria">
+  <div class="caja"><div class="nombre">a (en main)</div>tope →<div class="dir">nodos nuevos</div></div>
+  <div class="caja"><div class="nombre">otra (marco de operator=)</div>tope →<div class="dir">nodos viejos de a</div></div>
+  <div class="caja"><div class="nombre">al salir de operator=</div>~Pila()<div class="dir">libera los viejos</div></div>
+</div>
+<p>Es RAII haciendo de «deshacer»: si la copia falla, el destructor de lo ya construido limpia;
+si sale bien, el de <code>otra</code> se lleva lo viejo. Un detalle: si un
+<em>constructor</em> lanza a medias, su propio destructor no se ejecuta (el objeto nunca
+terminó de nacer). Por eso el constructor de copia del miniproyecto libera en su
+<code>catch</code> lo que ya había pedido.</p>
+<p class="ver-mas">Más en el <a href="../reference/memoria.html#raii">mapa de la memoria</a>.</p>
+</div>
+
+<h2>Resumen</h2>
+<table>
+<tr><th>Escribes / ves</th><th>Significa</th></tr>
+<tr><td>garantía básica</td><td>si falla: sin fugas, todo válido, quizá cambiado</td></tr>
+<tr><td>garantía fuerte</td><td>si falla: todo exactamente como antes</td></tr>
+<tr><td>garantía <em>nothrow</em></td><td>nunca falla (<code>swap</code>, mover, destructores)</td></tr>
+<tr><td>trabajar en una copia + <code>swap</code></td><td>la receta de la garantía fuerte</td></tr>
+<tr><td><code>void f() noexcept</code></td><td>promete no lanzar (C++11); si lanza, <code>terminate</code></td></tr>
+<tr><td><code>noexcept(f())</code></td><td>pregunta si <code>f()</code> puede lanzar</td></tr>
+<tr><td>movimiento sin <code>noexcept</code></td><td><code>vector</code> copia al crecer (7 copias de 12 en la prueba)</td></tr>
+<tr><td><code>T&amp; operator=(T otra) noexcept { intercambiar(otra); return *this; }</code></td><td>copy-and-swap: fuerte, sin <code>if</code>, copia y mueve</td></tr>
+<tr><td><code>expected&lt;int, string&gt;</code>, <code>unexpected("...")</code></td><td>valor o error con motivo (C++23)</td></tr>
+<tr><td><code>if (r)</code>, <code>*r</code>, <code>r.error()</code>, <code>r.value_or(x)</code></td><td>usar un <code>expected</code></td></tr>
+</table>
+
+<p>Todo esto, y lo de la lección 6.5, está en la
+<a href="../reference/biblioteca-moderna-y-errores.html">hoja de referencia de biblioteca moderna y errores</a>.</p>
+
+<h2>Comprueba lo que sabes</h2>
+<p>Responde <em>sin volver a mirar arriba</em>.</p>
+
+<div class="quiz">
+
+<div class="pregunta" data-correcta="1" data-explica="El primer <code>push_back</code> mueve el temporal (M). El segundo no cabe: g++ coloca el nuevo moviéndolo (M) y muda el viejo <em>copiándolo</em> (C), porque el movimiento no promete <code>noexcept</code>. Con <code>noexcept</code> saldría MMM.">
+<pre><code>struct Ficha {
+    Ficha() {}
+    Ficha(const Ficha&amp;) { cout &lt;&lt; "C"; }
+    Ficha(Ficha&amp;&amp;) { cout &lt;&lt; "M"; }   <span class="c">// sin noexcept</span>
+};
+vector&lt;Ficha&gt; v;
+v.push_back(Ficha{});
+v.push_back(Ficha{});</code></pre>
+<p>¿Qué muestra con g++?</p>
+<div class="opciones"><button>Muestra MMM</button><button>Muestra MMC</button><button>Muestra MM</button><button>Muestra MCC</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Una excepción no puede salir de una función <code>noexcept</code>: en vez de buscar el <code>catch</code>, C++ llama a <code>std::terminate()</code> y el programa se corta. Compila (con un aviso <code>-Wterminate</code>).">
+<pre><code>void f() noexcept { throw runtime_error("x"); }
+
+int main() {
+    try { f(); }
+    catch (...) { cout &lt;&lt; "atrapado"; }
+}</code></pre>
+<p>¿Qué pasa?</p>
+<div class="opciones"><button>Muestra atrapado y sigue</button><button>No compila el throw</button><button>No muestra nada nunca</button><button>Se llama a terminate</button></div>
+</div>
+
+<div class="pregunta" data-correcta="0" data-explica="A 10 le cobra 6 (queda 4). Con 5 no alcanza: lanza. El 8 ni se toca. Es la garantía <em>básica</em>: todo válido, pero ya cambió. La versión fuerte trabajaría en una copia.">
+<pre><code>void cobrar(vector&lt;int&gt;&amp; saldos, int monto) {
+    for (int&amp; s : saldos) {
+        if (s &lt; monto) throw runtime_error("no alcanza");
+        s -= monto;
+    }
+}
+vector&lt;int&gt; s = {10, 5, 8};
+try { cobrar(s, 6); } catch (...) {}
+for (int x : s) cout &lt;&lt; x &lt;&lt; " ";</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 4 5 8</button><button>Muestra 10 5 8</button><button>Muestra 4 -1 8</button><button>Muestra 4 -1 2</button></div>
+</div>
+
+<div class="pregunta" data-correcta="2" data-explica="Al pasar <code>a</code> por valor se hace una copia completa. Luego se intercambia y la copia (con los nodos viejos) se libera al salir. <code>a</code> termina con los mismos datos: no hace falta el <code>if (this == &amp;otra)</code>.">
+<pre><code>Pila&amp; operator=(Pila otra) noexcept {
+    intercambiar(otra);
+    return *this;
+}
+<span class="c">// ...</span>
+a = a;</code></pre>
+<p>¿Qué pasa con <code>a = a</code>?</p>
+<div class="opciones"><button>Provoca un doble delete</button><button>Borra todos sus nodos</button><button>Funciona bien, copia primero</button><button>Entra en bucle infinito</button></div>
+</div>
+
+<div class="pregunta" data-correcta="1" data-explica="<code>b</code> es 0, así que <code>dividir</code> devuelve el error. <code>if (r)</code> es falso y se imprime <code>r.error()</code>: «cero». No lanza: con <code>expected</code> el error es un valor.">
+<pre><code>expected&lt;int, string&gt; dividir(int a, int b) {
+    if (b == 0) return unexpected("cero");
+    return a / b;
+}
+auto r = dividir(1, 0);
+if (r) cout &lt;&lt; *r;
+else   cout &lt;&lt; r.error();</code></pre>
+<p>¿Qué muestra?</p>
+<div class="opciones"><button>Muestra 0</button><button>Muestra cero</button><button>Muestra 1</button><button>Lanza excepción</button></div>
+</div>
+
+<div class="pregunta" data-correcta="3" data-explica="Repaso de la lección 3.5: sin constructor de copia propio, C++ copia el apuntador <code>cabeza</code>, no los nodos (copia superficial). Al morir, <code>b</code> y <code>a</code> liberan la misma cadena: doble <code>delete</code>.">
+<p><strong>Repaso (3.5).</strong> <code>ListaEnlazada</code> hace <code>new</code> al
+insertar y libera sus nodos en el destructor, pero no tiene constructor de copia ni
+<code>operator=</code> propios.</p>
+<pre><code>ListaEnlazada a;
+a.insertarAlInicio(7);
+ListaEnlazada b = a;</code></pre>
+<p>¿Qué falla?</p>
+<div class="opciones"><button>Se fuga cada nodo</button><button>No compila la copia</button><button>Copia todos los nodos</button><button>Doble delete al final</button></div>
+</div>
+
+<p class="marcador"></p>
+</div>
+
+<h2>Miniproyecto 6.6 · Un vector que no se rompe</h2>
+
+<p>Abre <a href="ejercicios/06-errores-con-garantias.cpp"><code>ejercicios/06-errores-con-garantias.cpp</code></a>.
+Trae una <code>Pieza</code> que cuenta sus copias (y que las pruebas pueden hacer fallar a
+propósito) y un <code>VectorPiezas</code> a medio hacer. Completa:</p>
+
+<ol>
+<li><code>noexcept</code> en el constructor y la asignación de movimiento de
+<code>Pieza</code>.</li>
+<li><code>crecer()</code> con garantía fuerte: bloque nuevo, pasar con
+<code>move_if_noexcept</code>, y si algo lanza, liberar lo nuevo y relanzar.</li>
+<li><code>push_back</code> con garantía fuerte. El orden importa: la prueba
+<code>w.push_back(w[0])</code> con el vector lleno falla si creces antes de copiar
+(lees un elemento del bloque que acabas de liberar).</li>
+<li><code>intercambiar</code> y el <code>operator=</code> por copy-and-swap.</li>
+<li><code>dividir</code> con <code>expected</code> y <code>describir</code>, que
+lo usa.</li>
+</ol>
+
+<p>Compílalo desde la carpeta <code>ejercicios</code> (C++23 por
+<code>&lt;expected&gt;</code>):</p>
+<pre><code>g++ -std=c++23 -Wall -pthread 06-errores-con-garantias.cpp -o prog &amp;&amp; ./prog</code></pre>
+
+<p>Al principio verás casi todo en ✗. Terminaste cuando salgan todas en ✓. Unos 20
+minutos. Si quieres ver el error del orden de <code>push_back</code> con tus propios ojos,
+compílalo mal a propósito con <code>-fsanitize=address -g</code>: avisa de
+<em>heap-use-after-free</em>.</p>
+
+<div class="nota">
+<p><strong>Si te atascas:</strong> <code>push_back</code> son cuatro líneas:
+<code>Pieza copia = x;</code>, <code>if (n == cap) crecer();</code>,
+<code>datos[n] = std::move(copia);</code> y <code>n++;</code>. El
+<code>operator=</code> son dos: <code>intercambiar(otro);</code> y
+<code>return *this;</code>. Si la prueba de las «5 copias» falla, revisa el paso 1.
+La solución está en <a href="soluciones/06-errores-con-garantias.cpp"><code>soluciones/06-errores-con-garantias.cpp</code></a>;
+ábrela solo después de intentarlo de verdad.</p>
+</div>
+
+<h2>Para leer después</h2>
+<p><strong>Fuente principal:</strong>
+<a href="https://www.learncpp.com/cpp-tutorial/exception-specifications-and-noexcept/">LearnCpp — 27.9 Exception specifications and noexcept</a>
+(en inglés). Lee desde «The noexcept specifier» hasta el final de «Exception safety
+guarantees». Unos 15 minutos. Luego, la continuación natural:
+<a href="https://www.learncpp.com/cpp-tutorial/stdmove_if_noexcept/">27.10 std::move_if_noexcept</a>
+(es la sección 5 de esta lección, contada por ellos). LearnCpp no cubre
+<code>expected</code>: está en
+<a href="https://en.cppreference.com/w/cpp/utility/expected">cppreference — std::expected</a>
+(mira el ejemplo del final). Las garantías, en una lista corta:
+<a href="https://en.cppreference.com/w/cpp/language/exceptions#Exception_safety">cppreference — Exception safety</a>.</p>
+
+<div class="nota">
+<p><strong>¿Algo no quedó claro?</strong> Pregúntame en el chat lo que sea:
+una línea que no entiendes, un error de compilación o «explícamelo de otra
+forma». Para eso estoy.</p>
+</div>
+
+<footer>
+<a href="../index.html">← Volver a la guía</a> ·
+<a href="05-biblioteca-moderna.html">← Lección anterior</a> ·
+<a href="07-diseno.html">Siguiente: Lección 6.7 · Diseño →</a>
+</footer>
+
+</main>
+<script src="../assets/quiz.js"></script>
+</body>
+</html>

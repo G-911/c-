@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Diseño y rendimiento</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Diseño y rendimiento</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones 6.7 y 6.8.</p>
+
+<h2>Principios</h2>
+<table>
+<tr><th>Principio</th><th>Pregunta para comprobarlo</th></tr>
+<tr><td>Responsabilidad única</td><td>¿puedo decir qué hace la clase sin usar «y»?</td></tr>
+<tr><td>Composición antes que herencia</td><td>¿de verdad quiero <em>todo</em> lo de la base? Si no: un atributo</td></tr>
+<tr><td>No abusar de patrones</td><td>¿ya tengo el segundo caso? Si no, todavía no hace falta</td></tr>
+</table>
+
+<h2>Patrones</h2>
+<table>
+<tr><th>Patrón</th><th>Para qué</th><th>Esqueleto en C++</th></tr>
+<tr><td>Estrategia</td><td>cambiar el algoritmo sin tocar la clase</td><td><code>class Descuento { virtual double aplicar(double) const = 0; };</code> + <code>unique_ptr&lt;Descuento&gt;</code> dentro de la clase</td></tr>
+<tr><td>Fábrica</td><td>crear sin nombrar la clase concreta</td><td><code>unique_ptr&lt;Base&gt; crear(const string&amp; tipo)</code>; <code>nullptr</code> si no sabe</td></tr>
+<tr><td>Observador</td><td>avisar a quien se apuntó</td><td><code>vector&lt;function&lt;void(T)&gt;&gt; obs;</code> y <code>for (auto&amp; f : obs) f(x);</code></td></tr>
+<tr><td>RAII</td><td>«antes y después» garantizados</td><td>constructor toma, destructor suelta (también al lanzar)</td></tr>
+</table>
+
+<h2>Técnicas de C++</h2>
+
+<h3>PIMPL</h3>
+<pre><code><span class="c">// x.h</span>
+class X {
+public:
+    X();
+    ~X();                          <span class="c">// SOLO declarado aquí</span>
+    X(X&amp;&amp;) noexcept;
+    X&amp; operator=(X&amp;&amp;) noexcept;
+private:
+    struct Impl;                   <span class="c">// declarada, no definida</span>
+    std::unique_ptr&lt;Impl&gt; impl;
+};
+
+<span class="c">// x.cpp</span>
+struct X::Impl { <span class="c">/* los atributos de verdad */</span> };
+X::X() : impl(std::make_unique&lt;Impl&gt;()) {}
+X::~X() = default;                 <span class="c">// aquí Impl ya está completa</span>
+X::X(X&amp;&amp;) noexcept = default;
+X&amp; X::operator=(X&amp;&amp;) noexcept = default;</code></pre>
+<p>Si pones <code>~X() = default;</code> en el <code>.h</code>: <em>invalid application of ‘sizeof’ to incomplete type</em>.</p>
+
+<h3>CRTP</h3>
+<pre><code>template &lt;typename D&gt;
+class Base {
+public:
+    void comun() const { static_cast&lt;const D&amp;&gt;(*this).concreto(); }
+};
+class Hija : public Base&lt;Hija&gt; {   <span class="c">// se pasa a sí misma</span>
+public:
+    void concreto() const { <span class="c">/* ... */</span> }
+};</code></pre>
+<p>Sin <code>virtual</code>, se resuelve al compilar. Pero <code>Base&lt;A&gt;</code> y <code>Base&lt;B&gt;</code> son tipos distintos: no van en el mismo <code>vector</code>.</p>
+
+<h3><em>Type erasure</em></h3>
+<pre><code>class Dibujable {
+    struct Concepto { virtual ~Concepto() = default; virtual void dibujar() const = 0; };
+    template &lt;typename T&gt; struct Modelo : Concepto {
+        T obj;
+        Modelo(T o) : obj(std::move(o)) {}
+        void dibujar() const override { obj.dibujar(); }
+    };
+    std::unique_ptr&lt;Concepto&gt; caja;
+public:
+    template &lt;typename T&gt; Dibujable(T o) : caja(std::make_unique&lt;Modelo&lt;T&gt;&gt;(std::move(o))) {}
+    void dibujar() const { caja-&gt;dibujar(); }
+};</code></pre>
+<p>Ejemplo listo para usar: <code>std::function&lt;R(Args...)&gt;</code> guarda funciones, lambdas y objetos con <code>operator()</code>.</p>
+
+<table>
+<tr><th>Quiero polimorfismo...</th><th>Uso</th></tr>
+<tr><td>al ejecutar, con jerarquía de clases</td><td><code>virtual</code> + apuntador a la base</td></tr>
+<tr><td>al compilar, sin coste en ejecución</td><td>CRTP o plantillas</td></tr>
+<tr><td>al ejecutar, sin obligar a heredar</td><td><em>type erasure</em> (<code>std::function</code>)</td></tr>
+</table>
+
+<h2>Comportamiento indefinido (UB)</h2>
+<table>
+<tr><th>UB</th><th>Ejemplo</th><th>Arreglo</th><th>Lo caza</th></tr>
+<tr><td>desborde con signo</td><td><code>int s = a + b;</code></td><td>sumar en <code>long long</code> <em>antes</em>: <code>static_cast&lt;long long&gt;(a) + b</code></td><td><code>-fsanitize=undefined</code></td></tr>
+<tr><td>fuera de rango</td><td><code>for (i = 0; i &lt;= n; i++) a[i]</code></td><td><code>i &lt; n</code>, <code>at()</code> o <code>for</code> de rango</td><td>UBSan (arreglos de tamaño conocido); ASan (montón); g++ 15 con <code>-O0</code> en <code>vector</code></td></tr>
+<tr><td>usar tras liberar</td><td><code>const int&amp; r = v[0]; v.push_back(x); r</code></td><td>copiar el valor; no guardar referencias a un contenedor que crece</td><td><code>-fsanitize=address</code></td></tr>
+<tr><td>desreferenciar <code>nullptr</code></td><td><code>p-&gt;dato</code> con <code>p == nullptr</code></td><td>comprobar antes</td><td>UBSan, ASan</td></tr>
+<tr><td>carrera de datos</td><td>dos hilos, una variable, sin <code>mutex</code></td><td><code>mutex</code>, <code>atomic</code></td><td><code>-fsanitize=thread</code> (no junto a <code>address</code>)</td></tr>
+</table>
+
+<pre><code>g++ -std=c++17 -Wall -g -fsanitize=address,undefined x.cpp -o prog   <span class="c"># desarrollar y probar</span>
+g++ -std=c++17 -Wall -O2 x.cpp -o prog                               <span class="c"># velocidad, cuando ya no hay UB</span></code></pre>
+<p>Con UB, <code>-O0</code> y <code>-O2</code> pueden dar resultados distintos, y los dos son «válidos».
+El compilador supone que el UB nunca ocurre.</p>
+
+<h2>Rendimiento</h2>
+<table>
+<tr><th>Regla</th><th>Por qué</th></tr>
+<tr><td>prefiere <code>vector</code></td><td>memoria contigua: cada línea de caché (normalmente 64 bytes) trae varios elementos</td></tr>
+<tr><td>matriz: <code>m[f][c]</code> con <code>c</code> en el bucle de dentro</td><td>recorre cada fila seguida</td></tr>
+<tr><td><code>list</code> solo si de verdad insertas/borras en medio mucho</td><td>cada nodo es un bloque suelto del montón</td></tr>
+<tr><td>misma O grande ≠ mismo tiempo</td><td>el orden de acceso a memoria puede dar ×10 o más</td></tr>
+</table>
+
+<h3>Medir</h3>
+<pre><code>#include &lt;chrono&gt;
+auto t0 = chrono::steady_clock::now();
+resultado = trabajo();
+auto t1 = chrono::steady_clock::now();
+double ms = chrono::duration&lt;double, milli&gt;(t1 - t0).count();</code></pre>
+<ol>
+<li>Compila con <code>-O2</code>.</li>
+<li>Repite (5–10 veces) y quédate con la mediana.</li>
+<li>Usa el resultado (imprímelo), o el optimizador puede borrar el trabajo.</li>
+</ol>
+<p>Perfilar (opcional): <code>g++ -O2 -pg x.cpp -o prog &amp;&amp; ./prog &amp;&amp; gprof -b prog gmon.out</code>.
+<code>perf</code> necesita permisos del sistema.</p>
+
+<p>Memoria: ver el <a href="memoria.html#monton">mapa de la memoria (montón)</a> y la <a href="memoria.html#cache">caché</a>.</p>
+
+<p class="cita">Fuentes:
+<a href="https://refactoring.guru/es/design-patterns">Refactoring.Guru — Patrones de diseño</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/pimpl">cppreference — PImpl</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/crtp">CRTP</a> ·
+<a href="https://en.cppreference.com/w/cpp/utility/functional/function">std::function</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/ub">Undefined behavior</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/composition/">LearnCpp — Composition</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/timing-your-code/">Timing your code</a> ·
+<a href="https://gcc.gnu.org/onlinedocs/gcc/Instrumentation-Options.html">GCC — Instrumentation Options</a> ·
+<a href="https://gcc.gnu.org/gcc-15/changes.html">GCC 15 — Changes</a></p>
+
+</main>
+</body>
+</html>

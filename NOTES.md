@@ -13,3 +13,15 @@
   y solución en `soluciones/` para cuando estudia solo y se atasca.
 - Convenciones de nombres fijadas para todo el curso (Nodo/dato/siguiente, ListaEnlazada/cabeza,
   Pila/tope/push/pop/top, Cola/frente/final/encolar/desencolar/verFrente). Respetarlas en lo que se añada.
+
+## 2026-10-07
+- Pidió llegar a nivel AVANZADO: se añadieron el Nivel 5 (estructuras de datos II, 7 lecciones) y el
+  Nivel 6 (avanzado, 9 lecciones). Curso total: 48 lecciones, 25 hojas de referencia.
+- Pidió explícitamente usar la extensión /teach para esto (solo la puede activar él).
+- Convenciones nuevas: NodoArbol/ArbolBusqueda/raiz (altura cuenta NODOS: vacío 0, hoja 1),
+  NodoAVL/ArbolAVL, Monticulo, TablaHash, Grafo. «Montículo» (estructura) ≠ «montón» (memoria).
+- El Nivel 6 compila con el estándar MÍNIMO que necesita cada lección (C++17/20/23, -pthread);
+  el comando está en la cabecera de cada ejercicio. El ejercicio 6.8 vacío NO se compila con -O2
+  (el UB lo hace entrar en bucle; está documentado a propósito).
+- Herramientas en esta máquina: g++ 15.2, cmake, gdb, gprof. NO: valgrind, clang-tidy, perf (sin permisos).
+- Sigue sin haber evidencia de lo aprendido: cuando haga ejercicios o pregunte, escribir learning-records.

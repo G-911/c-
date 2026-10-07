@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referencia · Biblioteca moderna y errores</title>
+<link rel="stylesheet" href="../assets/estilo.css">
+</head>
+<body>
+<main>
+
+<div class="migas"><a href="../index.html">Guía</a> › Referencia</div>
+<h1>Biblioteca moderna y errores</h1>
+<p class="subtitulo">Hoja de consulta rápida de las lecciones
+<a href="../nivel-6-avanzado/05-biblioteca-moderna.html">6.5</a> y
+<a href="../nivel-6-avanzado/06-errores-con-garantias.html">6.6</a>.
+Compila con <code>g++ -std=c++23 -Wall</code>: sin <code>-std</code>, g++ 15 usa C++17.</p>
+
+<h2>¿Qué estándar pide cada herramienta?</h2>
+<table>
+<tr><th>Herramienta</th><th>Cabecera</th><th>Desde</th></tr>
+<tr><td><code>noexcept</code>, <code>std::move_if_noexcept</code></td><td>(palabra clave), <code>&lt;utility&gt;</code></td><td>C++11</td></tr>
+<tr><td><code>optional</code></td><td><code>&lt;optional&gt;</code></td><td>C++17</td></tr>
+<tr><td><code>variant</code>, <code>visit</code>, <code>holds_alternative</code>, <code>get_if</code></td><td><code>&lt;variant&gt;</code></td><td>C++17</td></tr>
+<tr><td><code>string_view</code></td><td><code>&lt;string_view&gt;</code></td><td>C++17</td></tr>
+<tr><td><code>span</code></td><td><code>&lt;span&gt;</code></td><td>C++20</td></tr>
+<tr><td><code>format</code></td><td><code>&lt;format&gt;</code></td><td>C++20</td></tr>
+<tr><td>ranges: <code>ranges::sort</code>, <code>views::filter</code>/<code>transform</code>/<code>take</code></td><td><code>&lt;ranges&gt;</code>, <code>&lt;algorithm&gt;</code></td><td>C++20</td></tr>
+<tr><td><code>print</code>, <code>println</code></td><td><code>&lt;print&gt;</code></td><td>C++23</td></tr>
+<tr><td><code>ranges::to</code></td><td><code>&lt;ranges&gt;</code></td><td>C++23</td></tr>
+<tr><td><code>expected</code>, <code>unexpected</code></td><td><code>&lt;expected&gt;</code></td><td>C++23</td></tr>
+</table>
+
+<h2><code>optional</code>: un valor o nada</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>optional&lt;int&gt; f() { ... return nullopt; }</code></td><td>devuelve «nada»</td></tr>
+<tr><td><code>if (r)</code> / <code>r.has_value()</code></td><td>¿hay valor?</td></tr>
+<tr><td><code>*r</code></td><td>el valor, sin comprobar (vacío = comportamiento indefinido)</td></tr>
+<tr><td><code>r.value()</code></td><td>el valor; vacío lanza <code>bad_optional_access</code></td></tr>
+<tr><td><code>r.value_or(-1)</code></td><td>el valor, o <code>-1</code> si no hay</td></tr>
+</table>
+
+<h2><code>variant</code> y <code>visit</code>: una cosa u otra</h2>
+<pre><code>using Figura = variant&lt;Circulo, Rectangulo&gt;;
+struct CalculaArea {                                  <span class="c">// un operator() por tipo</span>
+    double operator()(const Circulo&amp; c) const    { return 3.14159 * c.radio * c.radio; }
+    double operator()(const Rectangulo&amp; r) const { return r.ancho * r.alto; }
+};
+Figura f = Rectangulo{2, 3};
+visit(CalculaArea{}, f);          <span class="c">// 6; si falta un operator(), no compila</span>
+f.index();                        <span class="c">// qué tipo guarda (desde 0)</span>
+holds_alternative&lt;Circulo&gt;(f);    <span class="c">// ¿guarda un Circulo?</span>
+get&lt;Rectangulo&gt;(f);               <span class="c">// el valor; tipo equivocado lanza bad_variant_access</span>
+get_if&lt;Rectangulo&gt;(&amp;f);           <span class="c">// apuntador, o nullptr si no es ese tipo</span></code></pre>
+
+<h2>Vistas: <code>string_view</code>, <code>span</code>, ranges</h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>void f(string_view s)</code></td><td>acepta <code>string</code> o <code>"..."</code> sin copiar</td></tr>
+<tr><td><code>s.substr(1, 3)</code>, <code>s.remove_prefix(1)</code></td><td>otra vista / avanzar la vista, sin copiar</td></tr>
+<tr><td><code>int sumar(span&lt;const int&gt; d)</code></td><td>acepta arreglo o <code>vector</code>; <code>d.size()</code>, <code>d[i]</code></td></tr>
+<tr><td><code>d.first(2)</code>, <code>d.subspan(1)</code></td><td>los 2 primeros / desde el 1, sin copiar</td></tr>
+<tr><td><code>ranges::sort(v);</code></td><td>ordenar sin <code>begin</code>/<code>end</code></td></tr>
+<tr><td><code>v | views::filter(p) | views::transform(f) | views::take(n)</code></td><td>tubería perezosa: calcula al recorrerla</td></tr>
+<tr><td><code>vista | ranges::to&lt;vector&gt;()</code></td><td>convierte la vista en <code>vector</code> (C++23)</td></tr>
+</table>
+<p><strong>Ninguna vista es dueña.</strong> Si el texto o el vector muere (o el vector crece
+y muda sus datos), la vista cuelga. Úsalas como parámetros, no para guardar.</p>
+
+<h2><code>format</code> y <code>print</code></h2>
+<table>
+<tr><th>Escribes</th><th>Resultado</th></tr>
+<tr><td><code>format("{} tiene {} años", "Ana", 20)</code></td><td><code>Ana tiene 20 años</code></td></tr>
+<tr><td><code>format("{:.2f}", 3.14159)</code></td><td><code>3.14</code></td></tr>
+<tr><td><code>format("[{:&gt;5}]", 42)</code> / <code>"[{:&lt;5}]"</code></td><td><code>[   42]</code> / <code>[42   ]</code></td></tr>
+<tr><td><code>println("{} + {} = {}", 2, 3, 5);</code></td><td>imprime <code>2 + 3 = 5</code> y salta de línea</td></tr>
+</table>
+<p>Más huecos que valores: no compila.</p>
+
+<h2>Las garantías ante excepciones</h2>
+<table>
+<tr><th>Garantía</th><th>Si algo lanza...</th><th>Ejemplo</th></tr>
+<tr><td>básica</td><td>sin fugas, todo válido, quizá cambiado</td><td>cobrar a mitad de un bucle</td></tr>
+<tr><td>fuerte</td><td>todo exactamente como antes</td><td><code>vector::push_back</code></td></tr>
+<tr><td><em>nothrow</em></td><td>nunca lanza</td><td>destructores, <code>swap</code>, mover</td></tr>
+</table>
+<p><strong>Receta de la fuerte:</strong> trabajar en una copia y confirmar con algo
+<em>nothrow</em> (<code>swap</code>, mover <code>noexcept</code>). O comprobar todo antes
+de tocar nada.</p>
+
+<h2><code>noexcept</code></h2>
+<table>
+<tr><th>Escribes</th><th>Significa</th></tr>
+<tr><td><code>Pila(Pila&amp;&amp; o) noexcept</code></td><td>promete no lanzar; si lanza: <code>std::terminate()</code></td></tr>
+<tr><td><code>noexcept(f())</code></td><td><code>true</code> si <code>f()</code> no puede lanzar (no la ejecuta)</td></tr>
+<tr><td><code>is_nothrow_move_constructible_v&lt;T&gt;</code></td><td>¿mover un <code>T</code> es <code>noexcept</code>?</td></tr>
+<tr><td><code>move_if_noexcept(x)</code></td><td>mueve si es <code>noexcept</code>; si no, copia</td></tr>
+</table>
+<p>Prueba de la lección 6.6 (5 <code>push_back</code>, g++ 15):
+<code>con noexcept: 0 copias, 12 movimientos</code> ·
+<code>sin noexcept: 7 copias, 5 movimientos</code>.</p>
+
+<h2>Copy-and-swap</h2>
+<pre><code>void intercambiar(Pila&amp; otra) noexcept {
+    swap(tope, otra.tope);
+    swap(n, otra.n);
+}
+Pila&amp; operator=(Pila otra) noexcept {   <span class="c">// por VALOR: ya copiado (o movido)</span>
+    intercambiar(otra);
+    return *this;
+}                                       <span class="c">// otra libera lo viejo al morir</span></code></pre>
+<p>Garantía fuerte, <code>a = a</code> sin <code>if</code>, y hace de asignación por copia
+y por movimiento. No lo combines con <code>operator=(Pila&amp;&amp;)</code>:
+<em>ambiguous overload</em>.</p>
+
+<h2><code>expected</code>: valor o error con motivo</h2>
+<pre><code>expected&lt;int, string&gt; dividir(int a, int b) {
+    if (b == 0) return unexpected("división entre cero");
+    return a / b;
+}
+auto r = dividir(1, 0);
+if (r) cout &lt;&lt; *r;               <span class="c">// el valor</span>
+else   cout &lt;&lt; r.error();        <span class="c">// el motivo</span>
+r.value_or(-1);                  <span class="c">// valor o -1</span>
+r.value();                       <span class="c">// con error: lanza bad_expected_access</span>
+if (!r) return unexpected(r.error());   <span class="c">// pasar el error hacia arriba</span></code></pre>
+
+<h2>¿Excepción, <code>optional</code> o <code>expected</code>?</h2>
+<table>
+<tr><th>Situación</th><th>Usa</th></tr>
+<tr><td>no se puede seguir y quien lo arregla está lejos</td><td>excepción</td></tr>
+<tr><td>«no hay resultado», sin motivo que contar</td><td><code>optional</code></td></tr>
+<tr><td>fallo esperable que se trata al momento, con su motivo</td><td><code>expected</code></td></tr>
+</table>
+
+<h2>Errores típicos</h2>
+<table>
+<tr><th>Error</th><th>Qué pasa</th><th>Cómo evitarlo</th></tr>
+<tr><td><code>*r</code> con un <code>optional</code> o <code>expected</code> sin valor</td><td>comportamiento indefinido</td><td><code>if (r)</code> antes, o <code>value_or</code></td></tr>
+<tr><td><code>string_view sv = funcionQueDevuelveString();</code></td><td>la vista mira un texto muerto; compila sin aviso</td><td>guardar en <code>string</code>; vistas solo como parámetros</td></tr>
+<tr><td>compilar sin <code>-std=c++23</code></td><td><em>‘println’ is not a member of ‘std’</em></td><td><code>-std=c++23</code> (o <code>-std=c++20</code> si no usas <code>print</code>/<code>expected</code>/<code>ranges::to</code>)</td></tr>
+<tr><td>movimiento sin <code>noexcept</code></td><td><code>vector</code> copia al crecer</td><td>marcar <code>noexcept</code> el constructor y la asignación de movimiento</td></tr>
+<tr><td><code>throw</code> dentro de una función <code>noexcept</code></td><td><code>std::terminate()</code>; ningún <code>catch</code> lo atrapa</td><td><code>noexcept</code> solo en lo que no puede fallar</td></tr>
+<tr><td>crecer antes de copiar en <code>push_back(v[0])</code></td><td>lee del bloque ya liberado</td><td>copiar primero, crecer después</td></tr>
+<tr><td>confirmar con <code>=</code> en vez de <code>swap</code></td><td>la última copia puede lanzar: adiós garantía fuerte</td><td>el paso final siempre <em>nothrow</em></td></tr>
+</table>
+
+<p>Memoria: ver el <a href="memoria.html#vida">mapa de la memoria (tiempo de vida)</a> y
+<a href="memoria.html#raii">RAII</a>.</p>
+
+<p class="cita">Fuentes:
+<a href="https://www.learncpp.com/cpp-tutorial/stdoptional/">LearnCpp 12.15 — std::optional</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/introduction-to-stdstring_view/">5.8 — std::string_view</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/exception-specifications-and-noexcept/">27.9 — noexcept</a> ·
+<a href="https://www.learncpp.com/cpp-tutorial/stdmove_if_noexcept/">27.10 — std::move_if_noexcept</a> ·
+<a href="https://en.cppreference.com/w/cpp/utility/variant">cppreference — variant</a> ·
+<a href="https://en.cppreference.com/w/cpp/container/span">span</a> ·
+<a href="https://en.cppreference.com/w/cpp/utility/format/format">format</a> ·
+<a href="https://en.cppreference.com/w/cpp/io/print">print</a> ·
+<a href="https://en.cppreference.com/w/cpp/ranges">ranges</a> ·
+<a href="https://en.cppreference.com/w/cpp/utility/expected">expected</a> ·
+<a href="https://en.cppreference.com/w/cpp/language/exceptions#Exception_safety">Exception safety</a></p>
+
+</main>
+</body>
+</html>
